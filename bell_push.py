@@ -7,7 +7,7 @@ from pprint import pprint
 
 import pyzx as zx
 
-from code_examples import *
+# from code_examples import *
 
 # Global counter for unique gate IDs
 _id_counter = count()
@@ -562,18 +562,10 @@ class Circuit:
 
 
 def steane_code():
-    h1, cnots_list, h2 = steane_code_gates()
+    h1 = [0, 4, 6]
+    cnots_list = [[0, 1], [4, 5], [6, 3], [6, 5], [4, 2], [0, 3], [4, 1], [3, 2], [1, 7], [3, 7], [5, 7]]
+    h2 = []
     return Circuit.from_list(7, 8, h1, h2, cnots_list)
-
-
-def code_15_7_3():
-    h1, cnots_list, h2 = code_15_7_3_gates()
-    return Circuit.from_list(15, 17, h1, h2, cnots_list)
-
-
-def code_8_3_2():
-    h1, cnots_list, h2 = code_8_3_2_gates()
-    return Circuit.from_list(8, 8, h1, h2, cnots_list)
 
 
 def test_manual_bell_bend():
@@ -618,4 +610,4 @@ def test_greedy_opt(code):
 
 
 if __name__ == "__main__":
-    test_greedy_opt(code_15_7_3)
+    test_greedy_opt(steane_code)

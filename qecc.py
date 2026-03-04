@@ -5,10 +5,15 @@ import json
 from collections import defaultdict
 from dataclasses import dataclass
 from enum import Enum
+from typing import Iterator
 
+import stimcirq
+from cirq.contrib.qasm_import import circuit_from_qasm
 import numpy as np
 import pyzx as zx
 import stim
+
+from verify_fault_tolerance import explode_circuit
 
 
 class Basis(Enum):
@@ -72,6 +77,35 @@ class QECC:
             L_x = np.asarray(data['L_x'], dtype=DATA_TYPE)
             L_z = np.asarray(data['L_z'], dtype=DATA_TYPE)
         return cls(n, k, d, H_x, H_z, L_x, L_z, is_self_dual=is_self_dual)
+
+    @classmethod
+    def from_stabs(cls, stabs: list[str], n, k, d):
+        L_x, L_z = [], []
+        H_x, H_z = [], []
+        for i, stab in enumerate(stabs):
+
+            # Somewhat tricky
+            X, Z = (H_x, H_z) if i < n - k else (L_x, L_z)
+
+            stab = stab.strip("+ \n\t")
+            if "X" in stab:
+                X.append([
+                    (1 if v == "X" else 0) for v in stab
+                ])
+            elif "Z" in stab:
+                Z.append([
+                    (1 if v == "Z" else 0) for v in stab
+                ])
+        L_x, L_z = np.asarray(L_x), np.asarray(L_z)
+        H_x, H_z = np.asarray(H_x), np.asarray(H_z)
+        if len(L_x) == 0:
+            L_x = L_z.copy()
+        if len(L_z) == 0:
+            L_z = L_x.copy()
+        is_self_dual = (np.all(L_x == L_z) and np.all(H_x == H_z)).tolist()
+        return cls(n, k, d, H_x, H_z, L_x, L_z, is_self_dual=is_self_dual)
+
+
 
 
 def _layer_cnot_circuit(cnots):
@@ -189,6 +223,49 @@ class StatePreparationCircuit(Circuit):
             bra_plus=data["bra_+"]
         )
 
+    @classmethod
+    def from_stim(cls, circ: stim.Circuit, basis: Basis):
+        ket_plus = []
+        cnots = []
+        in_cnot_layer = np.zeros(circ.num_qubits, dtype=bool)
+        bra = []
+        bra_plus = []
+
+        for op in explode_circuit(circ):
+            ts = [t.value for t in op.targets_copy()]
+            if op.name == "H":
+                [t] = ts
+                if in_cnot_layer[t]:
+                    bra_plus.append(t)
+                else:
+                    ket_plus.append(t)
+            if op.name in ("CNOT", "CX"):
+                cnots.append(ts)
+                in_cnot_layer[ts[0]] = True
+                in_cnot_layer[ts[1]] = True
+            if op.name in ("M", "MR"):
+                bra.append(ts[0])
+
+        ket_plus.sort()
+        bra_plus.sort()
+        ket_zero = [q for q in range(circ.num_qubits) if q not in ket_plus]
+        bra_zero = [q for q in bra if q not in bra_plus]
+
+        return cls(
+            basis,
+            ket_zero,
+            ket_plus,
+            cnots,
+            bra_zero,
+            bra_plus
+        )
+
+    @classmethod
+    def from_qasm(cls, qasm_string: str, basis: Basis):
+        cirq_circuit = circuit_from_qasm(qasm_string)
+        stim_circuit = stimcirq.cirq_circuit_to_stim_circuit(cirq_circuit)
+        return cls.from_stim(stim_circuit, basis)
+
     def to_dict(self) -> dict:
         data = super().to_dict()
         data["basis"] = self.basis
@@ -213,6 +290,19 @@ class StatePreparationCircuit(Circuit):
         for i in range(len(self.bra_zero) + len(self.bra_plus)):
             circ.append("DETECTOR", stim.target_rec(-i - 1))
         return circ
+
+    def non_ft_version(self):
+        qubits_to_keep = (set(self.ket_plus) | set(self.ket_zero)) - (set(self.bra_plus) | set(self.bra_zero))
+        return StatePreparationCircuit(
+            basis=self.basis,
+            ket_zero=[q for q in self.ket_zero if q in qubits_to_keep],
+            ket_plus=[q for q in self.ket_plus if q in qubits_to_keep],
+            cnots=[(c, n) for c, n in self.cnots if c in qubits_to_keep and n in qubits_to_keep],
+            bra_zero=[],
+            bra_plus=[]
+        )
+
+
 
 
 @dataclass
@@ -296,10 +386,10 @@ class SyndromeMeasurementCircuit(Circuit):
 @dataclass
 class QECCGadgets:
     code: QECC
-    ft_z_state_prep: StatePreparationCircuit
-    ft_x_state_prep: StatePreparationCircuit
-    non_ft_z_state_prep: StatePreparationCircuit
-    non_ft_x_state_prep: StatePreparationCircuit
+    ft_z_state_prep: StatePreparationCircuit | None
+    ft_x_state_prep: StatePreparationCircuit | None
+    non_ft_z_state_prep: StatePreparationCircuit | None
+    non_ft_x_state_prep: StatePreparationCircuit | None
 
     @classmethod
     def from_json(cls, filename):
@@ -330,6 +420,22 @@ class QECCGadgets:
             non_ft_x_state_prep=non_ft_x_state_prep,
         )
 
+    @classmethod
+    def load_circuit_data(cls, n, k, d):
+        with open(f"circuits_data/{n}_{k}_{d}.qasm") as qasm_file:
+            sp = StatePreparationCircuit.from_qasm(qasm_file.read(), basis=Basis.Z)
+        with open(f"circuits_data/{n}_{k}_{d}.stabs") as stabs_file:
+            qecc = QECC.from_stabs(stabs_file.readlines(), n, k, d)
+        return cls(
+            code=qecc,
+            ft_z_state_prep=sp,
+            ft_x_state_prep=sp.dual(),
+            non_ft_z_state_prep=sp.non_ft_version(),
+            non_ft_x_state_prep=sp.dual().non_ft_version(),
+        )
+
+
+
     @property
     def steane_z_syndrome_extraction(self) -> SyndromeMeasurementCircuit:
         return SyndromeMeasurementCircuit.steane_style(self.ft_x_state_prep)
@@ -348,5 +454,5 @@ class QECCGadgets:
 
 
 if __name__ == '__main__':
-    gadgets = QECCGadgets.from_json("circuits/15_7_3.json")
-    print(gadgets.steane_z_syndrome_extraction.to_stim(_layer_cnots=False))
+    code = QECCGadgets.load_circuit_data(32, 20, 4)
+    print(code.ft_z_state_prep.non_ft_version())

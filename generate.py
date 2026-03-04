@@ -45,11 +45,12 @@ def make_json_serializable(data):
 
 
 def generate_simplification(qecc_gadgets):
-    diagram = qecc_gadgets.steane_z_syndrome_extraction.to_pyzx()
+    diagram = qecc_gadgets.non_ft_steane_z_syndrome_extraction.to_pyzx()
     cov_graph = CoveredZXGraph.from_zx_diagram(diagram)
     cov_graph.basic_FE_rewrites()
 
     depth_best_circuit_data = depth_minimal_circuit(cov_graph)
+    print(depth_best_circuit_data["circuit"].to_stim())
 
     stabs = list_to_str_stabs(qecc_gadgets.code.H_z)
     depth_best_circuit_data["lookup_table"] = build_css_syndrome_table(stabs, qecc_gadgets.code.d)
@@ -85,7 +86,8 @@ if __name__ == "__main__":
     from pprint import pprint
     init_circuits_folder()
     qecc = "15_7_3"
-    qecc_gadgets = QECCGadgets.from_json(f"circuits/{qecc}.json")
+    # qecc_gadgets = QECCGadgets.from_json(f"circuits/{qecc}.json")
+    qecc_gadgets = QECCGadgets.load_circuit_data(32, 20, 4)
     simp_data = generate_simplification(qecc_gadgets)
     save_optimised_se(simp_data, qecc)
     print(simp_data["circuit"].to_stim(_layer_cnots=False))

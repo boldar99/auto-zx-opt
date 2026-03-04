@@ -496,9 +496,11 @@ def all_good_FT_opts(
 
 
 if __name__ == '__main__':
-    gadgets = QECCGadgets.from_json("circuits/15_7_3.json")
-    diagram = gadgets.steane_z_syndrome_extraction.to_pyzx()
-    print(gadgets.steane_z_syndrome_extraction.to_stim())
+    # gadgets = QECCGadgets.from_json("circuits/15_7_3.json")
+
+    gadgets = QECCGadgets.load_circuit_data(32, 20, 4)
+    print(gadgets.non_ft_steane_z_syndrome_extraction.to_stim(_layer_cnots=False))
+    diagram = gadgets.non_ft_steane_z_syndrome_extraction.to_pyzx()
     cov_graph = CoveredZXGraph.from_zx_diagram(diagram)
     initial_size = len(cov_graph.paths)
     cov_graph.visualize()
@@ -518,5 +520,5 @@ if __name__ == '__main__':
         print(cv.flag_qubit_indices())
         se_circ = cv.to_syndrome_measurement_circuit()
         print(se_circ)
-        print(se_circ.to_dict())
+        print(se_circ.to_stim())
         print()
