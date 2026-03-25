@@ -1,8 +1,10 @@
+import itertools
 import json
 import pprint
 import stim
 import numpy as np
 
+from generate import make_json_serializable
 from qecc import QECCGadgets, SyndromeMeasurementCircuit, NoiseModel
 
 
@@ -129,32 +131,25 @@ if __name__ == "__main__":
     flags = samples[:, -17:-15]
     syndromes = samples[:, -15:] @ qecc_gadgets.code.H_z.T % 2
 
-    correction = []
-    modified_correction = []
-    for f, s in zip(flags, syndromes):
-        syndrome = tuple(s.tolist())
-        flag = tuple(f.astype(int).tolist())
-        correction.append(simp["lookup_table"][syndrome])
-        modified_correction.append(simp["modified_lookup_table"].get((flag, syndrome),  simp["lookup_table"][syndrome]))
-    correction = np.array(correction)
-    modified_correction = np.array(modified_correction)
-    corrected_measurements = samples[:, -15:] + np.where(np.any(flags, axis=1)[:,np.newaxis], modified_correction, correction)
+    correction_tensor = np.zeros((2,) * 6 + (15,), dtype=np.int16)
+    for f_tup in itertools.product([0, 1], repeat=2):
+        for s_tup in itertools.product([0, 1], repeat=4):
+            idx = f_tup + s_tup
+            if (f_tup, s_tup) in simp["modified_lookup_table"]:
+                correction_tensor[idx] = simp["modified_lookup_table"][(f_tup, s_tup)]
+            else:
+                correction_tensor[idx] = simp["lookup_table"].get(s_tup, [0] * 15)
 
+    combined_bits = np.hstack((flags, syndromes)).astype(np.int8)
+    correction = correction_tensor[tuple(combined_bits.T)]
 
-    corrected_measurements = corrected_measurements[~np.any(flags, axis=1)]
-    logical_measurements = corrected_measurements @ qecc_gadgets.code.L_z.T % 2
-    measurement_error = np.any(logical_measurements, axis=1)
-    print(f"Flag post-selected LER: {np.average(measurement_error):.3%}")
-    print(f"Acceptance rate: {len(measurement_error) / NUM_SAMPLES:.3%}")
-    print()
+    flags_any = np.any(flags, axis=1)[:, np.newaxis]
+    corrected_measurements = samples[:, -15:] + correction
 
-    corrected_measurements = samples[:, -15:] + np.where(np.any(flags, axis=1)[:,np.newaxis], modified_correction, correction)
     logical_measurements = corrected_measurements @ qecc_gadgets.code.L_z.T % 2
     measurement_error = np.any(logical_measurements, axis=1)
     print(f"With modified decoding LER: {np.average(measurement_error):.3%}")
     print()
-
-    corrected_measurements = (samples[:, -15:] + np.where(np.any(flags, axis=1)[:,np.newaxis], modified_correction, correction)) % 2
     error_rate_when_flag_and_syndrome_is(corrected_measurements, flag_pattern=(0,0), verbose=True)
     error_rate_when_flag_and_syndrome_is(corrected_measurements, flag_pattern=(1,1), verbose=True)
     error_rate_when_flag_and_syndrome_is(corrected_measurements, flag_pattern=(0,1), verbose=True)
@@ -170,7 +165,7 @@ if __name__ == "__main__":
             correction_LER[(vec_f, vec_i)] = error_rate
     print()
 
-    for THRESHOLD in [0.5, 0.2, 0.1, 0.09, 0.08, 0.07, 0.06, 0.05, 0.04, 0.03]:
+    for THRESHOLD in [1.0001, 0.9, 0.2, 0.09, 0.08, 0.075, 0.07, 0.06, 0.05]:
         L_z_T = qecc_gadgets.code.L_z.T
 
         ps_ler, acc_rate = calculate_post_selected_ler(
@@ -183,8 +178,17 @@ if __name__ == "__main__":
             threshold=THRESHOLD
         )
 
-        print(f"Syndrome post-selection threshold: {THRESHOLD:.0%}")
+        print(f"Syndrome post-selection threshold: {THRESHOLD:.1%}")
         print(f"Logical Error Rate: \t{ps_ler:.2%}")
         print(f"Acceptance Rate:    \t{acc_rate:.2%}")
+        print(f"(Logical Error Rate)^7:   \t{1 - (1-ps_ler)**7:.2%};   \t\t(Logical Error Rate)^(7*7):    \t{1 - (1-ps_ler)**(7*7):.2%};")
+        print(f"(Acceptance Rate)^7:      \t{acc_rate**7:.2%};   \t\t(Acceptance Rate)^(7*7):    \t{acc_rate**(7*7):.2%};")
         print()
+
+    under_threshold_corrections = dict()
+    for syndrome, ler in correction_LER.items():
+        if ler < 0.09:
+            under_threshold_corrections[syndrome] = simp["modified_lookup_table"].get(syndrome,  simp["lookup_table"][syndrome[1]])
+    to_save = make_json_serializable(under_threshold_corrections)
+    pprint.pprint(to_save)
 

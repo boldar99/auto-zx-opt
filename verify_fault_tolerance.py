@@ -125,7 +125,7 @@ def compute_modified_lookup_table(
             min_correction = min_correction.tolist()
             # --- END FIX ---
 
-            full_syndrome = (tuple(flag_record.tolist()), actual_syndrome)
+            full_syndrome = tuple(flag_record.tolist()) + actual_syndrome
 
             # 5. Update Table or Check Consistency
             if full_syndrome in modified_correction_table and np.any(logical_flip == 1):

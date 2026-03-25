@@ -1,16 +1,11 @@
+import dataclasses
+import dataclasses
 import json
-import pickle
-import sys
-
-import stim
-import pprint
-
-from path_cover_opt import CoveredZXGraph
-from qecc import QECCGadgets, _layer_cnot_circuit
 from pathlib import Path
 
-from verify_fault_tolerance import compute_modified_lookup_table, list_to_str_stabs, build_css_syndrome_table, \
-    explode_circuit
+from path_cover_opt import CoveredZXGraph
+from qecc import QECCGadgets, SyndromeMeasurementCircuit, QECC, StatePreparationCircuit
+from verify_fault_tolerance import compute_modified_lookup_table, list_to_str_stabs, build_css_syndrome_table
 
 cwd = Path.cwd()
 
@@ -19,18 +14,98 @@ def init_circuits_folder():
     Path(f"{cwd}/simplified_circuits").mkdir(parents=True, exist_ok=True)
 
 
-def depth_minimal_circuit(cov_graph):
-    circuit_data = []
-    for cv in cov_graph.min_ancilla_boundary_bends():
-        data = {
-            "circuit": cv.to_syndrome_measurement_circuit(),
-            "H_indices": cv.matrix_transformation_indices(),
-            "measurement_indices": cv.measurement_qubit_indices(),
-            "flag_indices": cv.flag_qubit_indices(),
+@dataclasses.dataclass
+class SECircuitData:
+    circuit: SyndromeMeasurementCircuit
+    H_indices: list[int]
+    measurement_indices: list[int]
+    flag_indices: list[int]
+
+    def cnot_depth(self):
+        return self.circuit.cnot_depth()
+
+    def dual(self) -> "SECircuitData":
+        return SECircuitData(
+            circuit=self.circuit.dual(),
+            H_indices=self.H_indices.copy(),
+            measurement_indices=self.measurement_indices.copy(),
+            flag_indices=self.flag_indices.copy(),
+        )
+
+    def to_dict(self):
+        return {
+            "circuit": self.circuit.to_dict(),
+            "H_indices": self.H_indices,
+            "measurement_indices": self.measurement_indices,
+            "flag_indices": self.flag_indices,
         }
+
+    @classmethod
+    def from_dict(cls, json_data):
+        return cls(
+            circuit=SyndromeMeasurementCircuit.from_dict(json_data["circuit"]),
+            H_indices=json_data["H_indices"],
+            measurement_indices=json_data["measurement_indices"],
+            flag_indices=json_data["flag_indices"],
+        )
+
+
+@dataclasses.dataclass
+class OptimisedSteaneData:
+    code: QECC
+    optimized_ft_z_se: SECircuitData
+    optimized_ft_x_se: SECircuitData
+    optimized_non_ft_z_se: SECircuitData
+    optimized_non_ft_x_se: SECircuitData
+    standard_lookup_table: dict[tuple[int, ...], list[int]]
+    modified_lookup_table: dict[tuple[int, ...], list[int]]
+
+    @classmethod
+    def from_dict(cls, json_data):
+        return cls(
+            code=QECC.from_dict(json_data["code"]),
+            optimized_ft_z_se=SECircuitData.from_dict(json_data["optimized_ft_z_se"]),
+            optimized_ft_x_se=SECircuitData.from_dict(json_data["optimized_ft_x_se"]),
+            optimized_non_ft_z_se=SECircuitData.from_dict(json_data["optimized_non_ft_z_se"]),
+            optimized_non_ft_x_se=SECircuitData.from_dict(json_data["optimized_non_ft_x_se"]),
+            standard_lookup_table=json_data["standard_lookup_table"],
+            modified_lookup_table=json_data["modified_lookup_table"],
+        )
+
+    @classmethod
+    def load_json(cls, filename):
+        with open(filename) as f:
+            json_data = json.load(f)
+        return cls.from_dict(json_data)
+
+    def to_dict(self):
+        return {
+            "code": self.code.to_json(),
+            "optimized_ft_z_se": self.optimized_ft_z_se.to_dict(),
+            "optimized_ft_x_se": self.optimized_ft_x_se.to_dict(),
+            "optimized_non_ft_z_se": self.optimized_non_ft_z_se.to_dict(),
+            "optimized_non_ft_x_se": self.optimized_non_ft_x_se.to_dict(),
+            "standard_lookup_table": {"".join(map(str, k)): v for k, v in self.standard_lookup_table.items()},
+            "modified_lookup_table": {"".join(map(str, k)): v for k, v in self.modified_lookup_table.items()},
+        }
+
+    def save_json(self, filename):
+        with open(filename, "w") as f:
+            json.dump(self.to_dict(), f, indent=4)
+
+
+def depth_minimal_circuit(cov_graph) -> SECircuitData:
+    circuit_data: list[SECircuitData] = []
+    for cv in cov_graph.min_ancilla_boundary_bends():
+        data = SECircuitData(
+            circuit=cv.to_syndrome_measurement_circuit(),
+            H_indices=cv.matrix_transformation_indices(),
+            measurement_indices=cv.measurement_qubit_indices(),
+            flag_indices=cv.flag_qubit_indices(),
+        )
         circuit_data.append(data)
 
-    return min(circuit_data, key=lambda d: d["circuit"].cnot_depth)
+    return min(circuit_data, key=SECircuitData.cnot_depth)
 
 
 def make_json_serializable(data):
@@ -44,54 +119,62 @@ def make_json_serializable(data):
     return new_data
 
 
-def generate_simplification(qecc_gadgets):
-    diagram = qecc_gadgets.non_ft_steane_z_syndrome_extraction.to_pyzx()
-    cov_graph = CoveredZXGraph.from_zx_diagram(diagram)
-    cov_graph.basic_FE_rewrites()
+def generate_simplification(qecc_gadgets: QECCGadgets, verbose=False) -> OptimisedSteaneData:
+    ft_z_se = qecc_gadgets.steane_z_syndrome_extraction.to_pyzx()
+    ft_z_se_cov_graph = CoveredZXGraph.from_zx_diagram(ft_z_se)
+    ft_z_se_cov_graph.basic_FE_rewrites()
+    optimized_ft_z_se = depth_minimal_circuit(ft_z_se_cov_graph)
 
-    depth_best_circuit_data = depth_minimal_circuit(cov_graph)
-    print(depth_best_circuit_data["circuit"].to_stim())
+    non_ft_z_se = qecc_gadgets.steane_z_syndrome_extraction.to_pyzx()
+    non_ft_z_se_cov_graph = CoveredZXGraph.from_zx_diagram(non_ft_z_se)
+    non_ft_z_se_cov_graph.basic_FE_rewrites()
+    optimized_non_ft_z_se = depth_minimal_circuit(non_ft_z_se_cov_graph)
+
+    if qecc_gadgets.code.is_self_dual:
+        optimized_ft_x_se = optimized_ft_z_se.dual()
+        optimized_non_ft_x_se = optimized_non_ft_z_se.dual()
+    else:
+        ft_x_se = qecc_gadgets.steane_x_syndrome_extraction.to_pyzx()
+        ft_x_se_cov_graph = CoveredZXGraph.from_zx_diagram(ft_x_se)
+        ft_x_se_cov_graph.basic_FE_rewrites()
+        optimized_ft_x_se = depth_minimal_circuit(ft_x_se_cov_graph)
+
+        non_ft_x_se = qecc_gadgets.steane_x_syndrome_extraction.to_pyzx()
+        non_ft_x_se_cov_graph = CoveredZXGraph.from_zx_diagram(non_ft_x_se)
+        non_ft_x_se_cov_graph.basic_FE_rewrites()
+        optimized_non_ft_x_se = depth_minimal_circuit(non_ft_x_se_cov_graph)
 
     stabs = list_to_str_stabs(qecc_gadgets.code.H_z)
-    depth_best_circuit_data["lookup_table"] = build_css_syndrome_table(stabs, qecc_gadgets.code.d)
-    depth_best_circuit_data["modified_lookup_table"] = compute_modified_lookup_table(
-        depth_best_circuit_data["circuit"].to_stim(),
+    # TODO: lookup table should deal with X and Z errors separately
+    lookup_table = build_css_syndrome_table(stabs, qecc_gadgets.code.d)
+    modified_lookup_table = compute_modified_lookup_table(
+        optimized_ft_z_se.circuit.to_stim(),
         qecc_gadgets.code.H_z,
         qecc_gadgets.code.L_x,
-        depth_best_circuit_data["lookup_table"],
-        depth_best_circuit_data["flag_indices"],
+        lookup_table,
+        optimized_ft_z_se.flag_indices,
         "X",
         qecc_gadgets.code.d,
         verbose=False,
     )
-    depth_best_circuit_data["lookup_table"] = make_json_serializable(depth_best_circuit_data["lookup_table"])
-    depth_best_circuit_data["modified_lookup_table"] = make_json_serializable(depth_best_circuit_data["modified_lookup_table"])
-    return depth_best_circuit_data
+
+    return OptimisedSteaneData(
+        optimized_ft_z_se=optimized_ft_z_se,
+        optimized_ft_x_se=optimized_ft_x_se,
+        optimized_non_ft_z_se=optimized_non_ft_z_se,
+        optimized_non_ft_x_se=optimized_non_ft_x_se,
+        standard_lookup_table=lookup_table,
+        modified_lookup_table=modified_lookup_table,
+        code=qecc_gadgets.code,
+    )
 
 
-def save_optimised_se(data, code):
-    to_save = data.copy()
-
-    to_save["circuit"] = to_save["circuit"].to_dict()
-    to_save["lookup_table"] = make_json_serializable(to_save["lookup_table"])
-    to_save["modified_lookup_table"] = make_json_serializable(to_save["modified_lookup_table"])
-    pprint(to_save, width=120)
-
-    with open(f"simplified_circuits/{code}.json", "w") as f:
-        json.dump(to_save, f, indent=2)
-
+def generate_code(qecc):
+    init_circuits_folder()
+    qecc_gadgets = QECCGadgets.from_json(f"circuits/{qecc}.json")
+    simp_data = generate_simplification(qecc_gadgets)
+    simp_data.save_json(f"simplified_circuits/{qecc}.json")
 
 
 if __name__ == "__main__":
-    from pprint import pprint
-    init_circuits_folder()
-    qecc = "15_7_3"
-    # qecc_gadgets = QECCGadgets.from_json(f"circuits/{qecc}.json")
-    qecc_gadgets = QECCGadgets.load_circuit_data(32, 20, 4)
-    simp_data = generate_simplification(qecc_gadgets)
-    save_optimised_se(simp_data, qecc)
-    print(simp_data["circuit"].to_stim(_layer_cnots=False))
-
-
-
-
+    generate_code("15_7_3")

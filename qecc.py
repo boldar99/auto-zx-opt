@@ -78,6 +78,18 @@ class QECC:
             L_z = np.asarray(data['L_z'], dtype=DATA_TYPE)
         return cls(n, k, d, H_x, H_z, L_x, L_z, is_self_dual=is_self_dual)
 
+    def to_json(self):
+        return {
+            'n': self.n,
+            'k': self.k,
+            'd': self.d,
+            'is_self_dual': self.is_self_dual,
+            'H_x': self.H_x.tolist(),
+            'H_z': self.H_z.tolist(),
+            'L_x': self.L_x.tolist(),
+            'L_z': self.L_z.tolist(),
+        }
+
     @classmethod
     def from_stabs(cls, stabs: list[str], n, k, d):
         L_x, L_z = [], []
@@ -198,7 +210,6 @@ class Circuit(abc.ABC):
             "bra_+": self.bra_plus.copy(),
         }
 
-    @property
     def cnot_depth(self):
         return len(_layer_cnot_circuit(self.cnots))
 
