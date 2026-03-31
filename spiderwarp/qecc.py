@@ -389,21 +389,25 @@ class GadgetManager:
         with open(filename) as json_file:
             data = json.load(json_file)
         code = QECC.from_dict(data)
-        ft_z_state_prep = StatePrep.from_dict(
-            data.get("fault_tolerant_zero_state_prep"), logical_state=Basis.Z
+        circuit_data = data.get("fault_tolerant_zero_state_prep")
+        ft_z_state_prep = circuit_data and StatePrep.from_dict(
+            circuit_data, logical_state=["0"]
         )
-        non_ft_z_state_prep = StatePrep.from_dict(
-            data.get("non_fault_tolerant_zero_state_prep"), logical_state=Basis.Z
+        circuit_data = data.get("non_fault_tolerant_zero_state_prep")
+        non_ft_z_state_prep = circuit_data and StatePrep.from_dict(
+            circuit_data, logical_state=["0"]
         )
         if code.is_self_dual:
             ft_x_state_prep = ft_z_state_prep.dual()
             non_ft_x_state_prep = non_ft_z_state_prep.dual()
         else:
-            ft_x_state_prep = StatePrep.from_dict(
-                data.get("fault_tolerant_plus_state_prep"), logical_state=Basis.X
+            circuit_data = data.get("fault_tolerant_plus_state_prep")
+            ft_x_state_prep = circuit_data and StatePrep.from_dict(
+                circuit_data, logical_state=["+"]
             )
-            non_ft_x_state_prep = StatePrep.from_dict(
-                data.get("non_fault_tolerant_plus_state_prep"), logical_state=Basis.X
+            circuit_data = data.get("non_fault_tolerant_plus_state_prep")
+            non_ft_x_state_prep = circuit_data and StatePrep.from_dict(
+                circuit_data, logical_state=["+"]
             )
         return cls(
             code=code,
