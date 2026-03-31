@@ -1,11 +1,10 @@
 import dataclasses
-import dataclasses
 import json
 from pathlib import Path
 
-from path_cover_opt import CoveredZXGraph
-from qecc import QECCGadgets, SyndromeMeasurementCircuit, QECC, StatePreparationCircuit
-from verify_fault_tolerance import compute_modified_lookup_table, list_to_str_stabs, build_css_syndrome_table
+from spiderwarp.path_cover_opt import CoveredZXGraph
+from spiderwarp.qecc import QECCGadgets, SyndromeMeasurementCircuit, QECC
+from spiderwarp.verify_fault_tolerance import compute_modified_lookup_table, list_to_str_stabs, build_css_syndrome_table
 
 cwd = Path.cwd()
 

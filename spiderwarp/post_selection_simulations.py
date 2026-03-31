@@ -1,11 +1,11 @@
 import itertools
 import json
 import pprint
-import stim
+
 import numpy as np
 
-from generate import make_json_serializable
-from qecc import QECCGadgets, SyndromeMeasurementCircuit, NoiseModel
+from spiderwarp.generate import make_json_serializable
+from spiderwarp.qecc import QECCGadgets, SyndromeMeasurementCircuit, NoiseModel
 
 
 def from_json_serializable(data):
@@ -111,7 +111,9 @@ def error_rate_when_flag_and_syndrome_is(corrected_measurements, flag_pattern, s
               (f" and {syndrome_pattern=}" if syndrome_pattern is not None else "") +
               f": {error_rate:.3%}")
         if syndrome_pattern is not None:
-            print(f"Correction to be applied {(measurement_error.shape[0])}: ", simp["modified_lookup_table"].get((flag_pattern, syndrome_pattern), simp["lookup_table"][syndrome_pattern]))
+            print(f"Correction to be applied {(measurement_error.shape[0])}: ",
+                  simp["modified_lookup_table"].get((flag_pattern, syndrome_pattern),
+                                                    simp["lookup_table"][syndrome_pattern]))
     return error_rate
 
 
@@ -150,10 +152,10 @@ if __name__ == "__main__":
     measurement_error = np.any(logical_measurements, axis=1)
     print(f"With modified decoding LER: {np.average(measurement_error):.3%}")
     print()
-    error_rate_when_flag_and_syndrome_is(corrected_measurements, flag_pattern=(0,0), verbose=True)
-    error_rate_when_flag_and_syndrome_is(corrected_measurements, flag_pattern=(1,1), verbose=True)
-    error_rate_when_flag_and_syndrome_is(corrected_measurements, flag_pattern=(0,1), verbose=True)
-    error_rate_when_flag_and_syndrome_is(corrected_measurements, flag_pattern=(1,0), verbose=True)
+    error_rate_when_flag_and_syndrome_is(corrected_measurements, flag_pattern=(0, 0), verbose=True)
+    error_rate_when_flag_and_syndrome_is(corrected_measurements, flag_pattern=(1, 1), verbose=True)
+    error_rate_when_flag_and_syndrome_is(corrected_measurements, flag_pattern=(0, 1), verbose=True)
+    error_rate_when_flag_and_syndrome_is(corrected_measurements, flag_pattern=(1, 0), verbose=True)
 
     correction_LER = dict()
 
@@ -161,7 +163,8 @@ if __name__ == "__main__":
         vec_f = tuple(map(int, ('0' * 2 + format(f, "b"))[-2:]))
         for i in range(1, 2 ** 4):
             vec_i = tuple(map(int, ('0' * 4 + format(i, "b"))[-4:]))
-            error_rate = error_rate_when_flag_and_syndrome_is(corrected_measurements, flag_pattern=vec_f, syndrome_pattern=vec_i)
+            error_rate = error_rate_when_flag_and_syndrome_is(corrected_measurements, flag_pattern=vec_f,
+                                                              syndrome_pattern=vec_i)
             correction_LER[(vec_f, vec_i)] = error_rate
     print()
 
@@ -181,14 +184,16 @@ if __name__ == "__main__":
         print(f"Syndrome post-selection threshold: {THRESHOLD:.1%}")
         print(f"Logical Error Rate: \t{ps_ler:.2%}")
         print(f"Acceptance Rate:    \t{acc_rate:.2%}")
-        print(f"(Logical Error Rate)^7:   \t{1 - (1-ps_ler)**7:.2%};   \t\t(Logical Error Rate)^(7*7):    \t{1 - (1-ps_ler)**(7*7):.2%};")
-        print(f"(Acceptance Rate)^7:      \t{acc_rate**7:.2%};   \t\t(Acceptance Rate)^(7*7):    \t{acc_rate**(7*7):.2%};")
+        print(
+            f"(Logical Error Rate)^7:   \t{1 - (1 - ps_ler) ** 7:.2%};   \t\t(Logical Error Rate)^(7*7):    \t{1 - (1 - ps_ler) ** (7 * 7):.2%};")
+        print(
+            f"(Acceptance Rate)^7:      \t{acc_rate ** 7:.2%};   \t\t(Acceptance Rate)^(7*7):    \t{acc_rate ** (7 * 7):.2%};")
         print()
 
     under_threshold_corrections = dict()
     for syndrome, ler in correction_LER.items():
         if ler < 0.09:
-            under_threshold_corrections[syndrome] = simp["modified_lookup_table"].get(syndrome,  simp["lookup_table"][syndrome[1]])
+            under_threshold_corrections[syndrome] = simp["modified_lookup_table"].get(syndrome,
+                                                                                      simp["lookup_table"][syndrome[1]])
     to_save = make_json_serializable(under_threshold_corrections)
     pprint.pprint(to_save)
-

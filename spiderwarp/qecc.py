@@ -5,15 +5,14 @@ import json
 from collections import defaultdict
 from dataclasses import dataclass
 from enum import Enum
-from typing import Iterator
 
-import stimcirq
-from cirq.contrib.qasm_import import circuit_from_qasm
 import numpy as np
 import pyzx as zx
 import stim
+import stimcirq
+from cirq.contrib.qasm_import import circuit_from_qasm
 
-from verify_fault_tolerance import explode_circuit
+from spiderwarp.verify_fault_tolerance import explode_circuit
 
 
 class Basis(Enum):
@@ -116,8 +115,6 @@ class QECC:
             L_z = L_x.copy()
         is_self_dual = (np.all(L_x == L_z) and np.all(H_x == H_z)).tolist()
         return cls(n, k, d, H_x, H_z, L_x, L_z, is_self_dual=is_self_dual)
-
-
 
 
 def _layer_cnot_circuit(cnots):
@@ -314,8 +311,6 @@ class StatePreparationCircuit(Circuit):
         )
 
 
-
-
 @dataclass
 class SyndromeMeasurementCircuit(Circuit):
     ket_zero: list[int]
@@ -444,8 +439,6 @@ class QECCGadgets:
             non_ft_z_state_prep=sp.non_ft_version(),
             non_ft_x_state_prep=sp.dual().non_ft_version(),
         )
-
-
 
     @property
     def steane_z_syndrome_extraction(self) -> SyndromeMeasurementCircuit:

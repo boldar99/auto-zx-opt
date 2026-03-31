@@ -242,6 +242,7 @@ if __name__ == "__main__":
     M 10 9
         """)
 
-    compute_modified_lookup_table(steane_circ, steane_code_stabs(), np.array([0, 0, 0, 0, 1, 1, 1]), decoder_table, [3], "X", 3)
+    compute_modified_lookup_table(steane_circ, steane_code_stabs(), np.array([0, 0, 0, 0, 1, 1, 1]), decoder_table, [3],
+                                  "X", 3)
 
 # verify_t_fault_tolerance(steane_code(), list_to_str_stabs(steane_code_stabs()), t_faults=1)

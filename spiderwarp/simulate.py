@@ -1,12 +1,10 @@
 import itertools
-import json
 
 import numpy as np
 import stim
 
-from generate import OptimisedSteaneData
-from post_selection_simulations import from_json_serializable, load_optimised_se
-from qecc import QECCGadgets, NoiseModel, SyndromeMeasurementCircuit
+from spiderwarp.generate import OptimisedSteaneData
+from spiderwarp.qecc import QECCGadgets, NoiseModel
 
 
 class Simulator:
@@ -32,7 +30,8 @@ class Simulator:
         H = self.qecc_gadgets.code.H_x[:, self.simp.optimized_ft_z_se.H_indices]
         H_panic = self.qecc_gadgets.code.H_x[:, self.simp.optimized_non_ft_z_se.H_indices]
 
-        num_measurements = len(self.simp.optimized_ft_z_se.flag_indices) + len(self.simp.optimized_ft_z_se.measurement_indices)
+        num_measurements = len(self.simp.optimized_ft_z_se.flag_indices) + len(
+            self.simp.optimized_ft_z_se.measurement_indices)
         flag_indices = tuple(i - num_measurements for i in self.simp.optimized_ft_z_se.flag_indices)
         measurement_indices = (i - num_measurements for i in self.simp.optimized_ft_z_se.measurement_indices)
         flags = tuple(tableau_simulator.current_measurement_record()[f] for f in flag_indices)
@@ -66,10 +65,8 @@ class Simulator:
                 tableau_simulator.z(index)
 
 
-
 if __name__ == "__main__":
     qecc = "15_7_3"
-
 
     correction_tensor = np.zeros((2,) * 6 + (15,), dtype=np.int16)
     can_correct = np.zeros((2,) * 6, dtype=np.bool)
@@ -96,4 +93,3 @@ if __name__ == "__main__":
     corrected_measurements = (raw_measurements + correction_tensor[syndromes]) % 2
     logicals = corrected_measurements @ qecc_gadgets.code.L_z.T % 2
     logical_error = np.any(logicals)
-

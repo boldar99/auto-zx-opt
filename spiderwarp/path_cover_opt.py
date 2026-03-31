@@ -1,6 +1,5 @@
 import copy
 import itertools
-import math
 from collections import defaultdict
 from typing import Iterator
 
@@ -10,8 +9,8 @@ import numpy as np
 import pyzx as zx
 import stim
 
-from qecc import QECCGadgets, Circuit, SyndromeMeasurementCircuit
-from verify_fault_tolerance import list_to_str_stabs, build_css_syndrome_table, compute_modified_lookup_table
+from spiderwarp.qecc import QECCGadgets, SyndromeMeasurementCircuit
+from spiderwarp.verify_fault_tolerance import list_to_str_stabs, build_css_syndrome_table, compute_modified_lookup_table
 
 
 def _sorted_pair(v1, v2):
