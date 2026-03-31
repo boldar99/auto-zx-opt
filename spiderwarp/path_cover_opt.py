@@ -9,12 +9,9 @@ import numpy as np
 import pyzx as zx
 import stim
 
-from spiderwarp.qecc import QECCGadgets, SyndromeMeasurementCircuit
+from spiderwarp.qecc import GadgetManager, SyndromeGadget
+from spiderwarp.utils import _sorted_pair
 from spiderwarp.verify_fault_tolerance import list_to_str_stabs, build_css_syndrome_table, compute_modified_lookup_table
-
-
-def _sorted_pair(v1, v2):
-    return (v1, v2) if v1 < v2 else (v2, v1)
 
 
 class CoveredZXGraph:
@@ -400,7 +397,7 @@ class CoveredZXGraph:
 
         return ordered_operations
 
-    def to_syndrome_measurement_circuit(self) -> SyndromeMeasurementCircuit:
+    def to_syndrome_measurement_circuit(self) -> SyndromeGadget:
         if not self.check_causal_flow():
             raise ValueError("Circuit must have causal flow.")
 
@@ -427,7 +424,7 @@ class CoveredZXGraph:
         measurements.sort()
         flag_qubits = [measurements[i] for i in self.flag_qubit_indices()]
 
-        return SyndromeMeasurementCircuit(
+        return SyndromeGadget(
             ket_0, ket_plus, cnots, bra_0, bra_plus, flag_qubits
         )
 
@@ -497,7 +494,7 @@ def all_good_FT_opts(
 if __name__ == '__main__':
     # gadgets = QECCGadgets.from_json("circuits/15_7_3.json")
 
-    gadgets = QECCGadgets.load_circuit_data(32, 20, 4)
+    gadgets = GadgetManager.load_circuit_data(32, 20, 4)
     print(gadgets.non_ft_steane_z_syndrome_extraction.to_stim(_layer_cnots=False))
     diagram = gadgets.non_ft_steane_z_syndrome_extraction.to_pyzx()
     cov_graph = CoveredZXGraph.from_zx_diagram(diagram)

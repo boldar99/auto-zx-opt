@@ -5,7 +5,7 @@ import pprint
 import numpy as np
 
 from spiderwarp.generate import make_json_serializable
-from spiderwarp.qecc import QECCGadgets, SyndromeMeasurementCircuit, NoiseModel
+from spiderwarp.qecc import GadgetManager, SyndromeGadget, NoiseModel
 
 
 def from_json_serializable(data):
@@ -24,7 +24,7 @@ def load_optimised_se(code):
     with open(f"simplified_circuits/{code}.json", "r") as f:
         data = json.load(f)
 
-    data["circuit"] = SyndromeMeasurementCircuit.from_dict(data["circuit"])
+    data["circuit"] = SyndromeGadget.from_dict(data["circuit"])
     data["lookup_table"] = from_json_serializable(data["lookup_table"])
     data["modified_lookup_table"] = from_json_serializable(data["modified_lookup_table"])
 
@@ -119,7 +119,7 @@ def error_rate_when_flag_and_syndrome_is(corrected_measurements, flag_pattern, s
 
 if __name__ == "__main__":
     qecc = "15_7_3"
-    qecc_gadgets = QECCGadgets.from_json(f"circuits/{qecc}.json")
+    qecc_gadgets = GadgetManager.from_json(f"circuits/{qecc}.json")
     simp = load_optimised_se(qecc)
 
     circ = qecc_gadgets.ft_x_state_prep.to_stim()

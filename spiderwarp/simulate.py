@@ -4,12 +4,12 @@ import numpy as np
 import stim
 
 from spiderwarp.generate import OptimisedSteaneData
-from spiderwarp.qecc import QECCGadgets, NoiseModel
+from spiderwarp.qecc import GadgetManager, NoiseModel
 
 
 class Simulator:
     def __init__(self, code: str, p: float):
-        self.qecc_gadgets = QECCGadgets.from_json(f"circuits/{code}.json")
+        self.qecc_gadgets = GadgetManager.from_json(f"circuits/{code}.json")
         self.simp = OptimisedSteaneData.load_json(f"simplified_circuits/{code}.json")
         self.noise_model = NoiseModel.from_p(p)
         self.reset_circuits()

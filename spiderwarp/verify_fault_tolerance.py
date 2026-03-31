@@ -3,6 +3,8 @@ import itertools
 import numpy as np
 import stim
 
+from spiderwarp.utils import explode_circuit
+
 
 def build_css_syndrome_table(stabilizers: list[str], d: int):
     """
@@ -154,43 +156,6 @@ def compute_modified_lookup_table(
             return None
 
     return modified_correction_table
-
-
-def explode_circuit(circuit: stim.Circuit) -> list[stim.CircuitInstruction]:
-    """
-    Decomposes a circuit into a list of atomic instructions.
-    E.g., 'CX 0 1 2 3' becomes ['CX 0 1', 'CX 2 3'].
-    This allows injecting faults *between* gates that were originally grouped.
-    """
-    atomized_ops = []
-
-    # Common 2-qubit gates in CSS codes
-    TWO_QUBIT_GATES = {"CX", "CNOT", "CZ", "SWAP", "CY", "XCZ", "YCX"}
-
-    for op in circuit.flattened():
-        # Handle 2-Qubit Gates (Target pairs)
-        if op.name in TWO_QUBIT_GATES:
-            targets = op.targets_copy()
-            # Iterate in steps of 2
-            for k in range(0, len(targets), 2):
-                atomized_ops.append(
-                    stim.CircuitInstruction(op.name, targets[k:k + 2], op.gate_args_copy())
-                )
-
-        # Handle Annotations (Don't split, just keep)
-        elif op.name in {"DETECTOR", "OBSERVABLE_INCLUDE", "SHIFT_COORDS", "QUBIT_COORDS", "TICK"}:
-            atomized_ops.append(op)
-
-        # Handle 1-Qubit Gates & Measurements (Single targets)
-        else:
-            # e.g. H, X, Z, M, R, MR
-            targets = op.targets_copy()
-            for t in targets:
-                atomized_ops.append(
-                    stim.CircuitInstruction(op.name, [t], op.gate_args_copy())
-                )
-
-    return atomized_ops
 
 
 def get_fault_locations(ops: list) -> list[tuple[int, int]]:

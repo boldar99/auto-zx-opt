@@ -3,7 +3,7 @@ import json
 from pathlib import Path
 
 from spiderwarp.path_cover_opt import CoveredZXGraph
-from spiderwarp.qecc import QECCGadgets, SyndromeMeasurementCircuit, QECC
+from spiderwarp.qecc import GadgetManager, SyndromeGadget, QECC
 from spiderwarp.verify_fault_tolerance import compute_modified_lookup_table, list_to_str_stabs, build_css_syndrome_table
 
 cwd = Path.cwd()
@@ -15,7 +15,7 @@ def init_circuits_folder():
 
 @dataclasses.dataclass
 class SECircuitData:
-    circuit: SyndromeMeasurementCircuit
+    circuit: SyndromeGadget
     H_indices: list[int]
     measurement_indices: list[int]
     flag_indices: list[int]
@@ -42,7 +42,7 @@ class SECircuitData:
     @classmethod
     def from_dict(cls, json_data):
         return cls(
-            circuit=SyndromeMeasurementCircuit.from_dict(json_data["circuit"]),
+            circuit=SyndromeGadget.from_dict(json_data["circuit"]),
             H_indices=json_data["H_indices"],
             measurement_indices=json_data["measurement_indices"],
             flag_indices=json_data["flag_indices"],
@@ -79,7 +79,7 @@ class OptimisedSteaneData:
 
     def to_dict(self):
         return {
-            "code": self.code.to_json(),
+            "code": self.code.to_dict(),
             "optimized_ft_z_se": self.optimized_ft_z_se.to_dict(),
             "optimized_ft_x_se": self.optimized_ft_x_se.to_dict(),
             "optimized_non_ft_z_se": self.optimized_non_ft_z_se.to_dict(),
@@ -118,7 +118,7 @@ def make_json_serializable(data):
     return new_data
 
 
-def generate_simplification(qecc_gadgets: QECCGadgets, verbose=False) -> OptimisedSteaneData:
+def generate_simplification(qecc_gadgets: GadgetManager, verbose=False) -> OptimisedSteaneData:
     ft_z_se = qecc_gadgets.steane_z_syndrome_extraction.to_pyzx()
     ft_z_se_cov_graph = CoveredZXGraph.from_zx_diagram(ft_z_se)
     ft_z_se_cov_graph.basic_FE_rewrites()
@@ -170,7 +170,7 @@ def generate_simplification(qecc_gadgets: QECCGadgets, verbose=False) -> Optimis
 
 def generate_code(qecc):
     init_circuits_folder()
-    qecc_gadgets = QECCGadgets.from_json(f"circuits/{qecc}.json")
+    qecc_gadgets = GadgetManager.from_json(f"circuits/{qecc}.json")
     simp_data = generate_simplification(qecc_gadgets)
     simp_data.save_json(f"simplified_circuits/{qecc}.json")
 
