@@ -4,6 +4,7 @@ import abc
 import json
 from dataclasses import dataclass
 from enum import Enum
+from pathlib import Path
 from typing import Literal
 
 import numpy as np
@@ -12,7 +13,7 @@ import stim
 import stimcirq
 from cirq.contrib.qasm_import import circuit_from_qasm
 
-from spiderwarp.utils import _layer_cnot_circuit, explode_circuit
+from spiderwarp.utils import _layer_cnot_circuit, explode_circuit, get_project_root
 
 
 class Basis(Enum):
@@ -50,7 +51,7 @@ class NoiseModel:
 
 
 @dataclass
-class QECC:
+class CSSCode:
     n: int
     k: int
     d: int
@@ -59,42 +60,55 @@ class QECC:
     L_x: np.ndarray
     L_z: np.ndarray
     is_self_dual: bool = False
+    name: str | None = None
+
+    @classmethod
+    def load_code(cls, code_name: str, directory: str) -> CSSCode:
+        qecc_dir = {
+            "MQT": "MQT_qeccs",
+            "mqt": "MQT_qeccs",
+            "FAO": "fao_qeccs",
+            "fao": "fao_qeccs",
+        }[directory]
+        root = get_project_root()
+        codes = {
+            "steane": "7_1_3",
+        }
+        filename = codes.get(code_name, code_name) + ".json"
+        return cls.load_json(root.joinpath("assets", qecc_dir, filename))
+
+    @classmethod
+    def load_json(cls, file: str | Path) -> CSSCode:
+        with open(file, "r") as f:
+            return cls.from_dict(json.load(f))
 
     @classmethod
     def from_dict(cls, data: dict):
         DATA_TYPE = np.uint8
+        name = data.get("name")
         n = data['n']
         k = data['k']
         d = data['d']
         is_self_dual = data['is_self_dual'] == 1
-        if is_self_dual:
-            H_x = H_z = np.asarray(data['H_x'], dtype=DATA_TYPE)
-            L_x = L_z = np.asarray(data['L_x'], dtype=DATA_TYPE)
+        if "stabs" in data:
+            H_x, H_z, L_x, L_z = cls.stabs_to_matrices(data, k, n)
+        elif is_self_dual:
+            H = data.get('H_x', data.get('H_z'))
+            L = data.get('L_x', data.get('L_z'))
+            H_x = H_z = np.asarray(H, dtype=DATA_TYPE)
+            L_x = L_z = np.asarray(L, dtype=DATA_TYPE)
         else:
             H_x = np.asarray(data['H_x'], dtype=DATA_TYPE)
             H_z = np.asarray(data['H_z'], dtype=DATA_TYPE)
             L_x = np.asarray(data['L_x'], dtype=DATA_TYPE)
             L_z = np.asarray(data['L_z'], dtype=DATA_TYPE)
-        return cls(n, k, d, H_x, H_z, L_x, L_z, is_self_dual=is_self_dual)
+        return cls(n, k, d, H_x, H_z, L_x, L_z, is_self_dual=is_self_dual, name=name)
 
-    def to_dict(self) -> dict:
-        return {
-            'n': self.n,
-            'k': self.k,
-            'd': self.d,
-            'is_self_dual': self.is_self_dual,
-            'H_x': self.H_x.tolist(),
-            'H_z': self.H_z.tolist(),
-            'L_x': self.L_x.tolist(),
-            'L_z': self.L_z.tolist(),
-        }
-
-    @classmethod
-    def from_stabs(cls, stabs: list[str], n, k, d):
-        L_x, L_z = [], []
+    @staticmethod
+    def stabs_to_matrices(data: dict, k, n) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         H_x, H_z = [], []
-        for i, stab in enumerate(stabs):
-            # Somewhat tricky
+        L_x, L_z = [], []
+        for i, stab in enumerate(data["stabs"].split("\n")):
             X, Z = (H_x, H_z) if i < n - k else (L_x, L_z)
 
             stab = stab.strip("+ \n\t")
@@ -113,8 +127,22 @@ class QECC:
             L_x = L_z.copy()
         if len(L_z) == 0:
             L_z = L_x.copy()
-        is_self_dual = (np.all(L_x == L_z) and np.all(H_x == H_z)).tolist()
-        return cls(n, k, d, H_x, H_z, L_x, L_z, is_self_dual=is_self_dual)
+        return H_x, H_z, L_x, L_z
+
+    def to_dict(self) -> dict:
+        ret = {
+            'n': self.n,
+            'k': self.k,
+            'd': self.d,
+            'is_self_dual': self.is_self_dual,
+            'H_x': self.H_x.tolist(),
+            'H_z': self.H_z.tolist(),
+            'L_x': self.L_x.tolist(),
+            'L_z': self.L_z.tolist(),
+        }
+        if self.name:
+            ret["name"] = self.name
+        return ret
 
 
 class AncillaBlock(abc.ABC):
@@ -200,7 +228,7 @@ class AncillaBlock(abc.ABC):
 
 @dataclass
 class StatePrep(AncillaBlock):
-    logical_state: list[Literal["0"] | Literal["+"]]
+    basis: Basis
     ket_zero: list[int]
     ket_plus: list[int]
     cnots: list[tuple[int, int]]
@@ -208,9 +236,9 @@ class StatePrep(AncillaBlock):
     meas_x: list[int]
 
     @classmethod
-    def from_dict(cls, data: dict, logical_state: list[Literal["0"] | Literal["+"]]):
+    def from_dict(cls, data: dict, state_basis: Basis):
         return cls(
-            logical_state=logical_state,
+            basis=state_basis,
             ket_zero=data["ket_0"],
             ket_plus=data["ket_+"],
             cnots=[(c, n) for [c, n] in data["cnots"]],
@@ -219,7 +247,7 @@ class StatePrep(AncillaBlock):
         )
 
     @classmethod
-    def from_stim(cls, circ: stim.Circuit, logical_state: list[Literal["0"] | Literal["+"]]):
+    def from_stim(cls, circ: stim.Circuit, state_basis: Basis):
         ket_plus = []
         cnots = []
         in_cnot_layer = np.zeros(circ.num_qubits, dtype=bool)
@@ -247,7 +275,7 @@ class StatePrep(AncillaBlock):
         meas_z = [q for q in bra if q not in meas_x]
 
         return cls(
-            logical_state,
+            state_basis,
             ket_zero,
             ket_plus,
             cnots,
@@ -256,14 +284,14 @@ class StatePrep(AncillaBlock):
         )
 
     @classmethod
-    def from_qasm(cls, qasm_string: str, logical_state: list[Literal["0"] | Literal["+"]]):
+    def from_qasm(cls, qasm_string: str, state_basis: Basis):
         cirq_circuit = circuit_from_qasm(qasm_string)
         stim_circuit = stimcirq.cirq_circuit_to_stim_circuit(cirq_circuit)
-        return cls.from_stim(stim_circuit, logical_state)
+        return cls.from_stim(stim_circuit, state_basis)
 
     def to_dict(self) -> dict:
         data = super().to_dict()
-        data["logical_state"] = self.logical_state
+        data["logical_state"] = self.basis
         return data
 
     @property
@@ -272,7 +300,7 @@ class StatePrep(AncillaBlock):
 
     def dual(self) -> StatePrep:
         return StatePrep(
-            logical_state=Basis.dual(self.logical_state),
+            basis=Basis.dual(self.basis),
             ket_zero=self.ket_plus,
             ket_plus=self.ket_zero,
             cnots=[(n, c) for c, n in self.cnots],
@@ -289,7 +317,7 @@ class StatePrep(AncillaBlock):
     def non_ft_version(self):
         qubits_to_keep = (set(self.ket_plus) | set(self.ket_zero)) - (set(self.meas_x) | set(self.meas_z))
         return StatePrep(
-            logical_state=self.logical_state,
+            basis=self.basis,
             ket_zero=[q for q in self.ket_zero if q in qubits_to_keep],
             ket_plus=[q for q in self.ket_plus if q in qubits_to_keep],
             cnots=[(c, n) for c, n in self.cnots if c in qubits_to_keep and n in qubits_to_keep],
@@ -338,7 +366,7 @@ class SyndromeGadget(AncillaBlock):
         def shift_indices(ops, k):
             ret = []
             for op in ops:
-                if isinstance(op, tuple):
+                if isinstance(op, (tuple, list)):
                     ret.append((op[0] + k, op[1] + k))
                 else:
                     ret.append(op + k)
@@ -348,7 +376,7 @@ class SyndromeGadget(AncillaBlock):
         cnots = shift_indices(state_prep.cnots, n)
         z_flags = shift_indices(state_prep.meas_z, n)
         x_flags = shift_indices(state_prep.meas_x, n)
-        if state_prep.logical_state == Basis.X:
+        if state_prep.basis == Basis.X:
             cnots += [(i, i + n) for i in range(n)]
             meas_z = [i + n for i in range(n)] + z_flags
             meas_x = x_flags
@@ -378,7 +406,7 @@ class SyndromeGadget(AncillaBlock):
 
 @dataclass
 class GadgetManager:
-    code: QECC
+    code: CSSCode
     ft_z_state_prep: StatePrep | None
     ft_x_state_prep: StatePrep | None
     non_ft_z_state_prep: StatePrep | None
@@ -388,7 +416,7 @@ class GadgetManager:
     def from_json(cls, filename):
         with open(filename) as json_file:
             data = json.load(json_file)
-        code = QECC.from_dict(data)
+        code = CSSCode.from_dict(data)
         circuit_data = data.get("fault_tolerant_zero_state_prep")
         ft_z_state_prep = circuit_data and StatePrep.from_dict(
             circuit_data, logical_state=["0"]
@@ -399,7 +427,7 @@ class GadgetManager:
         )
         if code.is_self_dual:
             ft_x_state_prep = ft_z_state_prep.dual()
-            non_ft_x_state_prep = non_ft_z_state_prep.dual()
+            non_ft_x_state_prep = non_ft_z_state_prep and non_ft_z_state_prep.dual()
         else:
             circuit_data = data.get("fault_tolerant_plus_state_prep")
             ft_x_state_prep = circuit_data and StatePrep.from_dict(
@@ -422,7 +450,7 @@ class GadgetManager:
         with open(f"circuits_data/{n}_{k}_{d}.qasm") as qasm_file:
             sp = StatePrep.from_qasm(qasm_file.read(), basis=Basis.Z)
         with open(f"circuits_data/{n}_{k}_{d}.stabs") as stabs_file:
-            qecc = QECC.from_stabs(stabs_file.readlines(), n, k, d)
+            qecc = CSSCode.from_stabs(stabs_file.readlines(), n, k, d)
         return cls(
             code=qecc,
             ft_z_state_prep=sp,
@@ -449,5 +477,6 @@ class GadgetManager:
 
 
 if __name__ == '__main__':
-    code = GadgetManager.load_circuit_data(32, 20, 4)
-    print(code.ft_z_state_prep.non_ft_version())
+    # code = GadgetManager.load_circuit_data(32, 20, 4)
+    # print(code.ft_z_state_prep.non_ft_version())
+    print(CSSCode.load_code("32_20_4"))

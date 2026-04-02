@@ -1,4 +1,5 @@
 from collections import defaultdict
+from pathlib import Path
 
 import stim
 
@@ -55,3 +56,7 @@ def explode_circuit(circuit: stim.Circuit) -> list[stim.CircuitInstruction]:
 
 def _sorted_pair(v1, v2):
     return (v1, v2) if v1 < v2 else (v2, v1)
+
+
+def get_project_root() -> Path:
+    return Path(__file__).parent

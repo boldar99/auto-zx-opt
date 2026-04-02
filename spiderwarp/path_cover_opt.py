@@ -1,5 +1,7 @@
 import copy
+import heapq
 import itertools
+import random
 from collections import defaultdict
 from typing import Iterator
 
@@ -9,7 +11,7 @@ import numpy as np
 import pyzx as zx
 import stim
 
-from spiderwarp.qecc import GadgetManager, SyndromeGadget
+from spiderwarp.csscode import GadgetManager, SyndromeGadget
 from spiderwarp.utils import _sorted_pair
 from spiderwarp.verify_fault_tolerance import list_to_str_stabs, build_css_syndrome_table, compute_modified_lookup_table
 
@@ -240,6 +242,96 @@ class CoveredZXGraph:
             elif current_num_qubits == min_num_qubits:
                 min_covered_graphs.append(current_graph)
         return min_covered_graphs
+
+    def best_first_boundary_bends(self, max_evaluations=1000) -> "CoveredZXGraph":
+        """
+        Approximates min_ancilla_boundary_bends using a Greedy Best-First Search.
+        Prioritizes states with the fewest paths, breaking ties with fewest parity measurements.
+        """
+        # Priority Queue tuple: (num_paths, num_parity_measurements, tie_breaker, CoveredZXGraph)
+        # tie_breaker prevents heapq from trying to compare CoveredZXGraph objects
+
+        start_paths = len(self.paths)
+        start_parity = self._num_parity_measurement(self.paths)
+
+        pq = [(start_paths, start_parity, 0, self)]
+        seen = {self.path_hash()}
+
+        best_graph = self
+        min_paths = start_paths
+        eval_count = 0
+        tie_breaker = 1
+
+        while pq and eval_count < max_evaluations:
+            current_paths, _, _, current_graph = heapq.heappop(pq)
+            eval_count += 1
+
+            # Track the global best found so far
+            if current_paths < min_paths:
+                min_paths = current_paths
+                best_graph = current_graph
+
+            # Generate neighbors
+            for path_candidate in current_graph.all_causal_single_boundary_bends():
+                cov_graph = current_graph.copy()
+                cov_graph.paths = copy.deepcopy(path_candidate)
+                p_hash = cov_graph.path_hash()
+
+                if p_hash not in seen:
+                    seen.add(p_hash)
+                    n_paths = len(cov_graph.paths)
+                    n_parity = cov_graph._num_parity_measurement(cov_graph.paths)
+
+                    heapq.heappush(pq, (n_paths, n_parity, tie_breaker, cov_graph))
+                    tie_breaker += 1
+
+        return best_graph
+
+    def simulated_annealing_bends(self, initial_temp=10.0, cooling_rate=0.95,
+                                  max_steps=100) -> "CoveredZXGraph":
+        """
+        Approximates min_ancilla_boundary_bends using Simulated Annealing.
+        Note: Requires an 'un-bend' generator to fully utilize temperature jumps.
+        """
+        current_graph = self.copy()
+        best_graph = current_graph
+
+        current_cost = len(current_graph.paths)
+        best_cost = current_cost
+
+        temp = initial_temp
+
+        for step in range(max_steps):
+            # Gather all valid neighboring states
+            neighbors = []
+            for path_candidate in current_graph.all_causal_single_boundary_bends():
+                cg = current_graph.copy()
+                cg.paths = copy.deepcopy(path_candidate)
+                neighbors.append(cg)
+
+            if not neighbors:
+                break  # Hit a local minimum and have no 'split' operators to escape
+
+            # Pick a random valid neighbor
+            candidate_graph = random.choice(neighbors)
+            candidate_cost = len(candidate_graph.paths)
+
+            # Calculate cost difference
+            delta = candidate_cost - current_cost
+
+            # If it's better (fewer paths), or we randomly accept a worse state based on temp
+            if delta < 0 or random.random() < math.exp(-delta / temp):
+                current_graph = candidate_graph
+                current_cost = candidate_cost
+
+                if current_cost < best_cost:
+                    best_cost = current_cost
+                    best_graph = current_graph
+
+            # Cool down
+            temp *= cooling_rate
+
+        return best_graph
 
     def realign_pos(self) -> None:
         ys = [self.pos[path[0]][1] for path in self.paths.values()]

@@ -9,3 +9,4 @@ Furthermore, the `miscellaneous` folder contains various state preparations circ
 * `carbon_code`: circuit from https://arxiv.org/pdf/2404.02280
 * `smallest_interesting`: circuit from https://arxiv.org/pdf/2309.09893
 * `32_20_4`: circuit from private conversation with Ben Criger
+* `golay`: from Reichardt and Paetznic

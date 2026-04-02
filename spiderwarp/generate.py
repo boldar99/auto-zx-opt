@@ -3,7 +3,7 @@ import json
 from pathlib import Path
 
 from spiderwarp.path_cover_opt import CoveredZXGraph
-from spiderwarp.qecc import GadgetManager, SyndromeGadget, QECC
+from spiderwarp.csscode import GadgetManager, SyndromeGadget, CSSCode
 from spiderwarp.verify_fault_tolerance import compute_modified_lookup_table, list_to_str_stabs, build_css_syndrome_table
 
 cwd = Path.cwd()
@@ -51,7 +51,7 @@ class SECircuitData:
 
 @dataclasses.dataclass
 class OptimisedSteaneData:
-    code: QECC
+    code: CSSCode
     optimized_ft_z_se: SECircuitData
     optimized_ft_x_se: SECircuitData
     optimized_non_ft_z_se: SECircuitData
@@ -62,7 +62,7 @@ class OptimisedSteaneData:
     @classmethod
     def from_dict(cls, json_data):
         return cls(
-            code=QECC.from_dict(json_data["code"]),
+            code=CSSCode.from_dict(json_data["code"]),
             optimized_ft_z_se=SECircuitData.from_dict(json_data["optimized_ft_z_se"]),
             optimized_ft_x_se=SECircuitData.from_dict(json_data["optimized_ft_x_se"]),
             optimized_non_ft_z_se=SECircuitData.from_dict(json_data["optimized_non_ft_z_se"]),
@@ -102,7 +102,7 @@ def depth_minimal_circuit(cov_graph) -> SECircuitData:
             measurement_indices=cv.measurement_qubit_indices(),
             flag_indices=cv.flag_qubit_indices(),
         )
-        circuit_data.append(data)
+        circuit_data.insert(0, data)
 
     return min(circuit_data, key=SECircuitData.cnot_depth)
 
