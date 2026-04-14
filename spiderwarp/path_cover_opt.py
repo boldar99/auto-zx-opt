@@ -442,27 +442,21 @@ class CoveredZXGraph:
     def _causal_path_bends(self, paths, i, j, i_first: bool, j_first: bool):
         match (i_first, j_first):
             case (True, True):
-                merged_path = paths[i][::-1] + paths[j]
+                merged_path_options = [paths[i][::-1] + paths[j], paths[j][::-1] + paths[i]]
             case (True, False):
-                merged_path = paths[i][::-1] + paths[j][::-1]
+                merged_path_options = [paths[j] + paths[i], ]
             case (False, True):
-                merged_path = paths[i] + paths[j]
-            case (False, False):
-                merged_path = paths[i] + paths[j][::-1]
+                merged_path_options = [paths[i] + paths[j], ]
+            case _:
+                merged_path_options = []
 
-        new_paths_1 = copy.deepcopy(paths)
-        del new_paths_1[i]
-        new_paths_1[j] = merged_path
+        for merged_path in merged_path_options:
+            new_paths = copy.deepcopy(paths)
+            del new_paths[i]
+            new_paths[j] = merged_path
 
-        if self.check_causal_flow(new_paths_1):
-            yield new_paths_1
-
-        new_paths_2 = copy.deepcopy(paths)
-        del new_paths_2[j]
-        new_paths_2[i] = merged_path[::-1]
-
-        if self.check_causal_flow(new_paths_2):
-            yield new_paths_2
+            if self.check_causal_flow(new_paths):
+                yield new_paths
 
     def _get_path_to_qubit(self):
         qubits = list(self.paths.keys())
