@@ -158,13 +158,11 @@ class AncillaBlock(abc.ABC):
             noise_model = NoiseModel()
         circ = stim.Circuit()
 
+        circ.append("M", self.ket_zero)
+        circ.append("MX", self.ket_plus)
         if noise_model.p_init > 0:
-            for i in self.ket_zero + self.ket_plus:
-                circ.append("X_ERROR", i, noise_model.p_init)
-        for i in self.ket_plus:
-            circ.append("H", i)
-            if noise_model.p_1 > 0:
-                circ.append("DEPOLARIZE1", i, noise_model.p_1)
+            circ.append("X_ERROR", self.ket_zero, noise_model.p_init)
+            circ.append("Z_ERROR", self.ket_plus, noise_model.p_init)
         circ.append("TICK")
 
         all_qubits = set(range(max(map(max, self.cnots)) + 1))

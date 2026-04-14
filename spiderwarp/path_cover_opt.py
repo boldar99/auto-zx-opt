@@ -549,16 +549,16 @@ class CoveredZXGraph:
 
         ops = self._find_total_ordering()
         for op, qubits in ops:
-            if op == "PrepZ":
-                ket_0.append(qubits)
-            elif op == "PrepX":
-                ket_plus.append(qubits)
+            if op == "R":
+                ket_0 += qubits
+            elif op == "RX":
+                ket_plus += qubits
             elif op in ("CNOT", "CX"):
                 cnots.append(qubits)
-            elif op == "MeasZ":
+            elif op == "M":
                 bra_0.append(qubits)
                 measurements.append(qubits)
-            elif op == "MeasX":
+            elif op == "MX":
                 bra_plus.append(qubits)
                 measurements.append(qubits)
 

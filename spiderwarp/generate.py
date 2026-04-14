@@ -99,20 +99,16 @@ class OptimisedSteaneData:
 def depth_minimal_circuit(cov_graph) -> tuple[CoveredZXGraph, SECircuitData]:
     circuit_data: list[SECircuitData] = []
     for cv in cov_graph.min_ancilla_boundary_bends():
-        # data = SECircuitData(
-        #     circuit=,
-        #     # H_indices=cv.matrix_transformation_indices(),
-        #     # measurement_indices=cv.measurement_qubit_indices(),
-        #     # flag_indices=cv.flag_qubit_indices(),
-        #     H_indices=[],
-        #     measurement_indices=[],
-        #     flag_indices=[],
-        # )
-        c = cv.extract_circuit()
-        circuit_data.insert(0, (cv, c))
+        # cv.visualize()
+        data = SECircuitData(
+            circuit=cv.to_syndrome_measurement_circuit(),
+            H_indices=cv.matrix_transformation_indices(),
+            measurement_indices=cv.measurement_qubit_indices(),
+            flag_indices=cv.flag_qubit_indices(),
+        )
+        circuit_data.insert(0, (cv, data))
 
-    return circuit_data[0]
-    return min(circuit_data, key=lambda p: p[2])
+    return min(circuit_data, key=lambda p: p[1].cnot_depth())
 
 
 def make_json_serializable(data):
@@ -206,5 +202,5 @@ if __name__ == "__main__":
     ft_z_se_cov_graph.basic_FE_rewrites()
     ft_z_se_cov_graph.visualize()
     cv, optimized_ft_z_se = depth_minimal_circuit(ft_z_se_cov_graph)
-    cv.visualize(figsize=(40, 40))
-    print(optimized_ft_z_se)
+    cv.visualize()
+    print(optimized_ft_z_se.circuit.to_stim())
