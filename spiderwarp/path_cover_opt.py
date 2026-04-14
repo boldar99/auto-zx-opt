@@ -136,11 +136,6 @@ class CoveredZXGraph:
             tuple(sorted(tuple(v) for v in self.paths.values()))
         )
 
-    def total_hardware_qubits(self) -> int:
-        allocation = self._allocate_hardware_qubits()
-        # +1 because indices are 0-indexed
-        return max(allocation.values()) + 1
-
     def _purge_vertex_information(self, v):
         del self.pos[v]
         del self.node_types[v]
@@ -229,25 +224,8 @@ class CoveredZXGraph:
                         constraint_graph.add_edge(u, neighbor)
         return constraint_graph
 
-    def _compute_dag_layers(self) -> dict[int, int]:
-        """Calculates the ASAP time layer for every node in the causal flow graph."""
-        dag = self._construct_flow_graph(self.paths)
-        in_degree = dict(dag.in_degree())
-        layers = {n: 0 for n in dag.nodes if in_degree[n] == 0}
-
-        # Topological traversal
-        queue = [n for n in dag.nodes if in_degree[n] == 0]
-        while queue:
-            node = queue.pop(0)
-            for neighbor in dag.successors(node):
-                # The neighbor must happen strictly after the current node
-                layers[neighbor] = max(layers.get(neighbor, 0), layers[node] + 1)
-                in_degree[neighbor] -= 1
-                if in_degree[neighbor] == 0:
-                    queue.append(neighbor)
-
-        print(layers)
-        return layers
+    def total_hardware_qubits(self):
+        return len(self.paths)
 
     def check_causal_flow(self, paths=None) -> bool:
         paths_to_check = paths if paths is not None else self.paths
@@ -296,7 +274,6 @@ class CoveredZXGraph:
                 cov_graph.paths = copy.deepcopy(path)
                 p_hash = cov_graph.path_hash()
                 if p_hash not in seen:
-                    print(cov_graph.total_hardware_qubits())
                     covered_graphs.append(cov_graph)
                     seen.add(p_hash)
                     yield cov_graph
@@ -487,14 +464,10 @@ class CoveredZXGraph:
         if self.check_causal_flow(new_paths_2):
             yield new_paths_2
 
-    # def _get_path_to_qubit(self):
-    #     qubits = list(self.paths.keys())
-    #     qubits.sort()
-    #     return {q: i for i, q in enumerate(qubits)}
-
     def _get_path_to_qubit(self):
-        # Replaces the naive sorted dictionary approach
-        return self._allocate_hardware_qubits()
+        qubits = list(self.paths.keys())
+        qubits.sort()
+        return {q: i for i, q in enumerate(qubits)}
 
     def _find_total_ordering(self):
         ordered_operations = []
@@ -579,10 +552,8 @@ class CoveredZXGraph:
         cnots = []
         bra_0, bra_plus = [], []
         measurements = []
-        circ = stim.Circuit()
 
         ops = self._find_total_ordering()
-        print(ops)
         for op, qubits in ops:
             if op == "PrepZ":
                 ket_0.append(qubits)
@@ -606,63 +577,15 @@ class CoveredZXGraph:
         )
 
     def extract_circuit(self) -> stim.Circuit:
-        return self.to_syndrome_measurement_circuit().to_stim(_layer_cnots=False)
+        if not self.check_causal_flow():
+            raise ValueError("Circuit must have causal flow.")
+        circuit = stim.Circuit()
 
-    def _allocate_hardware_qubits(self) -> dict[int, int]:
-        """
-        Maps logical path IDs to physical hardware qubit indices.
-        Data qubits get fixed indices 0 to N-1.
-        Ancilla paths are greedily packed into shared hardware tracks starting from N.
-        """
-        layers = self._compute_dag_layers()
-        allocation = {}
+        ops = self._find_total_ordering()
+        for op_name, qubits in ops:
+            circuit.append(op_name, qubits)
 
-        data_paths = []
-        ancilla_paths = []
-
-        # 1. Classify paths
-        for p_id, path in self.paths.items():
-            if self.node_types[path[0]] == zx.VertexType.BOUNDARY or self.node_types[
-                path[-1]] == zx.VertexType.BOUNDARY:
-                data_paths.append(p_id)
-            else:
-                ancilla_paths.append(p_id)
-
-        # 2. Allocate Data Qubits (Stable Indices: 0 to N-1)
-        # Sort by spatial y-coordinate to maintain matrix logic in __init__
-        data_paths.sort(key=lambda p_id: self.pos[self.paths[p_id][0]][1])
-        for i, p_id in enumerate(data_paths):
-            allocation[p_id] = i
-
-        # 3. Allocate Ancilla Qubits (Dynamic Reuse: N and up)
-        num_data_qubits = len(data_paths)
-
-        # Sort ancilla lifelines by their starting time layer
-        ancilla_paths.sort(key=lambda p_id: layers[self.paths[p_id][0]])
-
-        # Track when each reused hardware line becomes free again
-        active_ancilla_end_times = []
-
-        for p_id in ancilla_paths:
-            start_time = layers[self.paths[p_id][0]]
-            end_time = layers[self.paths[p_id][-1]]
-
-            assigned = False
-            for track_idx, free_time in enumerate(active_ancilla_end_times):
-                # Strictly less than (<) ensures Meas finishes before new Prep starts
-                if free_time < start_time:
-                    allocation[p_id] = num_data_qubits + track_idx
-                    active_ancilla_end_times[track_idx] = end_time
-                    assigned = True
-                    break
-
-            if not assigned:
-                # No free tracks; spin up a new physical ancilla qubit
-                track_idx = len(active_ancilla_end_times)
-                allocation[p_id] = num_data_qubits + track_idx
-                active_ancilla_end_times.append(end_time)
-
-        return allocation
+        return circuit
 
     def matrix_transformation_indices(self) -> list:
         lasts = [p[-1] for p in self.paths.values() if self.node_types[p[-1]] != zx.VertexType.BOUNDARY]
