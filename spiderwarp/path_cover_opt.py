@@ -1,6 +1,7 @@
 import copy
 import heapq
 import itertools
+import math
 import random
 from collections import defaultdict
 from typing import Iterator
@@ -37,7 +38,17 @@ class CoveredZXGraph:
                               node_types[p[-1]] != zx.VertexType.BOUNDARY}
 
     @classmethod
-    def from_zx_diagram(cls, diagram: zx.Graph):
+    def from_zx_diagram(cls, diagram: zx.graph.graph.BaseGraph):
+        apply_h_at = []
+        zx.simplify.id_simp(diagram)
+        for v in diagram.vertices():
+            if diagram.vertex_degree(v) == 1:
+                e = list(diagram.edges(v, list(diagram.neighbors(v))[0]))[0]
+                if diagram.edge_type(e) == zx.EdgeType.HADAMARD:
+                    apply_h_at.append(v)
+        for v in apply_h_at:
+            zx.simplify.color_change(diagram, v)
+
         # Convert to NetworkX
         graph_dict = diagram.to_dict()
         G = nx.Graph()
@@ -56,14 +67,42 @@ class CoveredZXGraph:
         for u, v, _ in graph_dict['edges']:
             G.add_edge(u, v)
 
-        # Generate trivial paths
-        paths = defaultdict(list)
+        # 1. Group nodes purely by their spatial qubit track
+        nodes_by_qubit = defaultdict(list)
         for v in G.nodes():
-            paths[qubit_indices[v]].append(v)
-        for path in paths.values():
-            path.sort(key=lambda v: pos[v][0])
+            nodes_by_qubit[qubit_indices[v]].append(v)
 
-        return cls(G, pos, node_types, dict(paths))
+        paths = {}
+        path_id = 0
+
+        # 2. Sort tracks to ensure data qubits get the lowest path IDs
+        for q_index in sorted(nodes_by_qubit.keys()):
+            nodes_on_track = nodes_by_qubit[q_index]
+
+            # Sort chronologically by row (x-coordinate)
+            nodes_on_track.sort(key=lambda v: pos[v][0])
+
+            current_path = [nodes_on_track[0]]
+
+            # 3. Traverse track and split lifelines based on actual causal edges
+            for i in range(1, len(nodes_on_track)):
+                prev_node = nodes_on_track[i - 1]
+                curr_node = nodes_on_track[i]
+
+                if G.has_edge(prev_node, curr_node):
+                    # Causal flow is unbroken; continue path
+                    current_path.append(curr_node)
+                else:
+                    # Qubit reuse detected! (No edge = broken causal flow)
+                    paths[path_id] = current_path
+                    path_id += 1
+                    current_path = [curr_node]
+
+            # Add the final lifeline for this track
+            paths[path_id] = current_path
+            path_id += 1
+
+        return cls(G, pos, node_types, paths)
 
     def copy(self):
         cg = CoveredZXGraph(
@@ -96,6 +135,11 @@ class CoveredZXGraph:
         return hash(
             tuple(sorted(tuple(v) for v in self.paths.values()))
         )
+
+    def total_hardware_qubits(self) -> int:
+        allocation = self._allocate_hardware_qubits()
+        # +1 because indices are 0-indexed
+        return max(allocation.values()) + 1
 
     def _purge_vertex_information(self, v):
         del self.pos[v]
@@ -185,6 +229,26 @@ class CoveredZXGraph:
                         constraint_graph.add_edge(u, neighbor)
         return constraint_graph
 
+    def _compute_dag_layers(self) -> dict[int, int]:
+        """Calculates the ASAP time layer for every node in the causal flow graph."""
+        dag = self._construct_flow_graph(self.paths)
+        in_degree = dict(dag.in_degree())
+        layers = {n: 0 for n in dag.nodes if in_degree[n] == 0}
+
+        # Topological traversal
+        queue = [n for n in dag.nodes if in_degree[n] == 0]
+        while queue:
+            node = queue.pop(0)
+            for neighbor in dag.successors(node):
+                # The neighbor must happen strictly after the current node
+                layers[neighbor] = max(layers.get(neighbor, 0), layers[node] + 1)
+                in_degree[neighbor] -= 1
+                if in_degree[neighbor] == 0:
+                    queue.append(neighbor)
+
+        print(layers)
+        return layers
+
     def check_causal_flow(self, paths=None) -> bool:
         paths_to_check = paths if paths is not None else self.paths
         constraint_graph = self._construct_flow_graph(paths_to_check)
@@ -197,12 +261,17 @@ class CoveredZXGraph:
                 vertex_qubit[v] = k
 
         for v, w in self.G.edges():
-            # Check if start of one path connects to start of another
-            v_is_first_or_last = v in (paths[vertex_qubit[v]][0], paths[vertex_qubit[v]][-1])
-            w_is_first_or_last = w in (paths[vertex_qubit[w]][0], paths[vertex_qubit[w]][-1])
+            if vertex_qubit[v] == vertex_qubit[w]:
+                continue
 
-            if v_is_first_or_last and w_is_first_or_last:
-                yield vertex_qubit[v], vertex_qubit[w]
+            # Check if start of one path connects to start of another
+            v_is_first = v == paths[vertex_qubit[v]][0]
+            v_is_last = v == paths[vertex_qubit[v]][-1]
+            w_is_first = w == paths[vertex_qubit[w]][0]
+            w_is_last = w == paths[vertex_qubit[w]][-1]
+
+            if (v_is_first or v_is_last) and (w_is_first or w_is_last):
+                yield vertex_qubit[v], vertex_qubit[w], v_is_first, w_is_first
 
     def all_causal_single_boundary_bends(self, paths=None) -> Iterator:
         """
@@ -210,8 +279,8 @@ class CoveredZXGraph:
         """
         current_paths = paths or self.paths
 
-        for bend_indices in self._boundary_bends(current_paths):
-            for bend in self._causal_path_bends(current_paths, *bend_indices):
+        for bend_data in self._boundary_bends(current_paths):
+            for bend in self._causal_path_bends(current_paths, *bend_data):
                 yield bend
 
     def bfs_causal_boundary_bends(self) -> Iterator["CoveredZXGraph"]:
@@ -227,15 +296,16 @@ class CoveredZXGraph:
                 cov_graph.paths = copy.deepcopy(path)
                 p_hash = cov_graph.path_hash()
                 if p_hash not in seen:
+                    print(cov_graph.total_hardware_qubits())
                     covered_graphs.append(cov_graph)
                     seen.add(p_hash)
                     yield cov_graph
 
     def min_ancilla_boundary_bends(self) -> list["CoveredZXGraph"]:
-        min_num_qubits = len(self.paths)
+        min_num_qubits = self.total_hardware_qubits()
         min_covered_graphs = []
         for current_graph in self.bfs_causal_boundary_bends():
-            current_num_qubits = len(current_graph.paths)
+            current_num_qubits = current_graph.total_hardware_qubits()
             if current_num_qubits < min_num_qubits:
                 min_num_qubits = current_num_qubits
                 min_covered_graphs = [current_graph]
@@ -392,8 +462,16 @@ class CoveredZXGraph:
 
         self.paths = current_paths
 
-    def _causal_path_bends(self, paths, i, j):
-        merged_path = list(reversed(paths[i])) + paths[j]
+    def _causal_path_bends(self, paths, i, j, i_first: bool, j_first: bool):
+        match (i_first, j_first):
+            case (True, True):
+                merged_path = paths[i][::-1] + paths[j]
+            case (True, False):
+                merged_path = paths[i][::-1] + paths[j][::-1]
+            case (False, True):
+                merged_path = paths[i] + paths[j]
+            case (False, False):
+                merged_path = paths[i] + paths[j][::-1]
 
         new_paths_1 = copy.deepcopy(paths)
         del new_paths_1[i]
@@ -404,15 +482,19 @@ class CoveredZXGraph:
 
         new_paths_2 = copy.deepcopy(paths)
         del new_paths_2[j]
-        new_paths_2[i] = list(reversed(merged_path))
+        new_paths_2[i] = merged_path[::-1]
 
         if self.check_causal_flow(new_paths_2):
             yield new_paths_2
 
+    # def _get_path_to_qubit(self):
+    #     qubits = list(self.paths.keys())
+    #     qubits.sort()
+    #     return {q: i for i, q in enumerate(qubits)}
+
     def _get_path_to_qubit(self):
-        qubits = list(self.paths.keys())
-        qubits.sort()
-        return {q: i for i, q in enumerate(qubits)}
+        # Replaces the naive sorted dictionary approach
+        return self._allocate_hardware_qubits()
 
     def _find_total_ordering(self):
         ordered_operations = []
@@ -426,9 +508,9 @@ class CoveredZXGraph:
             for u in p:
                 node_to_qubit[u] = qubit_to_qubit[q]
             if self.node_types[p[0]] == zx.VertexType.Z:
-                ordered_operations.append(("PrepX", qubit_to_qubit[q]))
+                ordered_operations.append(("RX", [qubit_to_qubit[q]]))
             elif self.node_types[p[0]] == zx.VertexType.X:
-                ordered_operations.append(("PrepZ", qubit_to_qubit[q]))
+                ordered_operations.append(("R", [qubit_to_qubit[q]]))
             lasts.add(p[-1])
 
         path_edges_list = [[_sorted_pair(v1, v2) for v1, v2 in zip(p, p[1:])]
@@ -483,9 +565,9 @@ class CoveredZXGraph:
 
                 if s in lasts:
                     if ts == zx.VertexType.Z:
-                        ordered_operations.append(("MeasX", qs))
+                        ordered_operations.append(("MX", qs))
                     elif ts == zx.VertexType.X:
-                        ordered_operations.append(("MeasZ", qs))
+                        ordered_operations.append(("M", qs))
 
         return ordered_operations
 
@@ -497,8 +579,10 @@ class CoveredZXGraph:
         cnots = []
         bra_0, bra_plus = [], []
         measurements = []
+        circ = stim.Circuit()
 
         ops = self._find_total_ordering()
+        print(ops)
         for op, qubits in ops:
             if op == "PrepZ":
                 ket_0.append(qubits)
@@ -514,7 +598,8 @@ class CoveredZXGraph:
                 measurements.append(qubits)
 
         measurements.sort()
-        flag_qubits = [measurements[i] for i in self.flag_qubit_indices()]
+        # flag_qubits = [measurements[i] for i in self.flag_qubit_indices()]
+        flag_qubits = []
 
         return SyndromeGadget(
             ket_0, ket_plus, cnots, bra_0, bra_plus, flag_qubits
@@ -522,6 +607,62 @@ class CoveredZXGraph:
 
     def extract_circuit(self) -> stim.Circuit:
         return self.to_syndrome_measurement_circuit().to_stim(_layer_cnots=False)
+
+    def _allocate_hardware_qubits(self) -> dict[int, int]:
+        """
+        Maps logical path IDs to physical hardware qubit indices.
+        Data qubits get fixed indices 0 to N-1.
+        Ancilla paths are greedily packed into shared hardware tracks starting from N.
+        """
+        layers = self._compute_dag_layers()
+        allocation = {}
+
+        data_paths = []
+        ancilla_paths = []
+
+        # 1. Classify paths
+        for p_id, path in self.paths.items():
+            if self.node_types[path[0]] == zx.VertexType.BOUNDARY or self.node_types[
+                path[-1]] == zx.VertexType.BOUNDARY:
+                data_paths.append(p_id)
+            else:
+                ancilla_paths.append(p_id)
+
+        # 2. Allocate Data Qubits (Stable Indices: 0 to N-1)
+        # Sort by spatial y-coordinate to maintain matrix logic in __init__
+        data_paths.sort(key=lambda p_id: self.pos[self.paths[p_id][0]][1])
+        for i, p_id in enumerate(data_paths):
+            allocation[p_id] = i
+
+        # 3. Allocate Ancilla Qubits (Dynamic Reuse: N and up)
+        num_data_qubits = len(data_paths)
+
+        # Sort ancilla lifelines by their starting time layer
+        ancilla_paths.sort(key=lambda p_id: layers[self.paths[p_id][0]])
+
+        # Track when each reused hardware line becomes free again
+        active_ancilla_end_times = []
+
+        for p_id in ancilla_paths:
+            start_time = layers[self.paths[p_id][0]]
+            end_time = layers[self.paths[p_id][-1]]
+
+            assigned = False
+            for track_idx, free_time in enumerate(active_ancilla_end_times):
+                # Strictly less than (<) ensures Meas finishes before new Prep starts
+                if free_time < start_time:
+                    allocation[p_id] = num_data_qubits + track_idx
+                    active_ancilla_end_times[track_idx] = end_time
+                    assigned = True
+                    break
+
+            if not assigned:
+                # No free tracks; spin up a new physical ancilla qubit
+                track_idx = len(active_ancilla_end_times)
+                allocation[p_id] = num_data_qubits + track_idx
+                active_ancilla_end_times.append(end_time)
+
+        return allocation
 
     def matrix_transformation_indices(self) -> list:
         lasts = [p[-1] for p in self.paths.values() if self.node_types[p[-1]] != zx.VertexType.BOUNDARY]

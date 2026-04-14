@@ -195,7 +195,7 @@ class AncillaBlock(abc.ABC):
         return circ
 
     def to_pyzx(self):
-        n_data = min(min(self.ket_zero), min(self.meas_z))
+        n_data = min(min(self.ket_zero + self.ket_plus), min(self.meas_z + self.meas_x))
         circ = zx.Circuit(n_data)
 
         for i in self.ket_zero:

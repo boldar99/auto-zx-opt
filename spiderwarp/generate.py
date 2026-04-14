@@ -2,8 +2,11 @@ import dataclasses
 import json
 from pathlib import Path
 
+import stim
+
 from spiderwarp.path_cover_opt import CoveredZXGraph
-from spiderwarp.csscode import GadgetManager, SyndromeGadget, CSSCode
+from spiderwarp.csscode import GadgetManager, SyndromeGadget, CSSCode, StatePrep, Basis
+from spiderwarp.utils import get_project_root, steane_se_from_stim_state_prep, stim_to_pyzx
 from spiderwarp.verify_fault_tolerance import compute_modified_lookup_table, list_to_str_stabs, build_css_syndrome_table
 
 cwd = Path.cwd()
@@ -93,18 +96,21 @@ class OptimisedSteaneData:
             json.dump(self.to_dict(), f, indent=4)
 
 
-def depth_minimal_circuit(cov_graph) -> SECircuitData:
+def depth_minimal_circuit(cov_graph) -> tuple[CoveredZXGraph, SECircuitData]:
     circuit_data: list[SECircuitData] = []
     for cv in cov_graph.min_ancilla_boundary_bends():
         data = SECircuitData(
             circuit=cv.to_syndrome_measurement_circuit(),
-            H_indices=cv.matrix_transformation_indices(),
-            measurement_indices=cv.measurement_qubit_indices(),
-            flag_indices=cv.flag_qubit_indices(),
+            # H_indices=cv.matrix_transformation_indices(),
+            # measurement_indices=cv.measurement_qubit_indices(),
+            # flag_indices=cv.flag_qubit_indices(),
+            H_indices=[],
+            measurement_indices=[],
+            flag_indices=[],
         )
-        circuit_data.insert(0, data)
+        circuit_data.insert(0, (cv, data))
 
-    return min(circuit_data, key=SECircuitData.cnot_depth)
+    return min(circuit_data, key=lambda p: p[1].cnot_depth())
 
 
 def make_json_serializable(data):
@@ -175,5 +181,28 @@ def generate_code(qecc):
     simp_data.save_json(f"simplified_circuits/{qecc}.json")
 
 
+def get_circuit(qecc, folder):
+    root = get_project_root()
+    file = root.joinpath("assets", "circuits", folder, f"{qecc}.stim")
+    root.joinpath()
+    with open(file) as f:
+        raw_str = f.read()
+        return stim.Circuit(raw_str)
+
+
 if __name__ == "__main__":
-    generate_code("15_7_3")
+    # circ = get_circuit("zero_32_20_4", "miscellaneous")
+    # circ = get_circuit("zero_17_1_5", "FAO-FTStatePrep")
+    # circ, n = get_circuit("cc_4_8_8_d5/zero_ft_heuristic_opt", "SAT-FTStatePrep"), 17
+    circ, n = get_circuit("hamming/zero_ft_opt_opt", "SAT-FTStatePrep"), 15
+    if "R" not in circ[0].name:
+        circ.insert(0, stim.CircuitInstruction("R", range(circ.num_qubits)))
+    se = steane_se_from_stim_state_prep(circ, se_basis="Z", n=n)
+    # print(se)
+    ft_z_se = stim_to_pyzx(se, n)
+    ft_z_se_cov_graph = CoveredZXGraph.from_zx_diagram(ft_z_se)
+    ft_z_se_cov_graph.basic_FE_rewrites()
+    ft_z_se_cov_graph.visualize()
+    cv, optimized_ft_z_se = depth_minimal_circuit(ft_z_se_cov_graph)
+    cv.visualize(figsize=(40, 40))
+    print(optimized_ft_z_se.circuit.to_stim())

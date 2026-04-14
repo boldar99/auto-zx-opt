@@ -52,6 +52,7 @@ def mqt_steane_opt(code_name):
 
 
 if __name__ == '__main__':
+    code_name = "31_1_7"
+    # code_name = "17_1_5"
     code_name = "20_2_6"
     print(mqt_steane_opt(code_name))
-

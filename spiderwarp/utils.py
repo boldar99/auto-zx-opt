@@ -1,7 +1,11 @@
+import itertools
 import re
 from collections import defaultdict
 from pathlib import Path
+from typing import Iterable
 
+import matplotlib.pyplot as plt
+import pyzx as zx
 import stim
 
 
@@ -61,85 +65,6 @@ def _sorted_pair(v1, v2):
 
 def get_project_root() -> Path:
     return Path(__file__).parent
-
-
-def qpic_to_stim(qpic_str: str) -> stim.Circuit:
-    circuit = stim.Circuit()
-
-    # Dictionary to map arbitrary qpic string names to sequential integer Stim indices
-    wire_to_idx = {}
-    next_idx = 0
-
-    lines = qpic_str.split('\n')
-
-    for line in lines:
-        # Strip whitespace and remove inline comments
-        line = line.split('#')[0].strip()
-        if not line:
-            continue
-
-        parts = line.split()
-
-        # Skip purely visual/structural markers
-        if parts[0] in ('PREAMBLE', 'TOUCH') or 'START' in parts or 'END' in parts:
-            continue
-
-        # 1. Parse Wire Initializations (e.g., "1 W {1 \ket{+}}")
-        if len(parts) >= 2 and parts[1] == 'W':
-            wire_name = parts[0]
-            if wire_name not in wire_to_idx:
-                wire_to_idx[wire_name] = next_idx
-                next_idx += 1
-
-            idx = wire_to_idx[wire_name]
-
-            # Extract the FIRST bracketed label to determine the initialization state
-            first_label_match = re.search(r'\{(.*?)\}', line)
-            if first_label_match:
-                first_label = first_label_match.group(1).replace(" ", "")
-                if 'ket{+' in first_label:
-                    circuit.append('RX', [idx])
-                elif 'ket{0' in first_label:
-                    circuit.append('R', [idx])
-            continue
-
-        # 2. Parse Measurements (e.g., "33 M {\scriptsize $Z$}")
-        if len(parts) >= 2 and parts[1] == 'M':
-            wire_name = parts[0]
-            if wire_name not in wire_to_idx:
-                continue  # Ignore measuring an undeclared wire
-
-            idx = wire_to_idx[wire_name]
-            label_clean = line.replace(" ", "")
-
-            if '$X$' in label_clean:
-                circuit.append('MX', [idx])
-            else:
-                # Default to Z basis if it's explicitly $Z$ or unrecognised
-                circuit.append('M', [idx])
-            continue
-
-        # 3. Parse Explicit Hadamard Gates (e.g., "33 H")
-        if len(parts) >= 2 and parts[1] == 'H':
-            wire_name = parts[0]
-            if wire_name in wire_to_idx:
-                circuit.append('H', [wire_to_idx[wire_name]])
-            continue
-
-        # 4. Parse CNOT Gates (e.g., "3 +4")
-        if len(parts) == 2 and parts[1].startswith('+'):
-            ctrl_name = parts[0]
-            tgt_name = parts[1][1:]  # Strip the '+' sign
-
-            if ctrl_name in wire_to_idx and tgt_name in wire_to_idx:
-                circuit.append('CX', [wire_to_idx[ctrl_name], wire_to_idx[tgt_name]])
-            continue
-
-    return circuit
-
-
-import stim
-import re
 
 
 def qpic_to_stim(qpic_str: str) -> stim.Circuit:
@@ -246,11 +171,66 @@ def qpic_to_stim(qpic_str: str) -> stim.Circuit:
     return circuit
 
 
+def flatten(ls: Iterable[Iterable]) -> list:
+    return list(itertools.chain(*ls))
+
+
+def steane_se_from_stim_state_prep(circ: stim.Circuit, se_basis: str, n: int) -> stim.Circuit:
+    ret = stim.Circuit()
+    for op in circ:
+        targets = [stim.GateTarget(t.value + n) for t in op.targets_copy()]
+        new_op = stim.CircuitInstruction(op.name, targets, op.gate_args_copy())
+        ret.append(new_op)
+    if se_basis == "Z":
+        ret.append("CX", flatten(zip(range(n, 2 * n), range(n))))
+        ret.append("MX", range(n, 2 * n))
+    elif se_basis == "X":
+        ret.append("CX", flatten(zip(range(n), range(n, 2 * n))))
+        ret.append("M", range(n, 2 * n))
+    else:
+        raise Exception("Unknown se_basis: {}".format(se_basis))
+    return ret
+
+
+def stim_to_pyzx(stim_circuit: stim.Circuit, n_data: int) -> zx.Graph:
+    circ = zx.Circuit(n_data)
+
+    for op, targets, _ in stim_circuit.flattened_operations():
+        if op in ("R", "RX"):
+            for t in targets:
+                if t < n_data:
+                    continue
+                if op == "R":
+                    circ.add_gate("InitAncilla", label=t, basis="Z")
+                elif op == "RX":
+                    circ.add_gate("InitAncilla", label=t, basis="X")
+
+        elif op == "CX":
+            for i in range(0, len(targets), 2):
+                c, n = targets[i], targets[i + 1]
+                circ.add_gate("CNOT", c, n)
+
+        elif op == "H":
+            for t in targets:
+                circ.add_gate("H", t)
+
+        elif op in ("M", "MX", "MR"):
+            for t in targets:
+                if op in ("M", "MR"):
+                    circ.add_gate("PostSelect", label=t, basis="Z")
+                elif op == "MX":
+                    circ.add_gate("PostSelect", label=t, basis="X")
+
+    return circ.to_graph()
+
+
 if __name__ == "__main__":
     # --- Example Usage ---
     root = get_project_root()
-    file = root.joinpath("assets", "circuits", "miscellaneous", "zero_32_20_4.qpic")
+    file = root.joinpath("assets", "circuits", "miscellaneous", "zero_32_20_4.stim")
     with open(file, "r") as f:
-        your_qpic_string = f.read()
-    circuit = qpic_to_stim(your_qpic_string)
-    print(circuit)
+        stim_str = f.read()
+    circuit = stim.Circuit(stim_str)
+    se = steane_se_from_stim_state_prep(circuit, se_basis="Z", n=32)
+    graph = stim_to_pyzx(se, 32)
+    print(graph)
