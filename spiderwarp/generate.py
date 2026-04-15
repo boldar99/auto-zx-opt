@@ -3,9 +3,15 @@ import json
 from pathlib import Path
 
 import stim
+from matplotlib import pyplot as plt
 
 from spiderwarp.path_cover_opt import CoveredZXGraph
 from spiderwarp.csscode import GadgetManager, SyndromeGadget, CSSCode, StatePrep, Basis
+from spiderwarp.layer_circuit import _expand_stim_operation_list, _layer_circuit_ops, apply_qubit_reuse, \
+    layered_ops_to_noisy_stim_circuit
+
+from spiderwarp.qubit_reuse import build_circuit_dag, visualize_circuit_dag, inject_aggressive_reuse, \
+    apply_logical_qubit_merge_and_compress, dag_to_circuit
 from spiderwarp.utils import get_project_root, steane_se_from_stim_state_prep, stim_to_pyzx
 from spiderwarp.verify_fault_tolerance import compute_modified_lookup_table, list_to_str_stabs, build_css_syndrome_table
 
@@ -189,18 +195,44 @@ def get_circuit(qecc, folder):
 
 
 if __name__ == "__main__":
-    # circ = get_circuit("zero_32_20_4", "miscellaneous")
-    # circ = get_circuit("zero_17_1_5", "FAO-FTStatePrep")
+    circ, n = get_circuit("zero_32_20_4", "miscellaneous"), 32
     # circ, n = get_circuit("cc_4_8_8_d5/zero_ft_heuristic_opt", "SAT-FTStatePrep"), 17
-    circ, n = get_circuit("hamming/zero_ft_opt_opt", "SAT-FTStatePrep"), 15
+    # circ, n = get_circuit("hamming/zero_ft_opt_opt", "SAT-FTStatePrep"), 15
     if "R" not in circ[0].name:
         circ.insert(0, stim.CircuitInstruction("R", range(circ.num_qubits)))
     se = steane_se_from_stim_state_prep(circ, se_basis="Z", n=n)
-    # print(se)
+    print(se)
+    print("\n\n\n" + "=" * 80 + "\n\n\n")
     ft_z_se = stim_to_pyzx(se, n)
     ft_z_se_cov_graph = CoveredZXGraph.from_zx_diagram(ft_z_se)
     ft_z_se_cov_graph.basic_FE_rewrites()
     ft_z_se_cov_graph.visualize()
     cv, optimized_ft_z_se = depth_minimal_circuit(ft_z_se_cov_graph)
     cv.visualize()
-    print(optimized_ft_z_se.circuit.to_stim())
+    dag = build_circuit_dag(cv._find_total_ordering())
+    visualize_circuit_dag(dag, figsize=(30, 20))
+    mod_dag, logical_to_physical, total_hw = inject_aggressive_reuse(dag, n_data=n)
+    mod_dag = apply_logical_qubit_merge_and_compress(mod_dag, n_data=n)
+    visualize_circuit_dag(mod_dag, figsize=(30, 20))
+    operations = dag_to_circuit(mod_dag)
+    num_qubits = max(max(ts) for _, ts in operations) + 1
+    layered_ops = _layer_circuit_ops(operations, num_qubits)
+    # final_ops, num_sim_qubits = apply_qubit_reuse(layered_ops, n)
+    p = 0
+    noisy_circ = layered_ops_to_noisy_stim_circuit(layered_ops, num_qubits, p, p, p, p, p / 100)
+    print(noisy_circ)
+
+    # cv.extract_circuit()
+    # stim_circ = optimized_ft_z_se.circuit.to_stim(_layer_cnots=False)
+
+
+
+    # operations = [(op, targets) for (op, targets, params) in stim_circ.flattened_operations() if op != "DETECTOR"]
+    # detectors = [(op, [stim.target_rec(targets[0][1])]) for (op, targets, params) in stim_circ.flattened_operations() if op == "DETECTOR"]
+    # operations = _expand_stim_operation_list(operations)
+    # layered_ops = _layer_circuit_ops(operations, stim_circ.num_qubits)
+    # print(layered_ops)
+    # final_ops, num_sim_qubits = apply_qubit_reuse(layered_ops, n)
+    # p = 0
+    # noisy_circ = layered_ops_to_noisy_stim_circuit(final_ops + [detectors], circ.num_qubits, p, p, p, p, p / 100)
+    # print(noisy_circ)

@@ -158,12 +158,12 @@ class AncillaBlock(abc.ABC):
             noise_model = NoiseModel()
         circ = stim.Circuit()
 
-        circ.append("M", self.ket_zero)
-        circ.append("MX", self.ket_plus)
+        circ.append("R", self.ket_zero)
+        circ.append("RX", self.ket_plus)
         if noise_model.p_init > 0:
             circ.append("X_ERROR", self.ket_zero, noise_model.p_init)
             circ.append("Z_ERROR", self.ket_plus, noise_model.p_init)
-        circ.append("TICK")
+        # circ.append("TICK")
 
         all_qubits = set(range(max(map(max, self.cnots)) + 1))
         if _layer_cnots:
@@ -178,17 +178,23 @@ class AncillaBlock(abc.ABC):
                     circ.append("DEPOLARIZE2", [c, n], noise_model.p_2)
             if noise_model.p_mem > 0:
                 circ.append("Z_ERROR", all_qubits, noise_model.p_mem)
-            circ.append("TICK")
+            # circ.append("TICK")
 
-        for i in self.meas_x:
-            circ.append("H", i)
-            if noise_model.p_1 > 0:
-                circ.append("DEPOLARIZE1", i, noise_model.p_1)
-        for i in sorted(self.meas_z + self.meas_x):
-            if noise_model.p_meas > 0:
-                circ.append("MR", i, noise_model.p_meas)
-            else:
-                circ.append("MR", i)
+        if noise_model.p_meas > 0:
+            circ.append("X_ERROR", self.meas_x, noise_model.p_meas)
+            circ.append("Z_ERROR", self.meas_z, noise_model.p_meas)
+        circ.append("MX", self.meas_x)
+        circ.append("M", self.meas_z)
+
+        # for i in self.meas_x:
+        #     circ.append("H", i)
+        #     if noise_model.p_1 > 0:
+        #         circ.append("DEPOLARIZE1", i, noise_model.p_1)
+        # for i in sorted(self.meas_z + self.meas_x):
+        #     if noise_model.p_meas > 0:
+        #         circ.append("MR", i, noise_model.p_meas)
+        #     else:
+        #         circ.append("MR", i)
 
         return circ
 

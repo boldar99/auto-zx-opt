@@ -668,3 +668,4 @@ if __name__ == '__main__':
         print(se_circ)
         print(se_circ.to_stim())
         print()
+
