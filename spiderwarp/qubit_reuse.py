@@ -1,8 +1,10 @@
 import networkx as nx
 import matplotlib.pyplot as plt
 
+from spiderwarp.path_cover_opt import CoveredZXGraph
 
-def build_circuit_dag(ordered_operations: list[tuple[str, tuple | list]]) -> nx.DiGraph:
+
+def build_circuit_dag(cv: CoveredZXGraph, n_data: int) -> nx.DiGraph:
     """
     Converts a sequential list of quantum operations into a dependency DAG.
     Stores the original operation name and targets in the node attributes.
@@ -10,12 +12,23 @@ def build_circuit_dag(ordered_operations: list[tuple[str, tuple | list]]) -> nx.
     dag = nx.DiGraph()
     last_op_on_qubit = {}
 
+    ordered_operations = cv._find_total_ordering()
+
+    matrix_indices = dict(zip(cv.measurement_qubit_indices(), cv.matrix_transformation_indices()))
+    flags = cv.flag_qubit_indices()
+
+
     for i, (op_name, targets) in enumerate(ordered_operations):
         # Normalize targets to a tuple for consistent storage and display
         qubits = tuple(targets) if isinstance(targets, (list, tuple)) else (targets,)
 
         # Explicitly store op_name and targets as node attributes
         dag.add_node(i, op_name=op_name, targets=qubits)
+        if op_name in ("M", "MX"):
+            [q] = qubits
+            q -= n_data
+            dag.nodes[i]["is_flag"] = q in flags
+            dag.nodes[i]["matrix_index"] = matrix_indices.get(q)
 
         # Determine dependencies based on qubit usage
         dependencies = set()
@@ -32,35 +45,38 @@ def build_circuit_dag(ordered_operations: list[tuple[str, tuple | list]]) -> nx.
     return dag
 
 
-def dag_to_circuit(dag: nx.DiGraph, preserve_original_order: bool = False) -> list[tuple[str, list]]:
+def dag_to_circuit(dag: nx.DiGraph) -> tuple[list[tuple[str, list]], list[int], dict[int, int]]:
     """
     Converts a circuit dependency DAG back into a sequential list of operations.
 
     Args:
         dag: The directed acyclic graph representing the circuit operations.
-        preserve_original_order: If True, sorts by node ID to recover the exact
-                                 original sequence. If False, performs a standard
-                                 topological sort to yield a causally valid sequence.
     """
-    if preserve_original_order:
-        # Reconstruct based on the original node insertion IDs
-        ordered_nodes = sorted(dag.nodes())
-    else:
-        # Generate a valid causal sequence based on current graph edges
-        ordered_nodes = list(nx.topological_sort(dag))
-
     ordered_operations = []
-    for node in ordered_nodes:
+    flags = []
+    matrix_indices = {}
+    meas_id = 0
+    for node in dag.nodes():
         data = dag.nodes[node]
         op_name = data.get("op_name")
         targets = data.get("targets")
+        if op_name in ("M", "MX"):
+            is_flag = data.get("is_flag")
+            matrix_index = data.get("matrix_index")
+            if is_flag:
+                flags.append(meas_id)
+            else:
+                matrix_indices[meas_id] = matrix_index
+            meas_id += 1
 
         # Convert targets back to a list if stored as a tuple
         targets_list = list(targets) if isinstance(targets, tuple) else targets
 
         ordered_operations.append([op_name, targets_list])
 
-    return ordered_operations
+    print(ordered_operations)
+
+    return ordered_operations, flags, matrix_indices
 
 
 def visualize_circuit_dag(di_graph: nx.DiGraph, figsize=(12, 8)):
@@ -79,9 +95,15 @@ def visualize_circuit_dag(di_graph: nx.DiGraph, figsize=(12, 8)):
     # 3. Create readable labels
     labels = {}
     for node, data in di_graph.nodes(data=True):
-        op = data.get("op_name", "Unknown")
+        op = data.get("op_name")
         targs = "-".join([str(t) for t in data.get("targets", ())])
-        labels[node] = f"{op}\n{targs}"
+        labels[node] = f"{op}\n{targs}" + str()
+        if data.get("is_flag"):
+            labels[node] += f"\nFLAG"
+        elif data.get("matrix_index") is not None:
+            labels[node] += f"\nH({data.get("matrix_index")})"
+        elif op in ("M", "MX"):
+            raise ValueError(f"Measurement {targs} is neither a flag nor a syndrome measurement.\n{data=}")
 
     # 4. Plotting
     plt.figure(figsize=figsize)

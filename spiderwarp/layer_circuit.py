@@ -11,12 +11,19 @@ SPECIAL_GATES = {"DETECTOR", "OBSERVABLE_INCLUDE", "SHIFT_COORDS", "QUBIT_COORDS
 
 
 def layered_ops_to_noisy_stim_circuit(layered_ops: list[list[tuple[str, list[int]]]], num_qubits: int, p_1: float,
-                                      p_2: float, p_init: float, p_meas: float, p_mem: float) -> stim.Circuit:
+                                      p_2: float, p_init: float, p_meas: float, p_mem: float) -> tuple[stim.Circuit, dict[int, int]]:
     circuit = stim.Circuit()
+    measurement_mapping = {}
+    meas_id = 0
     for i, ops in enumerate(layered_ops):
         unused_qubits = set(range(num_qubits))
         for op_name, targets in ops:
             unused_qubits -= set(targets)
+
+            if isinstance(op_name, tuple):
+                op_name, og_meas_id = op_name
+                measurement_mapping[og_meas_id] = meas_id
+                meas_id += 1
 
             if op_name in Z_MEASUREMENTS:
                 p_meas > 0 and circuit.append("X_ERROR", targets, p_meas)
@@ -39,7 +46,7 @@ def layered_ops_to_noisy_stim_circuit(layered_ops: list[list[tuple[str, list[int
         if i != len(layered_ops) - 1:
             p_mem > 0 and circuit.append("DEPOLARIZE1", unused_qubits, p_mem)
             circuit.append("TICK", [])
-    return circuit
+    return circuit, measurement_mapping
 
 
 def _expand_stim_operation_list(operations: list[tuple[str, list[int]]]):
@@ -63,6 +70,7 @@ def _layer_circuit_ops(operations: list[tuple[str, list[int]]], num_qubits: int)
     # --- PASS 1: ASAP Forward Layering ---
     next_free_layer = {q: 0 for q in all_qubits}
     asap_layers = defaultdict(list)
+    meas_id = 0
 
     for op_name, targets in operations:
         # Note: If you pass "MR" in here, it will be kept as one block.
@@ -71,7 +79,11 @@ def _layer_circuit_ops(operations: list[tuple[str, list[int]]], num_qubits: int)
         # before calling this function!
 
         last_layer = max((next_free_layer[i] for i in targets), default=0)
-        asap_layers[last_layer].append((op_name, targets))
+        if op_name in ("M", "MX"):
+            asap_layers[last_layer].append(((op_name, meas_id), targets))
+            meas_id += 1
+        else:
+            asap_layers[last_layer].append((op_name, targets))
 
         for i in targets:
             next_free_layer[i] = last_layer + 1
