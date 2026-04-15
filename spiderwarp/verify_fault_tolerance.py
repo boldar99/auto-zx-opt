@@ -197,14 +197,38 @@ if __name__ == "__main__":
     print(decoder_table)
 
     steane_circ = stim.Circuit("""
-    H 9
-    CX 9 7 6 7 0 10 2 8 7 10 8 7 9 8 3 7 10 8 4 8
-    M 8
-    CX 5 9 1 10 10 7
-    M 7
-    CX 10 9
-    H 10
-    M 10 9
+R 15
+RX 16 17
+R 23
+RX 22
+CX 16 15 17 23
+R 22
+RX 18
+R 19
+CX 16 19 17 9 18 23 22 3
+R 20
+CX 18 10 16 20
+CX 20 17 16 22
+R 21
+CX 22 21 18 16 20 8
+CX 17 21 22 18 16 1
+CX 21 13 22 12 17 2 18 15
+MX 22
+CX 15 14
+CX 18 22 21 15
+CX 15 18 16 21 22 17
+MX 16
+CX 22 5 15 19 21 11 17 4 18 6
+MX 22 18
+CX 15 23 17 21 19 7
+CX 15 0
+M 23
+MX 17
+CX 20 21
+MX 19
+MX 15
+M 21
+MX 20
         """)
 
     compute_modified_lookup_table(steane_circ, steane_code_stabs(), np.array([0, 0, 0, 0, 1, 1, 1]), decoder_table, [3],

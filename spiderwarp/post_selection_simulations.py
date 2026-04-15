@@ -3,9 +3,12 @@ import json
 import pprint
 
 import numpy as np
+import stim
 
+from spiderwarp.csscode import CSSCode
 from spiderwarp.generate import make_json_serializable
-from spiderwarp.qecc import GadgetManager, SyndromeGadget, NoiseModel
+from spiderwarp.csscode import GadgetManager, SyndromeGadget, NoiseModel
+from spiderwarp.utils import get_project_root
 
 
 def from_json_serializable(data):
@@ -21,11 +24,13 @@ def from_json_serializable(data):
 
 
 def load_optimised_se(code):
-    with open(f"simplified_circuits/{code}.json", "r") as f:
+    root = get_project_root()
+    file = root.parent.joinpath("simplified_circuits", f"{code}.json")
+    with open(file, "r") as f:
         data = json.load(f)
 
-    data["circuit"] = SyndromeGadget.from_dict(data["circuit"])
-    data["lookup_table"] = from_json_serializable(data["lookup_table"])
+    data["circuit"] = SyndromeGadget.from_dict(data["optimized_ft_x_se"]["circuit"])
+    data["lookup_table"] = from_json_serializable(data["standard_lookup_table"])
     data["modified_lookup_table"] = from_json_serializable(data["modified_lookup_table"])
 
     return data
@@ -41,7 +46,7 @@ def get_best_correction(samples, flag_pattern, syndrome_pattern):
     for i in range(2 ** 15):
         vec_i = np.array(list(map(int, ('0' * 15 + format(i, "b"))[-15:])))
         corrected_measurements = (filtered_samples[:, -15:] + vec_i) % 2
-        logical_samples = corrected_measurements @ qecc_gadgets.code.L_z.T % 2
+        logical_samples = corrected_measurements @ code.L_z.T % 2
         logical_error = np.any(logical_samples, axis=1)
         logical_error_rate = np.average(logical_error)
         if logical_error_rate < min_ler:
@@ -103,7 +108,7 @@ def error_rate_when_flag_and_syndrome_is(corrected_measurements, flag_pattern, s
     flag_pattern_matched = True if flag_pattern is None else np.all(flags == flag_pattern, axis=1)
     syndrome_pattern_matched = True if syndrome_pattern is None else np.all(syndromes == syndrome_pattern, axis=1)
     corrected_measurements = corrected_measurements[np.logical_and(flag_pattern_matched, syndrome_pattern_matched)]
-    logical_measurements = corrected_measurements @ qecc_gadgets.code.L_z.T % 2
+    logical_measurements = corrected_measurements @ code.L_z.T % 2
     measurement_error = np.any(logical_measurements, axis=1)
     error_rate = np.average(measurement_error).tolist()
     if verbose:
@@ -119,10 +124,21 @@ def error_rate_when_flag_and_syndrome_is(corrected_measurements, flag_pattern, s
 
 if __name__ == "__main__":
     qecc = "15_7_3"
-    qecc_gadgets = GadgetManager.from_json(f"circuits/{qecc}.json")
+    code = CSSCode.load_code(qecc, "MQT")
     simp = load_optimised_se(qecc)
 
-    circ = qecc_gadgets.ft_x_state_prep.to_stim()
+    circ = stim.Circuit("""
+H 2 3 4 5 6 7 8 9 10 13 14
+CX 10 0 0 1 7 1 3 12 6 10 8 1 4 11 11 3 13 11 9 8 14 0 10 12 3 1 5 6 0 11 6 0 7 0 1 10 11 1 9 4 2 4 4 5
+H 15
+CX 15 0 15 9 15 10
+H 15
+MR 15
+H 16
+CX 16 4 16 8 16 11
+H 16
+MR 16
+    """)
     circ += simp["circuit"].to_stim(noise_model=NoiseModel.Quantinuum_Sol())
     circ.append("H", range(15))
     circ.append("M", range(15))
@@ -131,7 +147,7 @@ if __name__ == "__main__":
     smplr = circ.compile_sampler()
     samples = smplr.sample(NUM_SAMPLES)
     flags = samples[:, -17:-15]
-    syndromes = samples[:, -15:] @ qecc_gadgets.code.H_z.T % 2
+    syndromes = samples[:, -15:] @ code.H_z.T % 2
 
     correction_tensor = np.zeros((2,) * 6 + (15,), dtype=np.int16)
     for f_tup in itertools.product([0, 1], repeat=2):
@@ -148,7 +164,7 @@ if __name__ == "__main__":
     flags_any = np.any(flags, axis=1)[:, np.newaxis]
     corrected_measurements = samples[:, -15:] + correction
 
-    logical_measurements = corrected_measurements @ qecc_gadgets.code.L_z.T % 2
+    logical_measurements = corrected_measurements @ code.L_z.T % 2
     measurement_error = np.any(logical_measurements, axis=1)
     print(f"With modified decoding LER: {np.average(measurement_error):.3%}")
     print()
@@ -169,7 +185,7 @@ if __name__ == "__main__":
     print()
 
     for THRESHOLD in [1.0001, 0.9, 0.2, 0.09, 0.08, 0.075, 0.07, 0.06, 0.05]:
-        L_z_T = qecc_gadgets.code.L_z.T
+        L_z_T = code.L_z.T
 
         ps_ler, acc_rate = calculate_post_selected_ler(
             samples=samples,
