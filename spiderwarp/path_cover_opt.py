@@ -12,8 +12,8 @@ import numpy as np
 import pyzx as zx
 import stim
 
-from spiderwarp.csscode import GadgetManager, SyndromeGadget
-from spiderwarp.utils import _sorted_pair
+from spiderwarp.csscode import CSSCode
+from spiderwarp.utils import _sorted_pair, stim_to_pyzx, load_state_prep_circuit, steane_se_from_stim_state_prep
 from spiderwarp.verify_fault_tolerance import list_to_str_stabs, build_css_syndrome_table, compute_modified_lookup_table
 
 
@@ -28,7 +28,7 @@ class CoveredZXGraph:
                  G: nx.Graph,
                  pos: dict[int, tuple[float, float]],
                  node_types: dict[int, zx.VertexType],
-                 paths: dict[int, list[int]]) -> None:
+                 paths: dict[int, tuple[int, ...]]) -> None:
         self.G = G
         self.pos = pos
         self.node_types = node_types
@@ -36,6 +36,11 @@ class CoveredZXGraph:
         self._num_qubits = len([n for n in node_types.values() if n == zx.VertexType.BOUNDARY]) // 2
         self._measurements = {p[-1]: k - self._num_qubits for k, p in paths.items() if
                               node_types[p[-1]] != zx.VertexType.BOUNDARY}
+
+    @classmethod
+    def from_stim(cls, circuit: stim.Circuit, num_data_qubits: int) -> "CoveredZXGraph":
+        graph = stim_to_pyzx(circuit, num_data_qubits)
+        return CoveredZXGraph.from_zx_diagram(graph)
 
     @classmethod
     def from_zx_diagram(cls, diagram: zx.graph.graph.BaseGraph):
@@ -82,7 +87,7 @@ class CoveredZXGraph:
             # Sort chronologically by row (x-coordinate)
             nodes_on_track.sort(key=lambda v: pos[v][0])
 
-            current_path = [nodes_on_track[0]]
+            current_path: list[int] = [nodes_on_track[0]]
 
             # 3. Traverse track and split lifelines based on actual causal edges
             for i in range(1, len(nodes_on_track)):
@@ -99,12 +104,12 @@ class CoveredZXGraph:
                     current_path = [curr_node]
 
             # Add the final lifeline for this track
-            paths[path_id] = current_path
+            paths[path_id] = tuple(current_path)
             path_id += 1
 
         return cls(G, pos, node_types, paths)
 
-    def copy(self):
+    def deepcopy(self):
         cg = CoveredZXGraph(
             self.G.copy(),
             self.pos.copy(),
@@ -113,6 +118,17 @@ class CoveredZXGraph:
         )
         cg._num_qubits = self._num_qubits
         cg._measurements = self._measurements.copy()
+        return cg
+
+    def shallow_copy(self):
+        cg = CoveredZXGraph(
+            self.G,
+            self.pos,
+            self.node_types,
+            self.paths,
+        )
+        cg._num_qubits = self._num_qubits
+        cg._measurements = self._measurements
         return cg
 
     def visualize(self, figsize=(15, 12)):
@@ -147,8 +163,8 @@ class CoveredZXGraph:
                 if measurement_key_change:
                     self._measurements[path[-2]] = self._measurements[v]
                     del self._measurements[v]
-                path.remove(v)
-            if len(path) == 0:
+                self.paths[id] = tuple(x for x in path if x != v)
+            if len(self.paths[id] ) == 0:
                 del self.paths[id]
 
     def fuse(self, u, v):
@@ -168,12 +184,13 @@ class CoveredZXGraph:
         return True
 
     def _remove_id_check_flow(self, v):
-        paths_copy = self.paths.copy()
         for id, path in list(self.paths.items()):
             if v in path:
-                new_path = [p for p in path if p != v]
-                paths_copy[id] = new_path
-                return self.check_causal_flow(paths_copy)
+                new_path = tuple(p for p in path if p != v)
+                self.paths[id] = new_path
+                ret = self.check_causal_flow()
+                self.paths[id] = path
+                return ret
         return True
 
     def remove_id(self, v, flow_preserving=True, parity_measurement_preserving=True):
@@ -270,8 +287,8 @@ class CoveredZXGraph:
             current_graph = covered_graphs.pop(0)
 
             for path in current_graph.all_causal_single_boundary_bends():
-                cov_graph = current_graph.copy()
-                cov_graph.paths = copy.deepcopy(path)
+                cov_graph = current_graph.shallow_copy()
+                cov_graph.paths = path
                 p_hash = cov_graph.path_hash()
                 if p_hash not in seen:
                     covered_graphs.append(cov_graph)
@@ -320,8 +337,8 @@ class CoveredZXGraph:
 
             # Generate neighbors
             for path_candidate in current_graph.all_causal_single_boundary_bends():
-                cov_graph = current_graph.copy()
-                cov_graph.paths = copy.deepcopy(path_candidate)
+                cov_graph = current_graph.shallow_copy()
+                cov_graph.paths = path_candidate
                 p_hash = cov_graph.path_hash()
 
                 if p_hash not in seen:
@@ -340,7 +357,7 @@ class CoveredZXGraph:
         Approximates min_ancilla_boundary_bends using Simulated Annealing.
         Note: Requires an 'un-bend' generator to fully utilize temperature jumps.
         """
-        current_graph = self.copy()
+        current_graph = self
         best_graph = current_graph
 
         current_cost = len(current_graph.paths)
@@ -352,8 +369,8 @@ class CoveredZXGraph:
             # Gather all valid neighboring states
             neighbors = []
             for path_candidate in current_graph.all_causal_single_boundary_bends():
-                cg = current_graph.copy()
-                cg.paths = copy.deepcopy(path_candidate)
+                cg = current_graph.shallow_copy()
+                cg.paths = path_candidate
                 neighbors.append(cg)
 
             if not neighbors:
@@ -451,7 +468,7 @@ class CoveredZXGraph:
                 merged_path_options = []
 
         for merged_path in merged_path_options:
-            new_paths = copy.deepcopy(paths)
+            new_paths = copy.copy(paths)
             del new_paths[i]
             new_paths[j] = merged_path
 
@@ -538,38 +555,6 @@ class CoveredZXGraph:
 
         return ordered_operations
 
-    def to_syndrome_measurement_circuit(self) -> SyndromeGadget:
-        if not self.check_causal_flow():
-            raise ValueError("Circuit must have causal flow.")
-
-        ket_0, ket_plus = [], []
-        cnots = []
-        bra_0, bra_plus = [], []
-        measurements = []
-
-        ops = self._find_total_ordering()
-        for op, qubits in ops:
-            if op == "R":
-                ket_0 += qubits
-            elif op == "RX":
-                ket_plus += qubits
-            elif op in ("CNOT", "CX"):
-                cnots.append(qubits)
-            elif op == "M":
-                bra_0.append(qubits)
-                measurements.append(qubits)
-            elif op == "MX":
-                bra_plus.append(qubits)
-                measurements.append(qubits)
-
-        measurements.sort()
-        # flag_qubits = [measurements[i] for i in self.flag_qubit_indices()]
-        flag_qubits = []
-
-        return SyndromeGadget(
-            ket_0, ket_plus, cnots, bra_0, bra_plus, flag_qubits
-        )
-
     def extract_circuit(self) -> stim.Circuit:
         if not self.check_causal_flow():
             raise ValueError("Circuit must have causal flow.")
@@ -615,8 +600,8 @@ def all_good_FT_opts(
         current_graph = covered_graphs.pop(0)
 
         for path in current_graph.all_causal_single_boundary_bends():
-            cov_graph = current_graph.copy()
-            cov_graph.paths = copy.deepcopy(path)
+            cov_graph = current_graph.shallow_copy()
+            cov_graph.paths = path
             # cov_graph.insert_empty_spiders()
             circ = cov_graph.extract_circuit()
             good = compute_modified_lookup_table(
@@ -644,10 +629,13 @@ def all_good_FT_opts(
 if __name__ == '__main__':
     # gadgets = QECCGadgets.from_json("circuits/15_7_3.json")
 
-    gadgets = GadgetManager.load_circuit_data(32, 20, 4)
-    print(gadgets.non_ft_steane_z_syndrome_extraction.to_stim(_layer_cnots=False))
-    diagram = gadgets.non_ft_steane_z_syndrome_extraction.to_pyzx()
-    cov_graph = CoveredZXGraph.from_zx_diagram(diagram)
+    code_name, circuit_path = "15_7_3", "hamming/zero_ft_opt_opt"
+
+    code = CSSCode.load_code("MQT", code_name)
+    circuit = load_state_prep_circuit("SAT", circuit_path)
+    se = steane_se_from_stim_state_prep(circuit, se_basis="Z", n=code.n)
+    graph = stim_to_pyzx(se, code.n)
+    cov_graph = CoveredZXGraph.from_zx_diagram(graph)
     initial_size = len(cov_graph.paths)
     cov_graph.visualize()
     cov_graph.basic_FE_rewrites()
@@ -655,7 +643,7 @@ if __name__ == '__main__':
 
     for cv in cov_graph.min_ancilla_boundary_bends():
         cv.visualize()
-        print("Number of ancilla qubits:", len(cv.paths) - gadgets.code.n)
+        print("Number of ancilla qubits:", len(cv.paths) - code.n)
         print(
             f"H indices: {cv.matrix_transformation_indices()}; "
             f"Measurement indices: {cv.measurement_qubit_indices()}; "
@@ -664,8 +652,7 @@ if __name__ == '__main__':
         print(cv.matrix_transformation_indices())
         print(cv.measurement_qubit_indices())
         print(cv.flag_qubit_indices())
-        se_circ = cv.to_syndrome_measurement_circuit()
+        se_circ = cv.extract_circuit()
         print(se_circ)
-        print(se_circ.to_stim())
         print()
 
