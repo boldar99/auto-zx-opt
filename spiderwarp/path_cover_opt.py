@@ -1,10 +1,10 @@
 import copy
 import heapq
-import itertools
 import math
 import random
 from collections import defaultdict
-from typing import Iterator
+from dataclasses import dataclass
+from typing import Iterator, Optional
 
 import matplotlib.pyplot as plt
 import networkx as nx
@@ -13,311 +13,663 @@ import pyzx as zx
 import stim
 
 from spiderwarp.csscode import CSSCode
-from spiderwarp.utils import _sorted_pair, stim_to_pyzx, load_state_prep_circuit, steane_se_from_stim_state_prep
-from spiderwarp.verify_fault_tolerance import list_to_str_stabs, build_css_syndrome_table, compute_modified_lookup_table
+from spiderwarp.utils import (
+    _sorted_pair,
+    load_state_prep_circuit,
+    steane_se_from_stim_state_prep,
+    stim_to_pyzx,
+)
+from spiderwarp.verify_fault_tolerance import (
+    build_css_syndrome_table,
+    compute_modified_lookup_table,
+    list_to_str_stabs,
+)
+
+
+@dataclass(frozen=True)
+class CircuitOperation:
+    name: str
+    targets: list[int]
+    measurement_id: Optional[int] = None
+
+
+@dataclass
+class _MCTSNode:
+    paths: dict[int, tuple[int, ...]]
+    path_hash: int
+    children: set[int]
+    unexpanded_moves: Optional[list[dict[int, tuple[int, ...]]]]
+    visits: int = 0
+    total_reward: float = 0.0
 
 
 class CoveredZXGraph:
+    """
+    A NetworkX-backed ZX graph together with a path cover.
+
+    Node data lives on `self.G.nodes[v]`. Expected node attributes are:
+
+        type: zx.VertexType
+        pos: tuple[float, float]
+        qubit_index: float | int
+        measurement_id: int | None
+
+    `measurement_id` is the original measurement index represented by this node.
+    During rewrites, if a terminal measurement node is removed from a path, its
+    measurement_id is moved to the new terminal node of that path.
+    """
+
     TYPE_COLORS = {
         zx.VertexType.Z: "#66cc66",
         zx.VertexType.X: "#ff6666",
         zx.VertexType.BOUNDARY: "black",
+        zx.VertexType.H_BOX: "#9966cc",
     }
 
-    def __init__(self,
-                 G: nx.Graph,
-                 pos: dict[int, tuple[float, float]],
-                 node_types: dict[int, zx.VertexType],
-                 paths: dict[int, tuple[int, ...]]) -> None:
+    MEASUREMENT_OPS = {"M", "MX", "MY", "MR", "MRX", "MRY"}
+    _STIM_ANNOTATION_OPS = {
+        "TICK",
+        "DETECTOR",
+        "OBSERVABLE_INCLUDE",
+        "QUBIT_COORDS",
+        "SHIFT_COORDS",
+    }
+
+    def __init__(
+        self,
+        G: nx.Graph,
+        paths: dict[int, tuple[int, ...]],
+        num_data_qubits: Optional[int] = None,
+    ) -> None:
         self.G = G
-        self.pos = pos
-        self.node_types = node_types
         self.paths = paths
-        self._num_qubits = len([n for n in node_types.values() if n == zx.VertexType.BOUNDARY]) // 2
-        self._measurements = {p[-1]: k - self._num_qubits for k, p in paths.items() if
-                              node_types[p[-1]] != zx.VertexType.BOUNDARY}
+        self._num_qubits = (
+            num_data_qubits if num_data_qubits is not None else self._infer_num_data_qubits()
+        )
+        self._validate_node_attributes()
+
+    # ---------------------------------------------------------------------
+    # Constructors
+    # ---------------------------------------------------------------------
 
     @classmethod
-    def from_stim(cls, circuit: stim.Circuit, num_data_qubits: int) -> "CoveredZXGraph":
-        graph = stim_to_pyzx(circuit, num_data_qubits)
-        return CoveredZXGraph.from_zx_diagram(graph)
+    def from_stim(cls, circuit: stim.Circuit) -> "CoveredZXGraph":
+        """Build a CoveredZXGraph from Stim via PyZX.
+
+        ``stim_to_pyzx`` needs the number of data qubits, which is inferred
+        from the circuit by tracking which qubit wires are still live after the
+        final measurement/reset/reuse on each wire. A qubit is live if its most
+        recent relevant operation is not a destructive measurement. This makes
+        the inference robust to qubit reuse: ``M 5; R 5; ...`` leaves qubit 5
+        live again, whereas ``...; M 5`` leaves it non-data.
+
+        ``stim_to_pyzx`` constructs a ``zx.Circuit`` by appending Stim
+        operations in order. PyZX then turns the circuit into a graph by
+        creating vertices in that same order. Therefore, for diagrams produced
+        by this importer, terminal non-boundary vertices sorted by ZX vertex ID
+        are in the original Stim measurement-sample order.
+        """
+        num_data_qubits = cls._infer_num_data_qubits_from_stim(circuit)
+        diagram = stim_to_pyzx(circuit, num_data_qubits)
+        return cls.from_zx_diagram(diagram, num_data_qubits=num_data_qubits)
 
     @classmethod
-    def from_zx_diagram(cls, diagram: zx.graph.graph.BaseGraph):
+    def _infer_num_data_qubits_from_stim(cls, circuit: stim.Circuit) -> int:
+        """Infer the number of unmeasured data qubits at the end of a Stim circuit.
+
+        The result is the count of qubit indices whose last relevant operation
+        leaves the qubit live. Destructive measurements make a qubit non-live;
+        resets, reset-measurements, and later unitary/noisy operations make it
+        live again. Annotation instructions such as ``TICK`` and ``DETECTOR``
+        are ignored.
+        """
+        qubit_is_live: dict[int, bool] = {}
+        cls._update_live_qubits_from_stim_block(circuit, qubit_is_live)
+        return sum(qubit_is_live.values())
+
+    @classmethod
+    def _update_live_qubits_from_stim_block(
+        cls,
+        circuit: stim.Circuit,
+        qubit_is_live: dict[int, bool],
+    ) -> None:
+        for instruction in circuit:
+            if cls._is_stim_repeat_block(instruction):
+                repeat_count = int(instruction.repeat_count)
+                if repeat_count > 0:
+                    cls._update_live_qubits_from_stim_block(
+                        instruction.body_copy(),
+                        qubit_is_live,
+                    )
+                continue
+
+            name = instruction.name.upper()
+            if name in cls._STIM_ANNOTATION_OPS:
+                continue
+
+            qubits = cls._stim_instruction_qubits(instruction)
+            if name in cls.MEASUREMENT_OPS:
+                for qubit in qubits:
+                    qubit_is_live[qubit] = False
+            else:
+                for qubit in qubits:
+                    qubit_is_live[qubit] = True
+
+    @staticmethod
+    def _is_stim_repeat_block(instruction: stim.CircuitInstruction) -> bool:
+        return hasattr(instruction, "body_copy") and hasattr(instruction, "repeat_count")
+
+    @staticmethod
+    def _stim_instruction_qubits(instruction: stim.CircuitInstruction) -> list[int]:
+        qubits: list[int] = []
+        for target in instruction.targets_copy():
+            is_qubit_target = getattr(target, "is_qubit_target", False)
+            if callable(is_qubit_target):
+                is_qubit_target = is_qubit_target()
+            if is_qubit_target:
+                qubits.append(int(target.value))
+        return qubits
+
+    @classmethod
+    def from_zx_diagram(
+        cls,
+        diagram: zx.graph.graph.BaseGraph,
+        num_data_qubits: Optional[int] = None,
+    ) -> "CoveredZXGraph":
+        """Build a CoveredZXGraph from a PyZX diagram.
+
+        Measurement IDs are assigned to terminal non-boundary vertices by
+        increasing PyZX vertex ID. For graphs produced by ``stim_to_pyzx``, this
+        is exactly the original Stim measurement order because the PyZX circuit
+        and graph are constructed operation-by-operation.
+        """
+        cls._normalise_terminal_hadamards(diagram)
+
+        graph_dict = diagram.to_dict()
+        G = nx.Graph()
+        qubit_indices: dict[int, float] = {}
+
+        for v_data in graph_dict["vertices"]:
+            v_id = v_data["id"]
+            row, qubit = v_data["pos"]
+            qubit_indices[v_id] = qubit
+            G.add_node(
+                v_id,
+                type=v_data["t"],
+                pos=(row, -qubit),
+                qubit_index=qubit,
+                measurement_id=None,
+            )
+
+        for u, v, _ in graph_dict["edges"]:
+            G.add_edge(u, v)
+
+        paths = cls._initial_paths_by_qubit_track(G, qubit_indices)
+        inferred_num_data_qubits = (
+            num_data_qubits if num_data_qubits is not None else cls._infer_num_data_qubits_from_graph(G)
+        )
+        cls._attach_measurement_ids_by_terminal_vertex_order(G, paths)
+        return cls(G, paths, num_data_qubits=inferred_num_data_qubits)
+
+    @staticmethod
+    def _normalise_terminal_hadamards(diagram: zx.graph.graph.BaseGraph) -> None:
         apply_h_at = []
         zx.simplify.id_simp(diagram)
         for v in diagram.vertices():
-            if diagram.vertex_degree(v) == 1:
-                e = list(diagram.edges(v, list(diagram.neighbors(v))[0]))[0]
-                if diagram.edge_type(e) == zx.EdgeType.HADAMARD:
-                    apply_h_at.append(v)
+            if diagram.vertex_degree(v) != 1:
+                continue
+            [neighbor] = list(diagram.neighbors(v))
+            edge = list(diagram.edges(v, neighbor))[0]
+            if diagram.edge_type(edge) == zx.EdgeType.HADAMARD:
+                apply_h_at.append(v)
+
         for v in apply_h_at:
             zx.simplify.color_change(diagram, v)
 
-        # Convert to NetworkX
-        graph_dict = diagram.to_dict()
-        G = nx.Graph()
-        pos = {}
-        node_types = {}
-        qubit_indices = {}
+    @staticmethod
+    def _flipped_xz_type(vertex_type: zx.VertexType) -> zx.VertexType:
+        if vertex_type == zx.VertexType.X:
+            return zx.VertexType.Z
+        if vertex_type == zx.VertexType.Z:
+            return zx.VertexType.X
+        raise ValueError(f"Expected an X or Z spider, got {vertex_type!r}.")
 
-        for v_data in graph_dict['vertices']:
-            v_id = v_data['id']
-            G.add_node(v_id)
-            row, qubit = v_data['pos']
-            pos[v_id] = (row, -qubit)
-            node_types[v_id] = v_data['t']
-            qubit_indices[v_id] = qubit
-
-        for u, v, _ in graph_dict['edges']:
-            G.add_edge(u, v)
-
-        # 1. Group nodes purely by their spatial qubit track
-        nodes_by_qubit = defaultdict(list)
+    @staticmethod
+    def _initial_paths_by_qubit_track(
+        G: nx.Graph,
+        qubit_indices: dict[int, float],
+    ) -> dict[int, tuple[int, ...]]:
+        nodes_by_qubit: dict[float, list[int]] = defaultdict(list)
         for v in G.nodes():
             nodes_by_qubit[qubit_indices[v]].append(v)
 
-        paths = {}
+        paths: dict[int, tuple[int, ...]] = {}
         path_id = 0
 
-        # 2. Sort tracks to ensure data qubits get the lowest path IDs
-        for q_index in sorted(nodes_by_qubit.keys()):
+        for q_index in sorted(nodes_by_qubit):
             nodes_on_track = nodes_by_qubit[q_index]
+            nodes_on_track.sort(key=lambda v: G.nodes[v]["pos"][0])
 
-            # Sort chronologically by row (x-coordinate)
-            nodes_on_track.sort(key=lambda v: pos[v][0])
+            if not nodes_on_track:
+                continue
 
             current_path: list[int] = [nodes_on_track[0]]
-
-            # 3. Traverse track and split lifelines based on actual causal edges
-            for i in range(1, len(nodes_on_track)):
-                prev_node = nodes_on_track[i - 1]
-                curr_node = nodes_on_track[i]
-
+            for curr_node in nodes_on_track[1:]:
+                prev_node = current_path[-1]
                 if G.has_edge(prev_node, curr_node):
-                    # Causal flow is unbroken; continue path
                     current_path.append(curr_node)
                 else:
-                    # Qubit reuse detected! (No edge = broken causal flow)
-                    paths[path_id] = current_path
+                    paths[path_id] = tuple(current_path)
                     path_id += 1
                     current_path = [curr_node]
 
-            # Add the final lifeline for this track
             paths[path_id] = tuple(current_path)
             path_id += 1
 
-        return cls(G, pos, node_types, paths)
+        return paths
 
-    def deepcopy(self):
-        cg = CoveredZXGraph(
+    @classmethod
+    def _attach_measurement_ids_by_terminal_vertex_order(
+        cls,
+        G: nx.Graph,
+        paths: dict[int, tuple[int, ...]],
+    ) -> None:
+        """Attach measurement IDs by increasing terminal ZX vertex ID.
+
+        This is the provenance rule used by ``from_stim``. ``stim_to_pyzx`` appends
+        operations to a PyZX circuit in Stim order, and ``Circuit.to_graph()``
+        creates gate/measurement vertices in append order. Consequently, the
+        terminal non-boundary vertices sorted by their PyZX vertex IDs are exactly
+        the original Stim measurements sorted by sample index.
+        """
+        terminals: list[int] = []
+        for path in paths.values():
+            if not path:
+                continue
+            terminal = path[-1]
+            if cls.node_type_from_graph(G, terminal) != zx.VertexType.BOUNDARY:
+                terminals.append(terminal)
+
+        for measurement_id, terminal in enumerate(sorted(terminals)):
+            G.nodes[terminal]["measurement_id"] = measurement_id
+
+    # ---------------------------------------------------------------------
+    # Basic graph metadata helpers
+    # ---------------------------------------------------------------------
+
+    def _validate_node_attributes(self) -> None:
+        required = {"type", "pos", "qubit_index", "measurement_id"}
+        for v, data in self.G.nodes(data=True):
+            missing = required.difference(data)
+            if missing:
+                raise ValueError(f"Node {v!r} is missing attributes: {sorted(missing)}")
+
+    def _infer_num_data_qubits(self) -> int:
+        return self._infer_num_data_qubits_from_graph(self.G)
+
+    @staticmethod
+    def _infer_num_data_qubits_from_graph(G: nx.Graph) -> int:
+        return sum(
+            data.get("type") == zx.VertexType.BOUNDARY
+            for _, data in G.nodes(data=True)
+        ) // 2
+
+    @staticmethod
+    def node_type_from_graph(G: nx.Graph, v: int) -> zx.VertexType:
+        return G.nodes[v]["type"]
+
+    def node_type(self, v: int) -> zx.VertexType:
+        return self.G.nodes[v]["type"]
+
+    def node_pos(self, v: int) -> tuple[float, float]:
+        return self.G.nodes[v]["pos"]
+
+    def set_node_pos(self, v: int, pos: tuple[float, float]) -> None:
+        self.G.nodes[v]["pos"] = pos
+
+    def measurement_id(self, v: int) -> Optional[int]:
+        return self.G.nodes[v].get("measurement_id")
+
+    def set_measurement_id(self, v: int, measurement_id: Optional[int]) -> None:
+        self.G.nodes[v]["measurement_id"] = measurement_id
+
+    def offset_measurement_ids_by(self, offset: int) -> None:
+        for v in self.G.nodes():
+            if self.G.nodes[v]["measurement_id"] is not None:
+                self.set_measurement_id(v, self.G.nodes[v]["measurement_id"] + offset)
+
+    # ---------------------------------------------------------------------
+    # Copying and display
+    # ---------------------------------------------------------------------
+
+    def deepcopy(self) -> "CoveredZXGraph":
+        return CoveredZXGraph(
             self.G.copy(),
-            self.pos.copy(),
-            self.node_types,
             copy.deepcopy(self.paths),
+            num_data_qubits=self._num_qubits,
         )
-        cg._num_qubits = self._num_qubits
-        cg._measurements = self._measurements.copy()
-        return cg
 
-    def shallow_copy(self):
-        cg = CoveredZXGraph(
+    def shallow_copy(self) -> "CoveredZXGraph":
+        return CoveredZXGraph(
             self.G,
-            self.pos,
-            self.node_types,
             self.paths,
+            num_data_qubits=self._num_qubits,
         )
-        cg._num_qubits = self._num_qubits
-        cg._measurements = self._measurements
-        return cg
 
-    def visualize(self, figsize=(15, 12)):
-        world_line_edges = []
-        for p in self.paths.values():
-            world_line_edges += list(zip(p, p[1:]))
+    def visualize(
+        self,
+        figsize: tuple[int, int] = (15, 12),
+        show_node_ids: bool = True,
+        show_measurement_ids: bool = True,
+    ) -> None:
+        world_line_edges: list[tuple[int, int]] = []
+        for path in self.paths.values():
+            world_line_edges.extend(zip(path, path[1:]))
 
-        node_colors = [self.TYPE_COLORS[self.node_types[n]] for n in self.G.nodes()]
+        pos = nx.get_node_attributes(self.G, "pos")
+        node_colors = [self.TYPE_COLORS[self.node_type(n)] for n in self.G.nodes()]
+        labels = self._visualization_labels(show_node_ids, show_measurement_ids)
 
         plt.figure(figsize=figsize)
-        nx.draw_networkx_nodes(self.G, self.pos, node_color=node_colors, node_size=150, edgecolors='black')
-        nx.draw_networkx_edges(self.G, self.pos, edgelist=self.G.edges(),
-                               edge_color='gray', alpha=0.8)
-        nx.draw_networkx_edges(self.G, self.pos, edgelist=world_line_edges,
-                               edge_color='#336699', width=2, arrows=True, arrowstyle='->')
-        nx.draw_networkx_labels(self.G, self.pos, font_color='white', font_size=8)
+        nx.draw_networkx_nodes(
+            self.G,
+            pos,
+            node_color=node_colors,
+            node_size=250,
+            edgecolors="black",
+        )
+        nx.draw_networkx_edges(
+            self.G,
+            pos,
+            edgelist=self.G.edges(),
+            edge_color="gray",
+            alpha=0.8,
+        )
+        nx.draw_networkx_edges(
+            self.G,
+            pos,
+            edgelist=world_line_edges,
+            edge_color="#336699",
+            width=2,
+            arrows=True,
+            arrowstyle="->",
+        )
+        nx.draw_networkx_labels(
+            self.G,
+            pos,
+            labels=labels,
+            font_color="gray",
+            font_size=8,
+        )
+        plt.axis("off")
         plt.show()
 
+    def _visualization_labels(
+        self,
+        show_node_ids: bool,
+        show_measurement_ids: bool,
+    ) -> dict[int, str]:
+        labels = {}
+        for v in self.G.nodes():
+            parts = []
+            if show_node_ids:
+                parts.append(str(v))
+            measurement_id = self.measurement_id(v)
+            if show_measurement_ids and measurement_id is not None:
+                parts.append(f"m{measurement_id}")
+            labels[v] = "\n".join(parts) if parts else ""
+        return labels
+
+    # ---------------------------------------------------------------------
+    # Path-cover utilities
+    # ---------------------------------------------------------------------
+
+    @staticmethod
+    def _paths_hash(paths: dict[int, tuple[int, ...]]) -> int:
+        return hash(tuple(sorted(tuple(path) for path in paths.values())))
+
     def path_hash(self) -> int:
-        return hash(
-            tuple(sorted(tuple(v) for v in self.paths.values()))
-        )
+        return self._paths_hash(self.paths)
 
-    def _purge_vertex_information(self, v):
-        del self.pos[v]
-        del self.node_types[v]
-        for id, path in list(self.paths.items()):
-            if v in path:
-                measurement_key_change = (
-                        v == path[-1] and len(path) > 1 and v in self._measurements
-                )
-                if measurement_key_change:
-                    self._measurements[path[-2]] = self._measurements[v]
-                    del self._measurements[v]
-                self.paths[id] = tuple(x for x in path if x != v)
-            if len(self.paths[id] ) == 0:
-                del self.paths[id]
+    def total_hardware_qubits(self) -> int:
+        return len(self.paths)
 
-    def fuse(self, u, v):
-        if not (self.G.has_edge(u, v)
-                and self.node_types[u] == self.node_types[v]
-                and self.node_types[u] in (zx.VertexType.X, zx.VertexType.Z)):
+    def _get_path_to_qubit(self) -> dict[int, int]:
+        path_ids = sorted(self.paths)
+        return {path_id: qubit for qubit, path_id in enumerate(path_ids)}
+
+    def _path_edges(self, paths: dict[int, tuple[int, ...]]) -> set[tuple[int, int]]:
+        return {
+            _sorted_pair(u, v)
+            for path in paths.values()
+            for u, v in zip(path, path[1:])
+        }
+
+    def _get_uncovered_edges(self, paths: dict[int, tuple[int, ...]]) -> set[tuple[int, int]]:
+        all_edges = {_sorted_pair(u, v) for u, v in self.G.edges()}
+        return all_edges.difference(self._path_edges(paths))
+
+    def _num_parity_measurement(self, paths: dict[int, tuple[int, ...]]) -> int:
+        count = 0
+        for v, w in self._get_uncovered_edges(paths):
+            if self.node_type(v) == self.node_type(w):
+                count += 1
+        return count
+
+    def _construct_flow_graph(self, paths: dict[int, tuple[int, ...]]) -> nx.DiGraph:
+        constraint_graph = nx.DiGraph()
+        constraint_graph.add_nodes_from(self.G.nodes())
+
+        for path_nodes in paths.values():
+            for u, v in zip(path_nodes, path_nodes[1:]):
+                constraint_graph.add_edge(u, v)
+                for neighbor in self.G.neighbors(v):
+                    if neighbor != u:
+                        constraint_graph.add_edge(u, neighbor)
+
+        return constraint_graph
+
+    def check_causal_flow(self, paths: Optional[dict[int, tuple[int, ...]]] = None) -> bool:
+        paths_to_check = self.paths if paths is None else paths
+        constraint_graph = self._construct_flow_graph(paths_to_check)
+        return nx.is_directed_acyclic_graph(constraint_graph)
+
+    # ---------------------------------------------------------------------
+    # Rewrites
+    # ---------------------------------------------------------------------
+
+    def _remove_vertex_from_paths(self, v: int) -> None:
+        for path_id, path in list(self.paths.items()):
+            if v not in path:
+                continue
+
+            replacement_path = tuple(node for node in path if node != v)
+
+            if v == path[-1] and len(path) > 1:
+                old_measurement_id = self.measurement_id(v)
+                if old_measurement_id is not None:
+                    self.set_measurement_id(path[-2], old_measurement_id)
+
+            if replacement_path:
+                self.paths[path_id] = replacement_path
+            else:
+                del self.paths[path_id]
+
+    def _purge_vertex(self, v: int) -> None:
+        self._remove_vertex_from_paths(v)
+        if self.G.has_node(v):
+            self.G.remove_node(v)
+
+    def fuse(self, u: int, v: int) -> bool:
+        """Fuse same-colour X/Z spiders connected by an edge.
+
+        Vertex `u` is removed and absorbed into `v`.
+        """
+        if not (
+            self.G.has_edge(u, v)
+            and self.node_type(u) == self.node_type(v)
+            and self.node_type(u) in (zx.VertexType.X, zx.VertexType.Z)
+        ):
             return False
 
         self.G.remove_edge(u, v)
         u_neighbors = list(self.G.neighbors(u))
-        self.G.remove_node(u)
-        for n in u_neighbors:
-            self.G.add_edge(n, v)
-
-        self._purge_vertex_information(u)
-
+        for neighbor in u_neighbors:
+            self.G.add_edge(neighbor, v)
+        self._purge_vertex(u)
         return True
 
-    def _remove_id_check_flow(self, v):
-        for id, path in list(self.paths.items()):
-            if v in path:
-                new_path = tuple(p for p in path if p != v)
-                self.paths[id] = new_path
-                ret = self.check_causal_flow()
-                self.paths[id] = path
-                return ret
+    def _remove_id_preserves_flow(self, v: int) -> bool:
+        for path_id, path in list(self.paths.items()):
+            if v not in path:
+                continue
+            new_path = tuple(node for node in path if node != v)
+            candidate_paths = copy.copy(self.paths)
+            if new_path:
+                candidate_paths[path_id] = new_path
+            else:
+                del candidate_paths[path_id]
+            return self.check_causal_flow(candidate_paths)
         return True
 
-    def remove_id(self, v, flow_preserving=True, parity_measurement_preserving=True):
+    def remove_id(
+        self,
+        v: int,
+        flow_preserving: bool = True,
+        parity_measurement_preserving: bool = True,
+    ) -> bool:
         if self.G.degree(v) != 2:
             return False
-
-        [n1, n2] = list(self.G.neighbors(v))
-        self.G.remove_node(v)
-        self.G.add_edge(n1, n2)
-
-        flow_check = flow_preserving and not self._remove_id_check_flow(v)
-        parity_spider_check = (parity_measurement_preserving and
-                               (self.node_types[n1] == self.node_types[n2] != self.node_types[v]) and
-                               (self.G.degree(n1) != 2 and self.G.degree(n2) != 2)
-                               )
-
-        if flow_check or parity_spider_check:
-            self.G.remove_edge(n1, n2)
-            self.G.add_node(v)
-            self.G.add_edge(n1, v)
-            self.G.add_edge(n2, v)
+        if self.node_type(v) == zx.VertexType.H_BOX:
             return False
 
-        self._purge_vertex_information(v)
+        n1, n2 = list(self.G.neighbors(v))
+
+        flow_check = flow_preserving and not self._remove_id_preserves_flow(v)
+        parity_spider_check = (
+            parity_measurement_preserving
+            and self.node_type(n1) == self.node_type(n2) != self.node_type(v)
+            and self.G.degree(n1) != 2
+            and self.G.degree(n2) != 2
+        )
+        if flow_check or parity_spider_check:
+            return False
+
+        self.G.add_edge(n1, n2)
+        self._purge_vertex(v)
         return True
 
-    def basic_FE_rewrites(self):
+    def basic_FE_rewrites(self) -> None:
         for v in list(self.G.nodes()):
-            if self.G.degree(v) == 1 and self.node_types[v] != zx.VertexType.BOUNDARY:
-                [n] = self.G.neighbors(v)
-                self.fuse(v, n)
+            if self.G.degree(v) == 1 and self.node_type(v) != zx.VertexType.BOUNDARY:
+                [neighbor] = list(self.G.neighbors(v))
+                self.fuse(v, neighbor)
 
-        for v in list(self.G.nodes()):
-            self.remove_id(v)
+        for v in list(self.G.nodes())[21:2]:
+            print(v)
+            print(list(self.G.neighbors(v)))
+            if self.G.has_node(v):
+                self.remove_id(v)
 
-    def _construct_flow_graph(self, paths_dict) -> nx.DiGraph:
-        constraint_graph = nx.DiGraph()
-        constraint_graph.add_nodes_from(self.G.nodes())
+    # ---------------------------------------------------------------------
+    # Boundary bends / path-cover optimisation
+    # ---------------------------------------------------------------------
 
-        for path_nodes in paths_dict.values():
-            for i in range(len(path_nodes) - 1):
-                u = path_nodes[i]
-                v = path_nodes[i + 1]
-                constraint_graph.add_edge(u, v)
-
-                for neighbor in self.G.neighbors(v):
-                    if neighbor != u:
-                        constraint_graph.add_edge(u, neighbor)
-        return constraint_graph
-
-    def total_hardware_qubits(self):
-        return len(self.paths)
-
-    def check_causal_flow(self, paths=None) -> bool:
-        paths_to_check = paths if paths is not None else self.paths
-        constraint_graph = self._construct_flow_graph(paths_to_check)
-        return nx.is_directed_acyclic_graph(constraint_graph)
-
-    def _boundary_bends(self, paths):
-        vertex_qubit = {}
-        for k, path in paths.items():
+    def _vertex_to_path(self, paths: dict[int, tuple[int, ...]]) -> dict[int, int]:
+        vertex_to_path = {}
+        for path_id, path in paths.items():
             for v in path:
-                vertex_qubit[v] = k
+                vertex_to_path[v] = path_id
+        return vertex_to_path
+
+    def _boundary_bends(self, paths: dict[int, tuple[int, ...]]):
+        vertex_path = self._vertex_to_path(paths)
 
         for v, w in self.G.edges():
-            if vertex_qubit[v] == vertex_qubit[w]:
+            if v not in vertex_path or w not in vertex_path:
+                continue
+            v_path_id = vertex_path[v]
+            w_path_id = vertex_path[w]
+            if v_path_id == w_path_id:
                 continue
 
-            # Check if start of one path connects to start of another
-            v_is_first = v == paths[vertex_qubit[v]][0]
-            v_is_last = v == paths[vertex_qubit[v]][-1]
-            w_is_first = w == paths[vertex_qubit[w]][0]
-            w_is_last = w == paths[vertex_qubit[w]][-1]
+            v_is_first = v == paths[v_path_id][0]
+            v_is_last = v == paths[v_path_id][-1]
+            w_is_first = w == paths[w_path_id][0]
+            w_is_last = w == paths[w_path_id][-1]
 
             if (v_is_first or v_is_last) and (w_is_first or w_is_last):
-                yield vertex_qubit[v], vertex_qubit[w], v_is_first, w_is_first
+                yield v_path_id, w_path_id, v_is_first, w_is_first
 
-    def all_causal_single_boundary_bends(self, paths=None) -> Iterator:
-        """
-        Returns all new paths candidates that are causal
-        """
-        current_paths = paths or self.paths
+    def _causal_path_bends(
+        self,
+        paths: dict[int, tuple[int, ...]],
+        i: int,
+        j: int,
+        i_first: bool,
+        j_first: bool,
+    ) -> Iterator[dict[int, tuple[int, ...]]]:
+        match (i_first, j_first):
+            case (True, True):
+                merged_path_options = [
+                    paths[i][::-1] + paths[j],
+                    paths[j][::-1] + paths[i],
+                ]
+            case (True, False):
+                merged_path_options = [paths[j] + paths[i]]
+            case (False, True):
+                merged_path_options = [paths[i] + paths[j]]
+            case _:
+                merged_path_options = []
 
+        for merged_path in merged_path_options:
+            new_paths = copy.copy(paths)
+            del new_paths[i]
+            new_paths[j] = merged_path
+            if self.check_causal_flow(new_paths):
+                yield new_paths
+
+    def all_causal_single_boundary_bends(
+        self,
+        paths: Optional[dict[int, tuple[int, ...]]] = None,
+    ) -> Iterator[dict[int, tuple[int, ...]]]:
+        current_paths = self.paths if paths is None else paths
         for bend_data in self._boundary_bends(current_paths):
-            for bend in self._causal_path_bends(current_paths, *bend_data):
-                yield bend
+            yield from self._causal_path_bends(current_paths, *bend_data)
 
     def bfs_causal_boundary_bends(self) -> Iterator["CoveredZXGraph"]:
         yield self
-        covered_graphs = [self]
+        queue = [self]
         seen = {self.path_hash()}
 
-        while len(covered_graphs) > 0:
-            current_graph = covered_graphs.pop(0)
-
-            for path in current_graph.all_causal_single_boundary_bends():
-                cov_graph = current_graph.shallow_copy()
-                cov_graph.paths = path
-                p_hash = cov_graph.path_hash()
-                if p_hash not in seen:
-                    covered_graphs.append(cov_graph)
-                    seen.add(p_hash)
-                    yield cov_graph
+        while queue:
+            current_graph = queue.pop(0)
+            for candidate_paths in current_graph.all_causal_single_boundary_bends():
+                candidate_graph = current_graph.shallow_copy()
+                candidate_graph.paths = candidate_paths
+                candidate_hash = candidate_graph.path_hash()
+                if candidate_hash not in seen:
+                    queue.append(candidate_graph)
+                    seen.add(candidate_hash)
+                    yield candidate_graph
 
     def min_ancilla_boundary_bends(self) -> list["CoveredZXGraph"]:
         min_num_qubits = self.total_hardware_qubits()
-        min_covered_graphs = []
+        best_graphs: list[CoveredZXGraph] = []
+
         for current_graph in self.bfs_causal_boundary_bends():
             current_num_qubits = current_graph.total_hardware_qubits()
             if current_num_qubits < min_num_qubits:
                 min_num_qubits = current_num_qubits
-                min_covered_graphs = [current_graph]
+                best_graphs = [current_graph]
             elif current_num_qubits == min_num_qubits:
-                min_covered_graphs.append(current_graph)
-        return min_covered_graphs
+                best_graphs.append(current_graph)
 
-    def best_first_boundary_bends(self, max_evaluations=1000) -> "CoveredZXGraph":
-        """
-        Approximates min_ancilla_boundary_bends using a Greedy Best-First Search.
-        Prioritizes states with the fewest paths, breaking ties with fewest parity measurements.
-        """
-        # Priority Queue tuple: (num_paths, num_parity_measurements, tie_breaker, CoveredZXGraph)
-        # tie_breaker prevents heapq from trying to compare CoveredZXGraph objects
+        return best_graphs
 
+    def best_first_boundary_bends(self, max_evaluations: int = 1000) -> "CoveredZXGraph":
         start_paths = len(self.paths)
         start_parity = self._num_parity_measurement(self.paths)
-
         pq = [(start_paths, start_parity, 0, self)]
         seen = {self.path_hash()}
 
@@ -327,268 +679,401 @@ class CoveredZXGraph:
         tie_breaker = 1
 
         while pq and eval_count < max_evaluations:
-            current_paths, _, _, current_graph = heapq.heappop(pq)
+            current_path_count, _, _, current_graph = heapq.heappop(pq)
             eval_count += 1
 
-            # Track the global best found so far
-            if current_paths < min_paths:
-                min_paths = current_paths
+            if current_path_count < min_paths:
+                min_paths = current_path_count
                 best_graph = current_graph
 
-            # Generate neighbors
-            for path_candidate in current_graph.all_causal_single_boundary_bends():
-                cov_graph = current_graph.shallow_copy()
-                cov_graph.paths = path_candidate
-                p_hash = cov_graph.path_hash()
+            for candidate_paths in current_graph.all_causal_single_boundary_bends():
+                candidate_graph = current_graph.shallow_copy()
+                candidate_graph.paths = candidate_paths
+                candidate_hash = candidate_graph.path_hash()
+                if candidate_hash in seen:
+                    continue
 
-                if p_hash not in seen:
-                    seen.add(p_hash)
-                    n_paths = len(cov_graph.paths)
-                    n_parity = cov_graph._num_parity_measurement(cov_graph.paths)
-
-                    heapq.heappush(pq, (n_paths, n_parity, tie_breaker, cov_graph))
-                    tie_breaker += 1
-
-        return best_graph
-
-    def simulated_annealing_bends(self, initial_temp=10.0, cooling_rate=0.95,
-                                  max_steps=100) -> "CoveredZXGraph":
-        """
-        Approximates min_ancilla_boundary_bends using Simulated Annealing.
-        Note: Requires an 'un-bend' generator to fully utilize temperature jumps.
-        """
-        current_graph = self
-        best_graph = current_graph
-
-        current_cost = len(current_graph.paths)
-        best_cost = current_cost
-
-        temp = initial_temp
-
-        for step in range(max_steps):
-            # Gather all valid neighboring states
-            neighbors = []
-            for path_candidate in current_graph.all_causal_single_boundary_bends():
-                cg = current_graph.shallow_copy()
-                cg.paths = path_candidate
-                neighbors.append(cg)
-
-            if not neighbors:
-                break  # Hit a local minimum and have no 'split' operators to escape
-
-            # Pick a random valid neighbor
-            candidate_graph = random.choice(neighbors)
-            candidate_cost = len(candidate_graph.paths)
-
-            # Calculate cost difference
-            delta = candidate_cost - current_cost
-
-            # If it's better (fewer paths), or we randomly accept a worse state based on temp
-            if delta < 0 or random.random() < math.exp(-delta / temp):
-                current_graph = candidate_graph
-                current_cost = candidate_cost
-
-                if current_cost < best_cost:
-                    best_cost = current_cost
-                    best_graph = current_graph
-
-            # Cool down
-            temp *= cooling_rate
+                seen.add(candidate_hash)
+                n_paths = len(candidate_graph.paths)
+                n_parity = candidate_graph._num_parity_measurement(candidate_graph.paths)
+                heapq.heappush(pq, (n_paths, n_parity, tie_breaker, candidate_graph))
+                tie_breaker += 1
 
         return best_graph
 
-    def realign_pos(self) -> None:
-        ys = [self.pos[path[0]][1] for path in self.paths.values()]
-        ys.sort()
+    def mcts_boundary_bends(
+        self,
+        max_iterations: int = 1000,
+        rollout_depth: int = 32,
+        exploration_weight: float = 1.4,
+        parity_weight: float = 1e-3,
+        seed: Optional[int] = None,
+    ) -> "CoveredZXGraph":
+        """Optimise the path cover using Monte Carlo Tree Search.
 
-        for path in self.paths.values():
-            xs = [self.pos[n][0] for n in path]
-            xs.sort()
-            # Spread out x coordinates if duplicates exist
-            for i in range(len(xs) - 1):
-                if xs[i] == xs[i + 1]:
-                    xs[i + 1] += 1
-            for i in range(len(xs) - 1):
-                if xs[i] == xs[i + 1]:
-                    xs[i + 1] += 1
+        Each MCTS state is a valid causal path cover. Actions are exactly the
+        causal single-boundary bends generated by
+        :meth:`all_causal_single_boundary_bends`. States are deduplicated using
+        :meth:`path_hash`, so different bend sequences reaching the same path
+        cover share one MCTS node. The search objective is
+        lexicographic in spirit: reduce the number of hardware qubits first,
+        and use the number of same-colour uncovered edges, i.e. parity
+        measurements, as a small tie-breaker.
 
-            y = min([self.pos[n][1] for n in path])
+        Args:
+            max_iterations: Number of MCTS iterations to run.
+            rollout_depth: Maximum number of random boundary bends per rollout.
+            exploration_weight: UCT exploration constant. Larger values explore
+                more; smaller values exploit current best branches more.
+            parity_weight: Cost contribution of each parity measurement. Keep
+                this below ``1`` if hardware-qubit count should dominate.
+            seed: Optional seed for reproducible stochastic choices.
 
-            for p, x in zip(path, xs):
-                self.pos[p] = (x, y)
-
-    def _get_uncovered_edges(self, paths):
-        all_edges = set(_sorted_pair(u, v) for u, v in self.G.edges())
-        path_edges = []
-        for path in paths.values():
-            path_edges += list(zip(path[1:], path[:-1]))
-        path_edges_set = set(_sorted_pair(u, v) for u, v in path_edges)
-        return all_edges.difference(path_edges_set)
-
-    def _num_parity_measurement(self, paths):
-        count = 0
-        uncovered = self._get_uncovered_edges(paths)
-        for e in uncovered:
-            v, w = _sorted_pair(*e)
-            if self.node_types[v] == self.node_types[w]:
-                count += 1
-        return count
-
-    def greedy_path_opt(self):
+        Returns:
+            A shallow copy of this graph whose ``paths`` are the best path cover
+            found by the search. The original graph is not modified.
         """
-        Iteratively improves the path cover by checking 'bell bends' (merging paths).
-        """
-        new_paths_candidate = {}
-        current_paths = self.paths
+        if max_iterations <= 0:
+            result = self.shallow_copy()
+            result.paths = self.paths
+            return result
+        if rollout_depth < 0:
+            raise ValueError("rollout_depth must be non-negative.")
+        if exploration_weight < 0:
+            raise ValueError("exploration_weight must be non-negative.")
+        if parity_weight < 0:
+            raise ValueError("parity_weight must be non-negative.")
 
-        while new_paths_candidate is not None:
-            new_paths_candidate = None
-            min_pcheck = self._num_parity_measurement(current_paths)
+        rng = random.Random(seed)
 
-            for new_paths_candidate in self.all_causal_single_boundary_bends(current_paths):
-                num_pcheck = self._num_parity_measurement(new_paths_candidate)
+        def cost(paths: dict[int, tuple[int, ...]]) -> float:
+            return len(paths) + parity_weight * self._num_parity_measurement(paths)
 
-                if num_pcheck < min_pcheck:
+        def reward(paths: dict[int, tuple[int, ...]]) -> float:
+            return -cost(paths)
+
+        def shuffled_moves(paths: dict[int, tuple[int, ...]]) -> list[dict[int, tuple[int, ...]]]:
+            moves = list(self.all_causal_single_boundary_bends(paths))
+            rng.shuffle(moves)
+            return moves
+
+        def rollout(paths: dict[int, tuple[int, ...]]) -> dict[int, tuple[int, ...]]:
+            current_paths = paths
+            best_rollout_paths = current_paths
+            best_rollout_cost = cost(current_paths)
+
+            for _ in range(rollout_depth):
+                moves = shuffled_moves(current_paths)
+                if not moves:
                     break
 
-            if new_paths_candidate is not None:
-                current_paths = new_paths_candidate
+                current_paths = rng.choice(moves)
+                current_cost = cost(current_paths)
+                if current_cost < best_rollout_cost:
+                    best_rollout_cost = current_cost
+                    best_rollout_paths = current_paths
+
+            return best_rollout_paths
+
+        def child_score(parent_visits: int, child: _MCTSNode) -> float:
+            if child.visits == 0:
+                return math.inf
+            exploitation = child.total_reward / child.visits
+            exploration = exploration_weight * math.sqrt(math.log(parent_visits) / child.visits)
+            return exploitation + exploration
+
+        root_hash = self.path_hash()
+        nodes: list[_MCTSNode] = [
+            _MCTSNode(
+                paths=self.paths,
+                path_hash=root_hash,
+                children=set(),
+                unexpanded_moves=None,
+            )
+        ]
+        transpositions: dict[int, int] = {root_hash: 0}
+
+        best_paths = self.paths
+        best_cost = cost(best_paths)
+
+        for _ in range(max_iterations):
+            node_index = 0
+            search_path = [node_index]
+
+            # Selection: descend through fully expanded nodes using UCT.
+            while True:
+                node = nodes[node_index]
+                if node.unexpanded_moves is None:
+                    # Deduplicate moves at this state by path hash.  Different
+                    # boundary-bend descriptions can lead to the same path cover.
+                    unique_moves = {}
+                    for move in shuffled_moves(node.paths):
+                        unique_moves.setdefault(self._paths_hash(move), move)
+                    node.unexpanded_moves = list(unique_moves.values())
+
+                if node.unexpanded_moves or not node.children:
+                    break
+
+                node_index = max(
+                    node.children,
+                    key=lambda child_index: child_score(max(1, node.visits), nodes[child_index]),
+                )
+                search_path.append(node_index)
+
+            node = nodes[node_index]
+
+            # Expansion: add one previously unexpanded causal bend.  A path cover
+            # can be reached through multiple bend sequences, so use a
+            # transposition table keyed by _paths_hash instead of creating a
+            # duplicate MCTS node.
+            while node.unexpanded_moves:
+                child_paths = node.unexpanded_moves.pop()
+                child_hash = self._paths_hash(child_paths)
+
+                child_index = transpositions.get(child_hash)
+                if child_index is None:
+                    child_index = len(nodes)
+                    transpositions[child_hash] = child_index
+                    nodes.append(
+                        _MCTSNode(
+                            paths=child_paths,
+                            path_hash=child_hash,
+                            children=set(),
+                            unexpanded_moves=None,
+                        )
+                    )
+
+                if child_index != node_index:
+                    node.children.add(child_index)
+                    node_index = child_index
+                    search_path.append(node_index)
+                    node = nodes[node_index]
+                    break
+
+            # Simulation: randomly continue bending from the selected/expanded state.
+            rollout_paths = rollout(node.paths)
+            rollout_cost = cost(rollout_paths)
+            rollout_reward = -rollout_cost
+
+            if rollout_cost < best_cost:
+                best_cost = rollout_cost
+                best_paths = rollout_paths
+
+            # Backpropagation over the actual tree path followed this iteration.
+            # This is important because transposition nodes may have many parents.
+            for visited_index in search_path:
+                visited_node = nodes[visited_index]
+                visited_node.visits += 1
+                visited_node.total_reward += rollout_reward
+
+        result = self.shallow_copy()
+        result.paths = best_paths
+        return result
+
+    def mcts_path_opt(
+        self,
+        max_iterations: int = 1000,
+        rollout_depth: int = 32,
+        exploration_weight: float = 1.4,
+        parity_weight: float = 1e-3,
+        seed: Optional[int] = None,
+    ) -> None:
+        """Mutate ``self.paths`` using :meth:`mcts_boundary_bends`."""
+        optimised = self.mcts_boundary_bends(
+            max_iterations=max_iterations,
+            rollout_depth=rollout_depth,
+            exploration_weight=exploration_weight,
+            parity_weight=parity_weight,
+            seed=seed,
+        )
+        self.paths = optimised.paths
+
+    def greedy_path_opt(self) -> None:
+        current_paths = self.paths
+
+        while True:
+            min_pcheck = self._num_parity_measurement(current_paths)
+            best_candidate = None
+
+            for candidate_paths in self.all_causal_single_boundary_bends(current_paths):
+                candidate_pcheck = self._num_parity_measurement(candidate_paths)
+                if candidate_pcheck < min_pcheck:
+                    min_pcheck = candidate_pcheck
+                    best_candidate = candidate_paths
+                    break
+
+            if best_candidate is None:
+                break
+
+            current_paths = best_candidate
 
         self.paths = current_paths
 
-    def _causal_path_bends(self, paths, i, j, i_first: bool, j_first: bool):
-        match (i_first, j_first):
-            case (True, True):
-                merged_path_options = [paths[i][::-1] + paths[j], paths[j][::-1] + paths[i]]
-            case (True, False):
-                merged_path_options = [paths[j] + paths[i], ]
-            case (False, True):
-                merged_path_options = [paths[i] + paths[j], ]
-            case _:
-                merged_path_options = []
+    # ---------------------------------------------------------------------
+    # Circuit extraction and measurement provenance
+    # ---------------------------------------------------------------------
 
-        for merged_path in merged_path_options:
-            new_paths = copy.copy(paths)
-            del new_paths[i]
-            new_paths[j] = merged_path
-
-            if self.check_causal_flow(new_paths):
-                yield new_paths
-
-    def _get_path_to_qubit(self):
-        qubits = list(self.paths.keys())
-        qubits.sort()
-        return {q: i for i, q in enumerate(qubits)}
-
-    def _find_total_ordering(self):
-        ordered_operations = []
-
-        qubit_to_qubit = self._get_path_to_qubit()
-
+    def _node_to_qubit(self) -> dict[int, int]:
+        path_to_qubit = self._get_path_to_qubit()
         node_to_qubit = {}
-        lasts = set()
+        for path_id, path in self.paths.items():
+            for node in path:
+                node_to_qubit[node] = path_to_qubit[path_id]
+        return node_to_qubit
 
-        for q, p in self.paths.items():
-            for u in p:
-                node_to_qubit[u] = qubit_to_qubit[q]
-            if self.node_types[p[0]] == zx.VertexType.Z:
-                ordered_operations.append(("RX", [qubit_to_qubit[q]]))
-            elif self.node_types[p[0]] == zx.VertexType.X:
-                ordered_operations.append(("R", [qubit_to_qubit[q]]))
-            lasts.add(p[-1])
+    def _h_box_is_path_only(self, h_node: int, path_edges: set[tuple[int, int]]) -> bool:
+        return all(_sorted_pair(h_node, neighbor) in path_edges for neighbor in self.G.neighbors(h_node))
 
-        path_edges_list = [[_sorted_pair(v1, v2) for v1, v2 in zip(p, p[1:])]
-                           for p in self.paths.values()]
-        all_path_edges = list(itertools.chain(*path_edges_list))
+    def _find_total_ordering(self) -> list[CircuitOperation]:
+        ordered_operations: list[CircuitOperation] = []
+        path_to_qubit = self._get_path_to_qubit()
+        node_to_qubit = self._node_to_qubit()
+        terminal_nodes = {path[-1] for path in self.paths.values() if path}
 
+        for path_id, path in self.paths.items():
+            if not path:
+                continue
+            first_node_type = self.node_type(path[0])
+            qubit = path_to_qubit[path_id]
+            if first_node_type == zx.VertexType.Z:
+                ordered_operations.append(CircuitOperation("RX", [qubit]))
+            elif first_node_type == zx.VertexType.X:
+                ordered_operations.append(CircuitOperation("R", [qubit]))
+
+        path_edges = self._path_edges(self.paths)
         constraint_graph = self._construct_flow_graph(self.paths)
 
-        # Remove boundary nodes from constraint calculation
-        for n in list(self.G.nodes()):
-            if self.node_types[n] == zx.VertexType.BOUNDARY:
-                if constraint_graph.has_node(n):
-                    constraint_graph.remove_node(n)
+        for node in list(self.G.nodes()):
+            if self.node_type(node) == zx.VertexType.BOUNDARY and constraint_graph.has_node(node):
+                constraint_graph.remove_node(node)
 
-        processed_edges = set()
+        processed_edges: set[tuple[int, int]] = set()
 
-        # Topological sort processing
-        while len(list(constraint_graph.nodes())) > 0:
-            # Find nodes with in-degree 0
-            sources = [n for n, d in constraint_graph.in_degree() if d == 0]
-
+        while constraint_graph.nodes:
+            sources = [node for node, degree in constraint_graph.in_degree() if degree == 0]
             if not sources:
-                raise ValueError("No solution found (cycle detected in flow).")
+                raise ValueError("No solution found: cycle detected in causal-flow constraints.")
 
-            for s in sources:
-                constraint_graph.remove_node(s)
+            for source in sources:
+                constraint_graph.remove_node(source)
+                source_qubit = node_to_qubit[source]
+                source_type = self.node_type(source)
 
-                neighbors = sorted(self.G.neighbors(s),
-                                   key=lambda n: int(self.node_types[n] == self.node_types[s]))
+                if source_type == zx.VertexType.H_BOX:
+                    if not self._h_box_is_path_only(source, path_edges):
+                        raise NotImplementedError(
+                            "H_BOX nodes with non-path neighbours are not supported by extraction."
+                        )
+                    ordered_operations.append(CircuitOperation("H", [source_qubit]))
 
-                qs = node_to_qubit[s]
-                ts = self.node_types[s]
+                if source_type in (zx.VertexType.X, zx.VertexType.Z):
+                    neighbors = sorted(
+                        self.G.neighbors(source),
+                        key=lambda neighbor: int(self.node_type(neighbor) == source_type),
+                    )
 
-                for n in neighbors:
-                    if self.node_types[n] == zx.VertexType.BOUNDARY:
-                        continue
+                    for neighbor in neighbors:
+                        if self.node_type(neighbor) == zx.VertexType.BOUNDARY:
+                            continue
 
-                    edge = _sorted_pair(s, n)
-                    if edge in all_path_edges or edge in processed_edges:
-                        continue
+                        edge = _sorted_pair(source, neighbor)
+                        if edge in path_edges or edge in processed_edges:
+                            continue
 
-                    qn = node_to_qubit[n]
-                    tn = self.node_types[n]
+                        neighbor_qubit = node_to_qubit[neighbor]
+                        neighbor_type = self.node_type(neighbor)
 
-                    if ts != tn:
-                        if ts == zx.VertexType.Z:
-                            ordered_operations.append(("CNOT", (qs, qn)))
-                        else:
-                            ordered_operations.append(("CNOT", (qn, qs)))
+                        if source_type != neighbor_type:
+                            if source_type == zx.VertexType.Z:
+                                ordered_operations.append(
+                                    CircuitOperation("CNOT", [source_qubit, neighbor_qubit])
+                                )
+                            else:
+                                ordered_operations.append(
+                                    CircuitOperation("CNOT", [neighbor_qubit, source_qubit])
+                                )
 
-                    processed_edges.add(edge)
+                        processed_edges.add(edge)
 
-                if s in lasts:
-                    if ts == zx.VertexType.Z:
-                        ordered_operations.append(("MX", qs))
-                    elif ts == zx.VertexType.X:
-                        ordered_operations.append(("M", qs))
+                if source in terminal_nodes:
+                    measurement_id = self.measurement_id(source)
+                    if source_type == zx.VertexType.Z:
+                        ordered_operations.append(
+                            CircuitOperation("MX", [source_qubit], measurement_id)
+                        )
+                    elif source_type == zx.VertexType.X:
+                        ordered_operations.append(
+                            CircuitOperation("M", [source_qubit], measurement_id)
+                        )
 
         return ordered_operations
 
     def extract_circuit(self) -> stim.Circuit:
-        if not self.check_causal_flow():
-            raise ValueError("Circuit must have causal flow.")
-        circuit = stim.Circuit()
-
-        ops = self._find_total_ordering()
-        for op_name, qubits in ops:
-            circuit.append(op_name, qubits)
-
+        circuit, _ = self.extract_circuit_with_measurement_map()
         return circuit
 
-    def matrix_transformation_indices(self) -> list:
-        lasts = [p[-1] for p in self.paths.values() if self.node_types[p[-1]] != zx.VertexType.BOUNDARY]
-        return [self._measurements[v] for v in lasts if self._measurements[v] < self._num_qubits]
+    def extract_circuit_with_measurement_map(self) -> tuple[stim.Circuit, dict[int, int]]:
+        if not self.check_causal_flow():
+            raise ValueError("Circuit must have causal flow.")
 
-    def measurement_qubit_indices(self) -> list:
-        lasts = {i: p[-1] for i, p in self.paths.items() if self.node_types[p[-1]] != zx.VertexType.BOUNDARY}
-        path_to_qubit = self._get_path_to_qubit()
-        return [path_to_qubit[i] - self._num_qubits for i, v in lasts.items() if
-                self._measurements[v] < self._num_qubits]
+        circuit = stim.Circuit()
+        measurement_map: dict[int, int] = {}
+        next_measurement_index = 0
 
-    def flag_qubit_indices(self) -> list:
-        lasts = {i: p[-1] for i, p in self.paths.items() if self.node_types[p[-1]] != zx.VertexType.BOUNDARY}
+        for operation in self._find_total_ordering():
+            circuit.append(operation.name, operation.targets)
+            if operation.name in self.MEASUREMENT_OPS:
+                if operation.measurement_id is not None:
+                    for offset in range(len(operation.targets)):
+                        measurement_map[next_measurement_index + offset] = operation.measurement_id + offset
+                next_measurement_index += len(operation.targets)
+
+        return circuit, measurement_map
+
+    # ---------------------------------------------------------------------
+    # Existing analysis helpers
+    # ---------------------------------------------------------------------
+
+    def _terminal_measurement_paths(self) -> dict[int, int]:
+        return {
+            path_id: path[-1]
+            for path_id, path in self.paths.items()
+            if path and self.node_type(path[-1]) != zx.VertexType.BOUNDARY
+        }
+
+    def matrix_transformation_indices(self) -> list[int]:
+        indices = []
+        for terminal in self._terminal_measurement_paths().values():
+            measurement_id = self.measurement_id(terminal)
+            if measurement_id is not None and measurement_id < self._num_qubits:
+                indices.append(measurement_id)
+        return indices
+
+    def measurement_qubit_indices(self) -> list[int]:
         path_to_qubit = self._get_path_to_qubit()
-        return [path_to_qubit[i] - self._num_qubits for i, v in lasts.items() if
-                self._measurements[v] >= self._num_qubits]
+        indices = []
+        for path_id, terminal in self._terminal_measurement_paths().items():
+            measurement_id = self.measurement_id(terminal)
+            if measurement_id is not None and measurement_id < self._num_qubits:
+                indices.append(path_to_qubit[path_id] - self._num_qubits)
+        return indices
+
+    def flag_qubit_indices(self) -> list[int]:
+        path_to_qubit = self._get_path_to_qubit()
+        indices = []
+        for path_id, terminal in self._terminal_measurement_paths().items():
+            measurement_id = self.measurement_id(terminal)
+            if measurement_id is not None and measurement_id >= self._num_qubits:
+                indices.append(path_to_qubit[path_id] - self._num_qubits)
+        return indices
 
 
 def all_good_FT_opts(
-        covered_zx_graph: CoveredZXGraph,
-        H_matrix: np.ndarray,  # Binary Matrix (num_stabilizers x num_data_qubits)
-        L_matrix: np.ndarray,  # Binary Matrix (num_logicals x num_data_qubits)
-        basis: str,  # "Z" (Measuring Z-stabs) or "X" (Measuring X-stabs)
-        d: int
+    covered_zx_graph: CoveredZXGraph,
+    H_matrix: np.ndarray,
+    L_matrix: np.ndarray,
+    basis: str,
+    d: int,
 ) -> Iterator[CoveredZXGraph]:
     stabs = list_to_str_stabs(H_matrix)
     decoder_table = build_css_syndrome_table(stabs, d)
@@ -596,63 +1081,58 @@ def all_good_FT_opts(
     yield covered_zx_graph
     covered_graphs = [covered_zx_graph]
     seen = {covered_zx_graph.path_hash()}
-    while len(covered_graphs) > 0:
-        current_graph = covered_graphs.pop(0)
 
-        for path in current_graph.all_causal_single_boundary_bends():
-            cov_graph = current_graph.shallow_copy()
-            cov_graph.paths = path
-            # cov_graph.insert_empty_spiders()
-            circ = cov_graph.extract_circuit()
+    while covered_graphs:
+        current_graph = covered_graphs.pop(0)
+        for candidate_paths in current_graph.all_causal_single_boundary_bends():
+            candidate_graph = current_graph.shallow_copy()
+            candidate_graph.paths = candidate_paths
+            circuit = candidate_graph.extract_circuit()
             good = compute_modified_lookup_table(
-                circ,
+                circuit,
                 H_matrix,
                 L_matrix,
                 decoder_table,
-                cov_graph.flag_qubit_indices(),
+                candidate_graph.flag_qubit_indices(),
                 basis,
                 d,
                 verbose=True,
             )
-            p_hash = cov_graph.path_hash()
+            candidate_hash = candidate_graph.path_hash()
             if not good:
                 print("BAD")
-            if p_hash not in seen:
-                covered_graphs.append(cov_graph)
-                seen.add(p_hash)
-                cov_graph.visualize()
-                yield cov_graph
+            if candidate_hash not in seen:
+                covered_graphs.append(candidate_graph)
+                seen.add(candidate_hash)
+                candidate_graph.visualize()
+                yield candidate_graph
             else:
                 print("PRUNED")
 
 
-if __name__ == '__main__':
-    # gadgets = QECCGadgets.from_json("circuits/15_7_3.json")
+if __name__ == "__main__":
+    code_name, circuit_path = "22_1_7", "z"
+    # code_name, circuit_path = "25_1_5", "rotated_surface_d5/zero_ft_heuristic_opt"
+    # code_name, circuit_path = "15_7_3", "hamming/zero_ft_opt_opt"
+    # code_name, circuit_path = "7_1_3", "steane/zero_ft_opt_opt"
 
-    code_name, circuit_path = "15_7_3", "hamming/zero_ft_opt_opt"
-
-    code = CSSCode.load_code("MQT", code_name)
+    code = CSSCode.load_code("FAO", code_name)
     circuit = load_state_prep_circuit("SAT", circuit_path)
     se = steane_se_from_stim_state_prep(circuit, se_basis="Z", n=code.n)
-    graph = stim_to_pyzx(se, code.n)
-    cov_graph = CoveredZXGraph.from_zx_diagram(graph)
-    initial_size = len(cov_graph.paths)
-    cov_graph.visualize()
-    cov_graph.basic_FE_rewrites()
-    cov_graph.visualize()
-
-    for cv in cov_graph.min_ancilla_boundary_bends():
-        cv.visualize()
-        print("Number of ancilla qubits:", len(cv.paths) - code.n)
-        print(
-            f"H indices: {cv.matrix_transformation_indices()}; "
-            f"Measurement indices: {cv.measurement_qubit_indices()}; "
-            f"Flag qubits: {cv.flag_qubit_indices()}"
-        )
-        print(cv.matrix_transformation_indices())
-        print(cv.measurement_qubit_indices())
-        print(cv.flag_qubit_indices())
-        se_circ = cv.extract_circuit()
-        print(se_circ)
-        print()
-
+    covered = CoveredZXGraph.from_stim(se)
+    covered.visualize()
+    covered.basic_FE_rewrites()
+    covered.visualize()
+    # optimised = covered.min_ancilla_boundary_bends()[0]
+    optimised = covered.mcts_boundary_bends(
+        max_iterations=500,
+        rollout_depth=16,
+        seed=0,
+    )
+    # optimised = covered.best_first_boundary_bends(max_evaluations=2_000)
+    optimised.visualize()
+    print("Number of ancilla qubits:", len(optimised.paths) - code.n)
+    new_circuit, measurement_map = optimised.extract_circuit_with_measurement_map()
+    print(new_circuit)
+    print("Measurement map:", measurement_map)
+    print()

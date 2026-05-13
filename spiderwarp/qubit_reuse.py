@@ -303,3 +303,108 @@ def apply_logical_qubit_merge_and_compress(dag: nx.DiGraph, n_data: int) -> nx.D
             mod_dag.nodes[node]["targets"] = new_targets
 
     return mod_dag
+
+
+from qiskit import QuantumCircuit
+from qiskit_qubit_reuse import QubitReuse
+
+
+def apply_qiskit_qubit_reuse(ordered_operations: list[tuple[str, list[int]]], n_data: int, total_logical_qubits: int):
+    """
+    Translates operations to Qiskit, applies the QubitReuse pass, and translates back.
+    Includes a "Data Qubit Shield" to prevent data qubits from being collapsed.
+    """
+    # 1. Setup Qiskit Circuit
+    num_measurements = sum(1 for op, _ in ordered_operations if op in {"M", "MX"})
+    qc = QuantumCircuit(total_logical_qubits, num_measurements)
+
+    # 🛡️ THE DATA SHIELD:
+    # We place a barrier on all data qubits at the very beginning and very end.
+    # This mathematically forces their "lifespan" to span the entire circuit,
+    # preventing the Qiskit allocator from assigning ancillas to their physical slots.
+    data_qubits = list(range(n_data))
+    qc.barrier(data_qubits)
+
+    meas_idx = 0
+    for op, targets in ordered_operations:
+        q = targets[0]
+        if op == "R":
+            qc.reset(q)
+        elif op == "RX":
+            # Qiskit has no native RX initialization; we decompose it.
+            qc.reset(q)
+            qc.h(q)
+        elif op == "CNOT":
+            qc.cx(targets[0], targets[1])
+        elif op == "M":
+            qc.measure(q, meas_idx)
+            meas_idx += 1
+        elif op == "MX":
+            # Qiskit has no native MX measurement; we decompose it.
+            qc.h(q)
+            qc.measure(q, meas_idx)
+            meas_idx += 1
+
+    qc.barrier(data_qubits)
+
+    # 2. Run the Pass Manager
+    pm = QubitReuse()
+    optimized_qc = pm.run(qc)
+
+    # 3. Translate Back to Stim-Compatible Operations
+    # Qiskit creates new 'Qubit' objects; we map them back to strict integers.
+    q_map = {q: i for i, q in enumerate(optimized_qc.qubits)}
+    new_ops = []
+
+    # We use a wire-aware buffer to perfectly reconstruct RX and MX gates.
+    # Qiskit might interleave operations on different qubits, so we queue
+    # single-qubit gates per wire and flush them when a 2-qubit gate forces synchronization.
+    qubit_queues = {i: [] for i in range(optimized_qc.num_qubits)}
+
+    def flush_wire(wire_id):
+        ops = qubit_queues[wire_id]
+        i = 0
+        while i < len(ops):
+            # Recompose RX
+            if ops[i] == "reset" and i + 1 < len(ops) and ops[i + 1] == "h":
+                new_ops.append(("RX", [wire_id]))
+                i += 2
+            # Recompose MX
+            elif ops[i] == "h" and i + 1 < len(ops) and ops[i + 1] == "measure":
+                new_ops.append(("MX", [wire_id]))
+                i += 2
+            # Standard single-qubit ops
+            else:
+                name = ops[i].upper()
+                if name == "RESET":
+                    name = "R"
+                elif name == "MEASURE":
+                    name = "M"
+                new_ops.append((name, [wire_id]))
+                i += 1
+        qubit_queues[wire_id].clear()
+
+    # Iterate through the optimized Qiskit circuit data
+    for inst in optimized_qc.data:
+        name = inst.operation.name
+        if name == "barrier":
+            continue
+
+        qubits = [q_map[q] for q in inst.qubits]
+
+        if len(qubits) == 2:
+            # 2-Qubit gate: flush pending single-qubit gates on these wires to maintain causality
+            flush_wire(qubits[0])
+            flush_wire(qubits[1])
+            new_ops.append(("CNOT", qubits))
+        else:
+            # 1-Qubit gate: queue it on the specific wire
+            qubit_queues[qubits[0]].append(name)
+
+    # Final flush for any trailing measurements
+    for q in range(optimized_qc.num_qubits):
+        flush_wire(q)
+
+    total_physical_qubits = optimized_qc.num_qubits
+    return new_ops, total_physical_qubits
+

@@ -1,4 +1,5 @@
 import itertools
+import os
 import re
 from collections import defaultdict
 from pathlib import Path
@@ -7,6 +8,9 @@ from typing import Iterable
 import matplotlib.pyplot as plt
 import pyzx as zx
 import stim
+import stimcirq
+
+from cirq.contrib.qasm_import import circuit_from_qasm
 
 
 def _layer_cnot_circuit(cnots):
@@ -201,9 +205,9 @@ def stim_to_pyzx(stim_circuit: stim.Circuit, n_data: int) -> zx.Graph:
                 if t < n_data:
                     continue
                 if op == "R":
-                    circ.add_gate("InitAncilla", label=t, basis="Z")
+                    circ.add_gate("InitAncilla", label=t, state="0")
                 elif op == "RX":
-                    circ.add_gate("InitAncilla", label=t, basis="X")
+                    circ.add_gate("InitAncilla", label=t, state="+")
 
         elif op == "CX":
             for i in range(0, len(targets), 2):
@@ -217,20 +221,134 @@ def stim_to_pyzx(stim_circuit: stim.Circuit, n_data: int) -> zx.Graph:
         elif op in ("M", "MX", "MR"):
             for t in targets:
                 if op in ("M", "MR"):
-                    circ.add_gate("PostSelect", label=t, basis="Z")
+                    circ.add_gate("PostSelect", label=t, state="0")
                 elif op == "MX":
-                    circ.add_gate("PostSelect", label=t, basis="X")
+                    circ.add_gate("PostSelect", label=t, state="+")
 
     return circ.to_graph()
 
 
-if __name__ == "__main__":
-    # --- Example Usage ---
+import stim
+
+
+def get_temporal_mapping(circ: stim.Circuit, num_data_qubits: int) -> dict[int, int]:
+    """
+    Extracts the chronological sequence of measurements from a Stim circuit.
+
+    Args:
+        circ: The stim.Circuit containing the extracted syndrome measurements.
+        num_data_qubits: The number of data qubits (the offset to subtract).
+
+    Returns:
+        dict[int, int]: A mapping where:
+            - Keys are the temporal indices (0, 1, 2...) representing the
+              position of the measurement in the Stim output array.
+            - Values are the relative qubit indices (absolute_qubit - num_data_qubits).
+    """
+    temporal_to_relative_qubit = {}
+    temporal_idx = 0
+
+    for op in circ:
+        # Standard single-qubit measurement gates in Stim
+        if op.name in ("M", "MX", "MY", "MZ"):
+            for target in op.targets_copy():
+                if target.is_qubit_target:
+                    # Calculate the relative index to match your spatial mapping
+                    relative_qubit = target.value - num_data_qubits
+                    temporal_to_relative_qubit[temporal_idx] = relative_qubit
+                    temporal_idx += 1
+
+    return temporal_to_relative_qubit
+
+
+def compose_measurement_mappings(
+        circ: stim.Circuit,
+        spatial_mapping: dict[int, int],
+        num_data_qubits: int
+) -> dict[int, int]:
+    """
+    Creates a direct mapping from the Stim output array index to the
+    original unoptimized measurement index.
+    """
+    temporal_mapping = get_temporal_mapping(circ, num_data_qubits)
+
+    composed_mapping = {}
+    for temporal_idx, relative_qubit in temporal_mapping.items():
+        if relative_qubit in spatial_mapping:
+            composed_mapping[temporal_idx] = spatial_mapping[relative_qubit]
+
+    return composed_mapping
+
+
+def load_state_prep_circuit(directory: str, name: str) -> stim.Circuit:
     root = get_project_root()
-    file = root.joinpath("assets", "circuits", "miscellaneous", "zero_32_20_4.stim")
-    with open(file, "r") as f:
-        stim_str = f.read()
-    circuit = stim.Circuit(stim_str)
-    se = steane_se_from_stim_state_prep(circuit, se_basis="Z", n=32)
-    graph = stim_to_pyzx(se, 32)
-    print(graph)
+    directory = root.joinpath("assets", "circuits", "FTStatePrep", directory)
+    if (file := directory.joinpath(f"{name}.stim")).exists():
+        circ = stim.Circuit(file.read_text())
+    else:
+        file = directory.joinpath(f"{name}.qasm")
+        cirq_circuit = circuit_from_qasm(file.read_text())
+        circ = stimcirq.cirq_circuit_to_stim_circuit(cirq_circuit)
+    if circ[0].name not in ('R', "RX"):
+        circ.insert(0, stim.CircuitInstruction("R", range(circ.num_qubits)))
+    return circ
+
+
+
+def qasm_str_to_stim_circuit(qasm_str: str) -> stim.Circuit:
+    cirq_circuit = circuit_from_qasm(qasm_str)
+    circ = stimcirq.cirq_circuit_to_stim_circuit(cirq_circuit)
+    if circ[0].name not in ('R', "RX"):
+        circ.insert(0, stim.CircuitInstruction("R", range(circ.num_qubits)))
+    return circ
+
+
+def load_steane_perm_circuits(name: str) -> tuple[stim.Circuit, stim.Circuit, stim.Circuit, stim.Circuit]:
+    alt_names = {
+        "4_8_8_d5": "cc_4_8_8_d5",
+        "17_1_5": "cc_4_8_8_d5",
+
+        "4_8_8_d7": "cc_4_8_8_d7",
+        "31_1_7": "cc_4_8_8_d7",
+
+        "6_6_6_d5": "cc_6_6_6_d5",
+        "19_1_5": "cc_6_6_6_d5",
+
+        "6_6_6_d7": "cc_6_6_6_d7",
+        "39_1_7": "cc_6_6_6_d7",
+
+        "20_2_6": "eve_20_2_6",
+
+        "25_1_5": "rotated_surface_d5"
+    }
+    name = alt_names.get(name, name)
+
+    root = get_project_root()
+    directory = root.joinpath("assets", "circuits", "FTStatePrep", "SteanePerm", name)
+    files = os.listdir(directory)
+    [c1, c2, c3, c4] = [qasm_str_to_stim_circuit(directory.joinpath(f).read_text()) for f in files]
+    return c1, c2, c3, c4
+
+
+def MQT_STEANE_PERM_QECCS():
+    root = get_project_root()
+    directory = root.joinpath("assets", "circuits", "FTStatePrep", "SteanePerm")
+    return os.listdir(directory)
+
+
+MQT_STEANE_CODE_NAME = {
+    "cc_4_8_8_d5": "17_1_5",
+    "cc_4_8_8_d7": "31_1_7",
+    "cc_6_6_6_d5": "19_1_5",
+    "cc_6_6_6_d7": "39_1_7",
+    "eve_20_2_6": "20_2_6",
+    "rotated_surface_d5": "25_1_5",
+}
+
+
+if __name__ == "__main__":
+    print(MQT_STEANE_PERM_QECCS())
+    # circuit = load_state_prep_circuit("misc", "zero_32_20_4")
+    # se = steane_se_from_stim_state_prep(circuit, se_basis="Z", n=32)
+    # graph = stim_to_pyzx(se, 32)
+    # print(graph)

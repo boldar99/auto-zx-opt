@@ -4,7 +4,7 @@ import numpy as np
 import stim
 
 from spiderwarp.generate import OptimisedSteaneData
-from spiderwarp.qecc import GadgetManager, NoiseModel
+from spiderwarp.csscode import NoiseModel
 
 
 class Simulator:

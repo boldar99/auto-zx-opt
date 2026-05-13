@@ -12,6 +12,7 @@ import pyzx as zx
 import stim
 import stimcirq
 from cirq.contrib.qasm_import import circuit_from_qasm
+from mqt.qecc.circuit_synthesis import LutDecoder
 
 from spiderwarp.utils import _layer_cnot_circuit, explode_circuit, get_project_root
 
@@ -47,7 +48,7 @@ class NoiseModel:
 
     @classmethod
     def Quantinuum_Sol(cls):
-        return cls(p_1=3e-5, p_2=8e-4, p_init=5e-4, p_meas=5e-4, p_mem=6e-4)
+        return cls(p_1=1e-5, p_2=1e-4, p_init=2e-4, p_meas=2e-4, p_mem=5e-5)
 
 
 @dataclass
@@ -63,19 +64,18 @@ class CSSCode:
     name: str | None = None
 
     @classmethod
-    def load_code(cls, code_name: str, directory: str) -> CSSCode:
+    def load_code(cls, directory: str, code_name: str) -> CSSCode:
         qecc_dir = {
-            "MQT": "MQT_qeccs",
-            "mqt": "MQT_qeccs",
-            "FAO": "fao_qeccs",
-            "fao": "fao_qeccs",
-        }[directory]
+            "mqt": "MQT",
+            "fao": "FAO",
+            "MISC": "misc",
+        }.get(directory, directory)
         root = get_project_root()
         codes = {
             "steane": "7_1_3",
         }
         filename = codes.get(code_name, code_name) + ".json"
-        return cls.load_json(root.joinpath("assets", qecc_dir, filename))
+        return cls.load_json(root.joinpath("assets", "qeccs", qecc_dir, filename))
 
     @classmethod
     def load_json(cls, file: str | Path) -> CSSCode:
@@ -145,342 +145,16 @@ class CSSCode:
         return ret
 
 
-class AncillaBlock(abc.ABC):
-    ket_zero: list[int]
-    ket_plus: list[int]
-    cnots: list[tuple[int, int]]
-    meas_z: list[int]
-    meas_x: list[int]
-
-    def to_stim(self, noise_model: NoiseModel | None = None, *args, _layer_cnots=True):
-
-        if noise_model is None:
-            noise_model = NoiseModel()
-        circ = stim.Circuit()
-
-        circ.append("R", self.ket_zero)
-        circ.append("RX", self.ket_plus)
-        if noise_model.p_init > 0:
-            circ.append("X_ERROR", self.ket_zero, noise_model.p_init)
-            circ.append("Z_ERROR", self.ket_plus, noise_model.p_init)
-        # circ.append("TICK")
-
-        all_qubits = set(range(max(map(max, self.cnots)) + 1))
-        if _layer_cnots:
-            cnot_layers = _layer_cnot_circuit(self.cnots)
-        else:
-            cnot_layers = [self.cnots]
-
-        for cnot_layer in cnot_layers:
-            for c, n in cnot_layer:
-                circ.append("CNOT", [c, n])
-                if noise_model.p_2 > 0:
-                    circ.append("DEPOLARIZE2", [c, n], noise_model.p_2)
-            if noise_model.p_mem > 0:
-                circ.append("Z_ERROR", all_qubits, noise_model.p_mem)
-            # circ.append("TICK")
-
-        if noise_model.p_meas > 0:
-            circ.append("X_ERROR", self.meas_x, noise_model.p_meas)
-            circ.append("Z_ERROR", self.meas_z, noise_model.p_meas)
-        circ.append("MX", self.meas_x)
-        circ.append("M", self.meas_z)
-
-        # for i in self.meas_x:
-        #     circ.append("H", i)
-        #     if noise_model.p_1 > 0:
-        #         circ.append("DEPOLARIZE1", i, noise_model.p_1)
-        # for i in sorted(self.meas_z + self.meas_x):
-        #     if noise_model.p_meas > 0:
-        #         circ.append("MR", i, noise_model.p_meas)
-        #     else:
-        #         circ.append("MR", i)
-
-        return circ
-
-    def to_pyzx(self):
-        n_data = min(min(self.ket_zero + self.ket_plus), min(self.meas_z + self.meas_x))
-        circ = zx.Circuit(n_data)
-
-        for i in self.ket_zero:
-            circ.add_gate("InitAncilla", label=i, basis="Z")
-        for i in self.ket_plus:
-            circ.add_gate("InitAncilla", label=i, basis="X")
-
-        for c, n in self.cnots:
-            circ.add_gate("CNOT", c, n)
-
-        for i in self.meas_z:
-            circ.add_gate("PostSelect", label=i, basis="Z")
-        for i in self.meas_x:
-            circ.add_gate("PostSelect", label=i, basis="X")
-
-        return circ.to_graph()
-
-    def to_dict(self) -> dict:
-        return {
-            "ket_0": self.ket_zero.copy(),
-            "ket_+": self.ket_plus.copy(),
-            "cnots": [[c, n] for c, n in self.cnots],
-            "bra_0": self.meas_z.copy(),
-            "bra_+": self.meas_x.copy(),
-        }
-
-    def cnot_depth(self):
-        return len(_layer_cnot_circuit(self.cnots))
-
-
-@dataclass
-class StatePrep(AncillaBlock):
-    basis: Basis
-    ket_zero: list[int]
-    ket_plus: list[int]
-    cnots: list[tuple[int, int]]
-    meas_z: list[int]
-    meas_x: list[int]
-
-    @classmethod
-    def from_dict(cls, data: dict, state_basis: Basis):
-        return cls(
-            basis=state_basis,
-            ket_zero=data["ket_0"],
-            ket_plus=data["ket_+"],
-            cnots=[(c, n) for [c, n] in data["cnots"]],
-            meas_z=data["meas_z"],
-            meas_x=data["meas_x"]
-        )
-
-    @classmethod
-    def from_stim(cls, circ: stim.Circuit, state_basis: Basis):
-        ket_plus = []
-        cnots = []
-        in_cnot_layer = np.zeros(circ.num_qubits, dtype=bool)
-        bra = []
-        meas_x = []
-
-        for op in explode_circuit(circ):
-            ts = [t.value for t in op.targets_copy()]
-            if op.name == "H":
-                [t] = ts
-                if in_cnot_layer[t]:
-                    meas_x.append(t)
-                else:
-                    ket_plus.append(t)
-            if op.name in ("CNOT", "CX"):
-                cnots.append(ts)
-                in_cnot_layer[ts[0]] = True
-                in_cnot_layer[ts[1]] = True
-            if op.name in ("M", "MR"):
-                bra.append(ts[0])
-
-        ket_plus.sort()
-        meas_x.sort()
-        ket_zero = [q for q in range(circ.num_qubits) if q not in ket_plus]
-        meas_z = [q for q in bra if q not in meas_x]
-
-        return cls(
-            state_basis,
-            ket_zero,
-            ket_plus,
-            cnots,
-            meas_z,
-            meas_x
-        )
-
-    @classmethod
-    def from_qasm(cls, qasm_string: str, state_basis: Basis):
-        cirq_circuit = circuit_from_qasm(qasm_string)
-        stim_circuit = stimcirq.cirq_circuit_to_stim_circuit(cirq_circuit)
-        return cls.from_stim(stim_circuit, state_basis)
-
-    def to_dict(self) -> dict:
-        data = super().to_dict()
-        data["logical_state"] = self.basis
-        return data
-
-    @property
-    def n(self):
-        return len(self.ket_zero) + len(self.ket_plus) - len(self.meas_z) - len(self.meas_x)
-
-    def dual(self) -> StatePrep:
-        return StatePrep(
-            basis=Basis.dual(self.basis),
-            ket_zero=self.ket_plus,
-            ket_plus=self.ket_zero,
-            cnots=[(n, c) for c, n in self.cnots],
-            meas_z=self.meas_x,
-            meas_x=self.meas_z
-        )
-
-    def to_stim(self, noise_model=NoiseModel(), *args, _layer_cnots=True):
-        circ = super().to_stim(noise_model, _layer_cnots=_layer_cnots)
-        for i in range(len(self.meas_z) + len(self.meas_x)):
-            circ.append("DETECTOR", stim.target_rec(-i - 1))
-        return circ
-
-    def non_ft_version(self):
-        qubits_to_keep = (set(self.ket_plus) | set(self.ket_zero)) - (set(self.meas_x) | set(self.meas_z))
-        return StatePrep(
-            basis=self.basis,
-            ket_zero=[q for q in self.ket_zero if q in qubits_to_keep],
-            ket_plus=[q for q in self.ket_plus if q in qubits_to_keep],
-            cnots=[(c, n) for c, n in self.cnots if c in qubits_to_keep and n in qubits_to_keep],
-            meas_z=[],
-            meas_x=[]
-        )
-
-
-@dataclass
-class SyndromeGadget(AncillaBlock):
-    ket_zero: list[int]
-    ket_plus: list[int]
-    cnots: list[tuple[int, int]]
-    meas_z: list[int]
-    meas_x: list[int]
-    flags: list[int]
-
-    @classmethod
-    def from_dict(cls, data: dict):
-        return cls(
-            ket_zero=data["ket_0"],
-            ket_plus=data["ket_+"],
-            cnots=[(c, n) for [c, n] in data["cnots"]],
-            meas_z=data["bra_0"],
-            meas_x=data["bra_+"],
-            flags=data["flags"],
-        )
-
-    def dual(self) -> SyndromeGadget:
-        return SyndromeGadget(
-            ket_zero=self.ket_plus.copy(),
-            ket_plus=self.ket_zero.copy(),
-            cnots=[(n, c) for c, n in self.cnots],
-            meas_z=self.meas_x.copy(),
-            meas_x=self.meas_z.copy(),
-            flags=self.flags.copy(),
-        )
-
-    def to_dict(self) -> dict[str, list]:
-        data = super().to_dict()
-        data["flags"] = self.flags.copy()
-        return data
-
-    @classmethod
-    def steane_style(cls, state_prep: StatePrep):
-        def shift_indices(ops, k):
-            ret = []
-            for op in ops:
-                if isinstance(op, (tuple, list)):
-                    ret.append((op[0] + k, op[1] + k))
-                else:
-                    ret.append(op + k)
-            return ret
-
-        n = state_prep.n
-        cnots = shift_indices(state_prep.cnots, n)
-        z_flags = shift_indices(state_prep.meas_z, n)
-        x_flags = shift_indices(state_prep.meas_x, n)
-        if state_prep.basis == Basis.X:
-            cnots += [(i, i + n) for i in range(n)]
-            meas_z = [i + n for i in range(n)] + z_flags
-            meas_x = x_flags
-        else:
-            cnots += [(i + n, i) for i in range(n)]
-            meas_z = z_flags
-            meas_x = [i + n for i in range(n)] + x_flags
-
-        return cls(
-            ket_zero=shift_indices(state_prep.ket_zero, n),
-            ket_plus=shift_indices(state_prep.ket_plus, n),
-            cnots=cnots,
-            meas_z=meas_z,
-            meas_x=meas_x,
-            flags=x_flags + z_flags,
-        )
-
-    def to_stim(self, noise_model=NoiseModel(), *args, _layer_cnots=True):
-        circ = super().to_stim(noise_model, _layer_cnots=_layer_cnots)
-
-        num_measurements = len(self.meas_z) + len(self.meas_x)
-        for i, q in enumerate(self.meas_z + self.meas_x):
-            if q in self.flags:
-                circ.append("DETECTOR", stim.target_rec(i - num_measurements))
-        return circ
-
-
-@dataclass
-class GadgetManager:
-    code: CSSCode
-    ft_z_state_prep: StatePrep | None
-    ft_x_state_prep: StatePrep | None
-    non_ft_z_state_prep: StatePrep | None
-    non_ft_x_state_prep: StatePrep | None
-
-    @classmethod
-    def from_json(cls, filename):
-        with open(filename) as json_file:
-            data = json.load(json_file)
-        code = CSSCode.from_dict(data)
-        circuit_data = data.get("fault_tolerant_zero_state_prep")
-        ft_z_state_prep = circuit_data and StatePrep.from_dict(
-            circuit_data, logical_state=["0"]
-        )
-        circuit_data = data.get("non_fault_tolerant_zero_state_prep")
-        non_ft_z_state_prep = circuit_data and StatePrep.from_dict(
-            circuit_data, logical_state=["0"]
-        )
-        if code.is_self_dual:
-            ft_x_state_prep = ft_z_state_prep.dual()
-            non_ft_x_state_prep = non_ft_z_state_prep and non_ft_z_state_prep.dual()
-        else:
-            circuit_data = data.get("fault_tolerant_plus_state_prep")
-            ft_x_state_prep = circuit_data and StatePrep.from_dict(
-                circuit_data, logical_state=["+"]
-            )
-            circuit_data = data.get("non_fault_tolerant_plus_state_prep")
-            non_ft_x_state_prep = circuit_data and StatePrep.from_dict(
-                circuit_data, logical_state=["+"]
-            )
-        return cls(
-            code=code,
-            ft_z_state_prep=ft_z_state_prep,
-            non_ft_z_state_prep=non_ft_z_state_prep,
-            ft_x_state_prep=ft_x_state_prep,
-            non_ft_x_state_prep=non_ft_x_state_prep,
-        )
-
-    @classmethod
-    def load_circuit_data(cls, n, k, d):
-        with open(f"circuits_data/{n}_{k}_{d}.qasm") as qasm_file:
-            sp = StatePrep.from_qasm(qasm_file.read(), basis=Basis.Z)
-        with open(f"circuits_data/{n}_{k}_{d}.stabs") as stabs_file:
-            qecc = CSSCode.from_stabs(stabs_file.readlines(), n, k, d)
-        return cls(
-            code=qecc,
-            ft_z_state_prep=sp,
-            ft_x_state_prep=sp.dual(),
-            non_ft_z_state_prep=sp.non_ft_version(),
-            non_ft_x_state_prep=sp.dual().non_ft_version(),
-        )
-
-    @property
-    def steane_z_syndrome_extraction(self) -> SyndromeGadget:
-        return SyndromeGadget.steane_style(self.ft_x_state_prep)
-
-    @property
-    def steane_x_syndrome_extraction(self) -> SyndromeGadget:
-        return SyndromeGadget.steane_style(self.ft_z_state_prep)
-
-    @property
-    def non_ft_steane_z_syndrome_extraction(self) -> SyndromeGadget:
-        return SyndromeGadget.steane_style(self.non_ft_x_state_prep)
-
-    @property
-    def non_ft_steane_x_syndrome_extraction(self) -> SyndromeGadget:
-        return SyndromeGadget.steane_style(self.non_ft_z_state_prep)
-
-
 if __name__ == '__main__':
-    # code = GadgetManager.load_circuit_data(32, 20, 4)
-    # print(code.ft_z_state_prep.non_ft_version())
-    print(CSSCode.load_code("32_20_4"))
+    code = CSSCode.load_code("misc", "32_20_4")
+
+    from mqt.qecc import CSSCode as MQTCSSCode
+
+    print(code)
+
+    ccode = MQTCSSCode(Hx = code.H_x, Hz = code.H_z, distance=code.d, n=code.n)
+    print(ccode.Lx)
+    print(ccode.Lz)
+    print(ccode.Hx)
+    dec = LutDecoder(ccode)
+    print(dec)
