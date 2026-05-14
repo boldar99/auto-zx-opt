@@ -143,7 +143,7 @@ def _layer_circuit_ops(operations: list[tuple[str, list[int]]], num_qubits: int)
 
 
 def make_stim_circ_noisy(circ: stim.Circuit, p: float) -> stim.Circuit:
-    p_1, p_2, p_init, p_meas, p_mem = 0, p, 2 / 3 * p, 2 / 3 * p, 0
+    p_1, p_2, p_init, p_meas, p_mem = 0, p, 2 / 3 * p, 2 / 3 * p, p / 100
     noisy_circ = stim.Circuit()
 
     operations = [(op, targets) for (op, targets, params) in circ.flattened_operations() if op != "DETECTOR"]
