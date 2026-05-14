@@ -46,24 +46,12 @@ class _MCTSNode:
 class CoveredZXGraph:
     """
     A NetworkX-backed ZX graph together with a path cover.
-
-    Node data lives on `self.G.nodes[v]`. Expected node attributes are:
-
-        type: zx.VertexType
-        pos: tuple[float, float]
-        qubit_index: float | int
-        measurement_id: int | None
-
-    `measurement_id` is the original measurement index represented by this node.
-    During rewrites, if a terminal measurement node is removed from a path, its
-    measurement_id is moved to the new terminal node of that path.
     """
 
     TYPE_COLORS = {
         zx.VertexType.Z: "#66cc66",
         zx.VertexType.X: "#ff6666",
         zx.VertexType.BOUNDARY: "black",
-        zx.VertexType.H_BOX: "#9966cc",
     }
 
     MEASUREMENT_OPS = {"M", "MX", "MY", "MR", "MRX", "MRY"}
@@ -540,8 +528,6 @@ class CoveredZXGraph:
     ) -> bool:
         if self.G.degree(v) != 2:
             return False
-        if self.node_type(v) == zx.VertexType.H_BOX:
-            return False
 
         n1, n2 = list(self.G.neighbors(v))
 
@@ -565,9 +551,7 @@ class CoveredZXGraph:
                 [neighbor] = list(self.G.neighbors(v))
                 self.fuse(v, neighbor)
 
-        for v in list(self.G.nodes())[21:2]:
-            print(v)
-            print(list(self.G.neighbors(v)))
+        for v in list(self.G.nodes()):
             if self.G.has_node(v):
                 self.remove_id(v)
 
@@ -806,7 +790,7 @@ class CoveredZXGraph:
                 if node.unexpanded_moves is None:
                     # Deduplicate moves at this state by path hash.  Different
                     # boundary-bend descriptions can lead to the same path cover.
-                    unique_moves = {}
+                    unique_moves: dict[int, dict[int, tuple[int, ...]]] = {}
                     for move in shuffled_moves(node.paths):
                         unique_moves.setdefault(self._paths_hash(move), move)
                     node.unexpanded_moves = list(unique_moves.values())
@@ -909,6 +893,73 @@ class CoveredZXGraph:
 
         self.paths = current_paths
 
+    def _new_node_id(self) -> int:
+        return max(self.G.nodes, default=-1) + 1
+
+    @staticmethod
+    def _opposite_spider_type(node_type: zx.VertexType) -> zx.VertexType:
+        if node_type == zx.VertexType.Z:
+            return zx.VertexType.X
+        if node_type == zx.VertexType.X:
+            return zx.VertexType.Z
+        raise ValueError(f"Expected an X/Z spider, got {node_type!r}.")
+
+    def _insert_identity_on_uncovered_edge(
+        self,
+        u: int,
+        v: int,
+        identity_type: zx.VertexType,
+    ) -> int:
+        """Insert an identity node (of the opposite type of u and v) between u and v, placing it on u's path."""
+        new_node = self._new_node_id()
+
+        u_pos = self.node_pos(u)
+        v_pos = self.node_pos(v)
+        new_pos = (
+            (u_pos[0] + v_pos[0]) / 2,
+            (u_pos[1] + v_pos[1]) / 2,
+        )
+
+        self.G.remove_edge(u, v)
+        self.G.add_node(
+            new_node,
+            type=identity_type,
+            pos=new_pos,
+            measurement_id=None,
+        )
+        self.G.add_edge(u, new_node)
+        self.G.add_edge(new_node, v)
+
+        for path_id, path in self.paths.items():
+            if u not in path:
+                continue
+
+            if path[0] == u:
+                self.paths[path_id] = (new_node,) + path
+            elif path[-1] == u:
+                self.paths[path_id] = path + (new_node,)
+                self.set_measurement_id(new_node, self.measurement_id(u))
+                del self.G.nodes[u]["measurement_id"]
+                raise ValueError("This implementation should be double checked")
+            else:
+                raise NotImplementedError("Insertion of new paths not implemented.")
+            return new_node
+
+        raise ValueError(f"Could not find path containing {u}.")
+
+    def add_identities_for_same_type_uncovered_edges(self) -> None:
+        """Insert identity spiders so extraction never sees same-type uncovered edges."""
+        for u, v in list(self._get_uncovered_edges(self.paths)):
+            u_type = self.node_type(u)
+            v_type = self.node_type(v)
+
+            if u_type != v_type or u_type not in (zx.VertexType.X, zx.VertexType.Z):
+                continue
+
+            identity_type = self._opposite_spider_type(u_type)
+
+            self._insert_identity_on_uncovered_edge(u, v, identity_type)
+
     # ---------------------------------------------------------------------
     # Circuit extraction and measurement provenance
     # ---------------------------------------------------------------------
@@ -921,9 +972,6 @@ class CoveredZXGraph:
                 node_to_qubit[node] = path_to_qubit[path_id]
         return node_to_qubit
 
-    def _h_box_is_path_only(self, h_node: int, path_edges: set[tuple[int, int]]) -> bool:
-        return all(_sorted_pair(h_node, neighbor) in path_edges for neighbor in self.G.neighbors(h_node))
-
     def _find_total_ordering(self) -> list[CircuitOperation]:
         ordered_operations: list[CircuitOperation] = []
         path_to_qubit = self._get_path_to_qubit()
@@ -931,8 +979,6 @@ class CoveredZXGraph:
         terminal_nodes = {path[-1] for path in self.paths.values() if path}
 
         for path_id, path in self.paths.items():
-            if not path:
-                continue
             first_node_type = self.node_type(path[0])
             qubit = path_to_qubit[path_id]
             if first_node_type == zx.VertexType.Z:
@@ -959,41 +1005,35 @@ class CoveredZXGraph:
                 source_qubit = node_to_qubit[source]
                 source_type = self.node_type(source)
 
-                if source_type == zx.VertexType.H_BOX:
-                    if not self._h_box_is_path_only(source, path_edges):
-                        raise NotImplementedError(
-                            "H_BOX nodes with non-path neighbours are not supported by extraction."
-                        )
-                    ordered_operations.append(CircuitOperation("H", [source_qubit]))
+                neighbors = sorted(
+                    self.G.neighbors(source),
+                    key=lambda neighbor: int(self.node_type(neighbor) == source_type),
+                )
 
-                if source_type in (zx.VertexType.X, zx.VertexType.Z):
-                    neighbors = sorted(
-                        self.G.neighbors(source),
-                        key=lambda neighbor: int(self.node_type(neighbor) == source_type),
-                    )
+                for neighbor in neighbors:
+                    if self.node_type(neighbor) == zx.VertexType.BOUNDARY:
+                        continue
 
-                    for neighbor in neighbors:
-                        if self.node_type(neighbor) == zx.VertexType.BOUNDARY:
-                            continue
+                    edge = _sorted_pair(source, neighbor)
+                    if edge in path_edges or edge in processed_edges:
+                        continue
 
-                        edge = _sorted_pair(source, neighbor)
-                        if edge in path_edges or edge in processed_edges:
-                            continue
+                    neighbor_qubit = node_to_qubit[neighbor]
+                    neighbor_type = self.node_type(neighbor)
 
-                        neighbor_qubit = node_to_qubit[neighbor]
-                        neighbor_type = self.node_type(neighbor)
+                    if source_type != neighbor_type:
+                        if source_type == zx.VertexType.Z:
+                            ordered_operations.append(
+                                CircuitOperation("CNOT", [source_qubit, neighbor_qubit])
+                            )
+                        else:
+                            ordered_operations.append(
+                                CircuitOperation("CNOT", [neighbor_qubit, source_qubit])
+                            )
+                    else:
+                        raise ValueError("Cannot extract same-type uncovered edge ...")
 
-                        if source_type != neighbor_type:
-                            if source_type == zx.VertexType.Z:
-                                ordered_operations.append(
-                                    CircuitOperation("CNOT", [source_qubit, neighbor_qubit])
-                                )
-                            else:
-                                ordered_operations.append(
-                                    CircuitOperation("CNOT", [neighbor_qubit, source_qubit])
-                                )
-
-                        processed_edges.add(edge)
+                    processed_edges.add(edge)
 
                 if source in terminal_nodes:
                     measurement_id = self.measurement_id(source)
@@ -1016,11 +1056,15 @@ class CoveredZXGraph:
         if not self.check_causal_flow():
             raise ValueError("Circuit must have causal flow.")
 
+        extraction_graph = self.deepcopy()
+        extraction_graph.add_identities_for_same_type_uncovered_edges()
+        extraction_graph.visualize()
+
         circuit = stim.Circuit()
         measurement_map: dict[int, int] = {}
         next_measurement_index = 0
 
-        for operation in self._find_total_ordering():
+        for operation in extraction_graph._find_total_ordering():
             circuit.append(operation.name, operation.targets)
             if operation.name in self.MEASUREMENT_OPS:
                 if operation.measurement_id is not None:
@@ -1111,7 +1155,7 @@ def all_good_FT_opts(
 
 
 if __name__ == "__main__":
-    code_name, circuit_path = "22_1_7", "z"
+    code_name, circuit_path = "17_1_5", "z"
     # code_name, circuit_path = "25_1_5", "rotated_surface_d5/zero_ft_heuristic_opt"
     # code_name, circuit_path = "15_7_3", "hamming/zero_ft_opt_opt"
     # code_name, circuit_path = "7_1_3", "steane/zero_ft_opt_opt"
