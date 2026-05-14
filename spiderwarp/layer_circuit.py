@@ -128,3 +128,49 @@ def _layer_circuit_ops(operations: list[tuple[str, list[int]]], num_qubits: int)
     # Shifting resets out of early layers might leave some layers completely empty.
     # We strip them out to prevent unnecessary DEPOLARIZE1 idle cycles in your noise model.
     return [layer for layer in layers if layer]
+
+
+# def make_stim_circ_noisy(circ: stim.Circuit, p: float) -> stim.Circuit:
+#     operations = [(op, targets) for (op, targets, params) in circ.flattened_operations() if op != "DETECTOR"]
+#     detectors = [(op, [stim.target_rec(targets[0][1])]) for (op, targets, params) in circ.flattened_operations() if
+#                  op == "DETECTOR"]
+#     operations = _expand_stim_operation_list(operations)
+#     layered_ops = _layer_circuit_ops(operations, circ.num_qubits)
+#     # final_ops, num_sim_qubits = apply_qubit_reuse(layered_ops)
+#     noisy_circ, mm = layered_ops_to_noisy_stim_circuit(layered_ops + [detectors], circ.num_qubits, 0, p, 2 / 3 * p,
+#                                                    2 / 3 * p, p / 100)
+#     return noisy_circ, mm
+
+
+def make_stim_circ_noisy(circ: stim.Circuit, p: float) -> stim.Circuit:
+    p_1, p_2, p_init, p_meas, p_mem = 0, p, 2 / 3 * p, 2 / 3 * p, 0
+    noisy_circ = stim.Circuit()
+
+    operations = [(op, targets) for (op, targets, params) in circ.flattened_operations() if op != "DETECTOR"]
+    # detectors = [(op, [stim.target_rec(targets[0][1])]) for (op, targets, params) in circ.flattened_operations() if
+    #              op == "DETECTOR"]
+    operations = _expand_stim_operation_list(operations)
+
+    for (op_name, targets) in operations:
+        if op_name in Z_MEASUREMENTS:
+            p_meas > 0 and noisy_circ.append("X_ERROR", targets, p_meas)
+        elif op_name in X_MEASUREMENTS:
+            p_meas > 0 and noisy_circ.append("Z_ERROR", targets, p_meas)
+
+        noisy_circ.append(op_name, targets)
+
+        if op_name in X_INITIALIZATIONS:
+            p_init > 0 and noisy_circ.append("Z_ERROR", targets, p_init)
+        elif op_name in Z_INITIALIZATIONS:
+            p_init > 0 and noisy_circ.append("X_ERROR", targets, p_init)
+        elif op_name in TWO_QUBIT_GATES:
+            p_2 > 0 and noisy_circ.append("DEPOLARIZE2", targets, p_2)
+        elif op_name in SPECIAL_GATES:
+            pass
+        else:
+            p_1 > 0 and noisy_circ.append("DEPOLARIZE1", targets, p_1)
+
+        if p_mem > 0:
+            noisy_circ.append("DEPOLARIZE1", [q for q in range(circ.num_qubits) if q not in targets], p_mem)
+    return noisy_circ
+

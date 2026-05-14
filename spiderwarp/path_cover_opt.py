@@ -530,13 +530,14 @@ class CoveredZXGraph:
             return False
 
         n1, n2 = list(self.G.neighbors(v))
+        if n2 == 55 and n1 == 69:
+            pass
 
         flow_check = flow_preserving and not self._remove_id_preserves_flow(v)
         parity_spider_check = (
             parity_measurement_preserving
             and self.node_type(n1) == self.node_type(n2) != self.node_type(v)
-            and self.G.degree(n1) != 2
-            and self.G.degree(n2) != 2
+            and (self.G.degree(n1) != 2 and self.G.degree(n2) != 2)
         )
         if flow_check or parity_spider_check:
             return False
@@ -554,6 +555,8 @@ class CoveredZXGraph:
         for v in list(self.G.nodes()):
             if self.G.has_node(v):
                 self.remove_id(v)
+
+        self.add_identities_for_same_type_uncovered_edges()
 
     # ---------------------------------------------------------------------
     # Boundary bends / path-cover optimisation
@@ -914,10 +917,10 @@ class CoveredZXGraph:
         new_node = self._new_node_id()
 
         u_pos = self.node_pos(u)
-        v_pos = self.node_pos(v)
+        # v_pos = self.node_pos(v)
         new_pos = (
-            (u_pos[0] + v_pos[0]) / 2,
-            (u_pos[1] + v_pos[1]) / 2,
+            u_pos[0] - 2,
+            u_pos[1],
         )
 
         self.G.remove_edge(u, v)
@@ -926,6 +929,7 @@ class CoveredZXGraph:
             type=identity_type,
             pos=new_pos,
             measurement_id=None,
+            qubit_index=self.G.nodes[u]["qubit_index"],
         )
         self.G.add_edge(u, new_node)
         self.G.add_edge(new_node, v)
@@ -1058,7 +1062,6 @@ class CoveredZXGraph:
 
         extraction_graph = self.deepcopy()
         extraction_graph.add_identities_for_same_type_uncovered_edges()
-        extraction_graph.visualize()
 
         circuit = stim.Circuit()
         measurement_map: dict[int, int] = {}

@@ -14,7 +14,7 @@ def mqt_steane_opt(code_name, *, optimise_c2: bool = True):
     if optimise_c2:
         cov_graph_c2 = CoveredZXGraph.from_stim(se2)
         cov_graph_c2.basic_FE_rewrites()
-        c2_opt = cov_graph_c2.best_first_boundary_bends(max_evaluations=100)
+        c2_opt = cov_graph_c2.best_first_boundary_bends(max_evaluations=1000, )
 
         print(f"Optimised C_2: {circuits[1].num_qubits * 2} -> {len(c2_opt.paths)}")
         se2_opt_circ, se2_mm = c2_opt.extract_circuit_with_measurement_map()
@@ -27,9 +27,9 @@ def mqt_steane_opt(code_name, *, optimise_c2: bool = True):
     se4 = steane_se_from_stim_state_prep(circuits[3], se_basis="X", n=code.n)
     cov_graph_c4 = CoveredZXGraph.from_stim(se4)
     cov_graph_c4.offset_measurement_ids_by(code.n)
-    # cov_graph_c4.basic_FE_rewrites()
-    # cov_graph_c4_opt = cov_graph_c4.mcts_boundary_bends(max_iterations=5, )
-    cov_graph_c4_opt = cov_graph_c4
+    cov_graph_c4.basic_FE_rewrites()
+    cov_graph_c4.visualize()
+    cov_graph_c4_opt = cov_graph_c4.best_first_boundary_bends(max_evaluations=1000, )
 
     print(f"Optimised C_4: {circuits[3].num_qubits * 2} -> {len(cov_graph_c4_opt.paths)}")
     cov_graph_c4_opt.visualize()
@@ -46,9 +46,7 @@ def mqt_steane_opt(code_name, *, optimise_c2: bool = True):
     # cov_graph_c34_opt = cov_graph_c34
     cov_graph_c34.visualize()
     cov_graph_c34.basic_FE_rewrites()
-    # cov_graph_c34_opt = next(cov_graph_c34.bfs_causal_boundary_bends())
-    cov_graph_c34_opt = cov_graph_c34
-    cov_graph_c34_opt.visualize()
+    cov_graph_c34_opt = cov_graph_c34.best_first_boundary_bends(max_evaluations=1000, )
 
     print(
         f"Optimised C_3; C_4:"
