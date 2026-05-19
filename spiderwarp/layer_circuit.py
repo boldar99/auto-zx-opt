@@ -1,5 +1,4 @@
 from collections import defaultdict
-
 import stim
 
 TWO_QUBIT_GATES = {"CX", "CNOT", "CZ", "SWAP", "CY", "XCZ", "YCX"}
@@ -10,75 +9,39 @@ X_INITIALIZATIONS = {"RX"}
 SPECIAL_GATES = {"DETECTOR", "OBSERVABLE_INCLUDE", "SHIFT_COORDS", "QUBIT_COORDS", "TICK"}
 
 
-def layered_ops_to_noisy_stim_circuit(layered_ops: list[list[tuple[str, list[int]]]], num_qubits: int, p_1: float,
-                                      p_2: float, p_init: float, p_meas: float, p_mem: float) -> tuple[stim.Circuit, dict[int, int]]:
-    circuit = stim.Circuit()
-    measurement_mapping = {}
-    meas_id = 0
-    for i, ops in enumerate(layered_ops):
-        unused_qubits = set(range(num_qubits))
-        for op_name, targets in ops:
-            unused_qubits -= set(targets)
-
-            if isinstance(op_name, tuple):
-                op_name, og_meas_id = op_name
-                measurement_mapping[og_meas_id] = meas_id
-                meas_id += 1
-
-            if op_name in Z_MEASUREMENTS:
-                p_meas > 0 and circuit.append("X_ERROR", targets, p_meas)
-            elif op_name in X_MEASUREMENTS:
-                p_meas > 0 and circuit.append("Z_ERROR", targets, p_meas)
-
-            circuit.append(op_name, targets)
-
-            if op_name in X_INITIALIZATIONS:
-                p_init > 0 and circuit.append("Z_ERROR", targets, p_init)
-            elif op_name in Z_INITIALIZATIONS:
-                p_init > 0 and circuit.append("X_ERROR", targets, p_init)
-            elif op_name in TWO_QUBIT_GATES:
-                p_2 > 0 and circuit.append("DEPOLARIZE2", targets, p_2)
-            elif op_name in SPECIAL_GATES:
-                pass
-            else:
-                p_1 > 0 and circuit.append("DEPOLARIZE1", targets, p_1)
-
-        if i != len(layered_ops) - 1:
-            p_mem > 0 and circuit.append("DEPOLARIZE1", unused_qubits, p_mem)
-            circuit.append("TICK", [])
-    return circuit, measurement_mapping
+def _get_target_values(targets: list[stim.GateTarget]) -> list[int]:
+    """Safely extracts integer indices from Stim GateTargets, ignoring records."""
+    return [t.value for t in targets if t.is_qubit_target]
 
 
-def _expand_stim_operation_list(operations: list[tuple[str, list[int]]]):
+def _expand_stim_operation_list(operations: list[tuple[str, list[stim.GateTarget]]]):
     stim_operations = []
     for op_name, targets in operations:
+        t_vals = _get_target_values(targets)
+        if not t_vals:
+            continue
+
         if op_name in TWO_QUBIT_GATES:
-            for i in range(0, len(targets), 2):
-                stim_operations.append((op_name, [targets[i], targets[i + 1]]))
+            for i in range(0, len(t_vals), 2):
+                stim_operations.append((op_name, [t_vals[i], t_vals[i + 1]]))
         elif op_name in SPECIAL_GATES:
-            stim_operations.append((op_name, targets))
+            stim_operations.append((op_name, t_vals))
         else:
-            for t in targets:
+            for t in t_vals:
                 stim_operations.append((op_name, [t]))
     return stim_operations
 
 
 def _layer_circuit_ops(operations: list[tuple[str, list[int]]], num_qubits: int):
-    # Minor correction: range(num_qubits) avoids creating a ghost qubit tracker
     all_qubits = range(num_qubits)
-
-    # --- PASS 1: ASAP Forward Layering ---
     next_free_layer = {q: 0 for q in all_qubits}
     asap_layers = defaultdict(list)
     meas_id = 0
 
+    # --- PASS 1: ASAP Forward Layering ---
     for op_name, targets in operations:
-        # Note: If you pass "MR" in here, it will be kept as one block.
-        # For optimal noise, you should preprocess your operations list
-        # to convert ("MR", targets) into ("M", targets) and ("R", targets)
-        # before calling this function!
-
         last_layer = max((next_free_layer[i] for i in targets), default=0)
+
         if op_name in ("M", "MX"):
             asap_layers[last_layer].append(((op_name, meas_id), targets))
             meas_id += 1
@@ -88,89 +51,131 @@ def _layer_circuit_ops(operations: list[tuple[str, list[int]]], num_qubits: int)
         for i in targets:
             next_free_layer[i] = last_layer + 1
 
-    # Convert dict to a dense list of lists
     max_layer = max(asap_layers.keys(), default=-1)
+    if max_layer == -1:
+        return []
+
     layers = [asap_layers[i] for i in range(max_layer + 1)]
 
     # --- PASS 2: ALAP Backward Reset Shifting ---
-    # Track the exact layer index where a qubit is NEXT used.
-    # Initialize to the length of layers (representing the end of the circuit)
     next_required = {q: len(layers) for q in all_qubits}
 
-    # Iterate backwards through the ASAP layers
     for i in range(len(layers) - 1, -1, -1):
         current_layer_ops = layers[i]
         kept_ops = []
 
-        for op_name, targets in current_layer_ops:
+        for item in current_layer_ops:
+            # Handle tuple unpacking for tagged measurements
+            is_tagged_meas = isinstance(item[0], tuple)
+            op_name = item[0][0] if is_tagged_meas else item[0]
+            targets = item[1]
+
             if op_name in {"R", "RX"}:
-                # Splinter the reset: Handle each qubit independently
                 for t in targets:
                     target_layer = next_required[t] - 1
-
                     if target_layer > i:
-                        # Push this specific qubit's reset forward in time
                         layers[target_layer].append((op_name, [t]))
                     else:
-                        # It's already as late as it can be, keep it here
                         kept_ops.append((op_name, [t]))
             else:
-                # Keep normal gates where they are
-                kept_ops.append((op_name, targets))
-                # Mark these qubits as required at the current layer i
+                kept_ops.append(item)
                 for t in targets:
                     next_required[t] = i
 
-        # Update the current layer with only the operations that didn't get pushed
         layers[i] = kept_ops
 
-    # --- PASS 3: Cleanup ---
-    # Shifting resets out of early layers might leave some layers completely empty.
-    # We strip them out to prevent unnecessary DEPOLARIZE1 idle cycles in your noise model.
     return [layer for layer in layers if layer]
 
 
-# def make_stim_circ_noisy(circ: stim.Circuit, p: float) -> stim.Circuit:
-#     operations = [(op, targets) for (op, targets, params) in circ.flattened_operations() if op != "DETECTOR"]
-#     detectors = [(op, [stim.target_rec(targets[0][1])]) for (op, targets, params) in circ.flattened_operations() if
-#                  op == "DETECTOR"]
-#     operations = _expand_stim_operation_list(operations)
-#     layered_ops = _layer_circuit_ops(operations, circ.num_qubits)
-#     # final_ops, num_sim_qubits = apply_qubit_reuse(layered_ops)
-#     noisy_circ, mm = layered_ops_to_noisy_stim_circuit(layered_ops + [detectors], circ.num_qubits, 0, p, 2 / 3 * p,
-#                                                    2 / 3 * p, p / 100)
-#     return noisy_circ, mm
+def layered_ops_to_noisy_stim_circuit(
+    layered_ops: list[list[tuple]],
+    num_qubits: int,
+    p_1: float,
+    p_2: float,
+    p_init: float,
+    p_meas: float,
+    p_mem: float
+) -> tuple[stim.Circuit, dict[int, int]]:
+    circuit = stim.Circuit()
+    measurement_mapping = {}
+    meas_id = 0
+
+    for i, ops in enumerate(layered_ops):
+        # We can now safely subtract ints from ints
+        unused_qubits = set(range(num_qubits))
+
+        for item in ops:
+            is_tagged_meas = isinstance(item[0], tuple)
+            op_name = item[0][0] if is_tagged_meas else item[0]
+            targets = item[1]
+
+            unused_qubits -= set(targets)
+
+            if is_tagged_meas:
+                _, og_meas_id = item[0]
+                measurement_mapping[og_meas_id] = meas_id
+                meas_id += 1
+
+            if op_name in Z_MEASUREMENTS and p_meas > 0:
+                circuit.append("X_ERROR", targets, p_meas)
+            elif op_name in X_MEASUREMENTS and p_meas > 0:
+                circuit.append("Z_ERROR", targets, p_meas)
+
+            circuit.append(op_name, targets)
+
+            if op_name in X_INITIALIZATIONS and p_init > 0:
+                circuit.append("Z_ERROR", targets, p_init)
+            elif op_name in Z_INITIALIZATIONS and p_init > 0:
+                circuit.append("X_ERROR", targets, p_init)
+            elif op_name in TWO_QUBIT_GATES and p_2 > 0:
+                circuit.append("DEPOLARIZE2", targets, p_2)
+            elif op_name not in SPECIAL_GATES and p_1 > 0:
+                circuit.append("DEPOLARIZE1", targets, p_1)
+
+        if i != len(layered_ops) - 1 and p_mem > 0 and unused_qubits:
+            circuit.append("DEPOLARIZE1", sorted(list(unused_qubits)), p_mem)
+
+        circuit.append("TICK", [])
+
+    return circuit, measurement_mapping
 
 
-def make_stim_circ_noisy(circ: stim.Circuit, p: float) -> stim.Circuit:
-    p_1, p_2, p_init, p_meas, p_mem = 0, p, 2 / 3 * p, 2 / 3 * p, p / 100
-    noisy_circ = stim.Circuit()
+def make_stim_circ_noisy(circ: stim.Circuit, p: float) -> tuple[stim.Circuit, dict[int, int]]:
+    """Properly utilizes the layer structure to construct the noisy circuit."""
+    operations = [(op, targets) for (op, targets, _) in circ.flattened_operations() if op != "DETECTOR"]
 
-    operations = [(op, targets) for (op, targets, params) in circ.flattened_operations() if op != "DETECTOR"]
-    # detectors = [(op, [stim.target_rec(targets[0][1])]) for (op, targets, params) in circ.flattened_operations() if
-    #              op == "DETECTOR"]
-    operations = _expand_stim_operation_list(operations)
+    expanded_ops = _expand_stim_operation_list(operations)
+    layered_ops = _layer_circuit_ops(expanded_ops, circ.num_qubits)
 
-    for (op_name, targets) in operations:
-        if op_name in Z_MEASUREMENTS:
-            p_meas > 0 and noisy_circ.append("X_ERROR", targets, p_meas)
-        elif op_name in X_MEASUREMENTS:
-            p_meas > 0 and noisy_circ.append("Z_ERROR", targets, p_meas)
+    noisy_circ, mm = layered_ops_to_noisy_stim_circuit(
+        layered_ops=layered_ops,
+        num_qubits=circ.num_qubits,
+        p_1=0,
+        p_2=p,
+        p_init=(2 / 3) * p,
+        p_meas=(2 / 3) * p,
+        p_mem=p / 100
+    )
+    return noisy_circ, mm
 
-        noisy_circ.append(op_name, targets)
 
-        if op_name in X_INITIALIZATIONS:
-            p_init > 0 and noisy_circ.append("Z_ERROR", targets, p_init)
-        elif op_name in Z_INITIALIZATIONS:
-            p_init > 0 and noisy_circ.append("X_ERROR", targets, p_init)
-        elif op_name in TWO_QUBIT_GATES:
-            p_2 > 0 and noisy_circ.append("DEPOLARIZE2", targets, p_2)
-        elif op_name in SPECIAL_GATES:
-            pass
-        else:
-            p_1 > 0 and noisy_circ.append("DEPOLARIZE1", targets, p_1)
+def get_circuit_depth(circ: stim.Circuit) -> int:
+    """Returns the strict ASAP depth of the circuit."""
+    operations = [(op, targets) for (op, targets, _) in circ.flattened_operations() if op not in SPECIAL_GATES]
+    expanded_ops = _expand_stim_operation_list(operations)
+    layered_ops = _layer_circuit_ops(expanded_ops, circ.num_qubits)
+    return len(layered_ops)
 
-        if p_mem > 0:
-            noisy_circ.append("DEPOLARIZE1", [q for q in range(circ.num_qubits) if q not in targets], p_mem)
-    return noisy_circ
 
+def get_spacetime_volume(circ: stim.Circuit) -> int:
+    """Calculates the sum of active ticks for all qubits across the circuit."""
+    operations = [(op, targets) for (op, targets, _) in circ.flattened_operations() if op not in SPECIAL_GATES]
+    expanded_ops = _expand_stim_operation_list(operations)
+    layered_ops = _layer_circuit_ops(expanded_ops, circ.num_qubits)
+
+    volume = 0
+    for ops in layered_ops:
+        # Count unique qubits targeted in this layer
+        active_in_layer = {t for _, targets in ops for t in targets}
+        volume += len(active_in_layer)
+    return volume

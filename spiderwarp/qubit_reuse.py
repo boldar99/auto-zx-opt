@@ -1,34 +1,33 @@
 import networkx as nx
 import matplotlib.pyplot as plt
+import stim
 
-from spiderwarp.path_cover_opt import CoveredZXGraph
+from spiderwarp.csscode import CSSCode
+from spiderwarp.utils import load_state_prep_circuit, steane_se_from_stim_state_prep
+
+from spiderwarp.path_cover_opt import CoveredZXGraph, metric_hardware_qubits_exact
 
 
 def build_circuit_dag(cv: CoveredZXGraph, n_data: int) -> nx.DiGraph:
     """
     Converts a sequential list of quantum operations into a dependency DAG.
-    Stores the original operation name and targets in the node attributes.
+    Stores the original operation name, targets, and measurement_id in the node attributes.
     """
     dag = nx.DiGraph()
     last_op_on_qubit = {}
 
     ordered_operations = cv._find_total_ordering()
 
-    matrix_indices = dict(zip(cv.measurement_qubit_indices(), cv.matrix_transformation_indices()))
-    flags = cv.flag_qubit_indices()
+    for i, circ_op in enumerate(ordered_operations):
+        op_name = circ_op.name
+        targets = circ_op.targets
+        measurement_id = circ_op.measurement_id
 
-
-    for i, (op_name, targets) in enumerate(ordered_operations):
-        # Normalize targets to a tuple for consistent storage and display
+        # Normalize targets to a tuple for consistent storage
         qubits = tuple(targets) if isinstance(targets, (list, tuple)) else (targets,)
 
-        # Explicitly store op_name and targets as node attributes
-        dag.add_node(i, op_name=op_name, targets=qubits)
-        if op_name in ("M", "MX"):
-            [q] = qubits
-            q -= n_data
-            dag.nodes[i]["is_flag"] = q in flags
-            dag.nodes[i]["matrix_index"] = matrix_indices.get(q)
+        # Rely strictly on the explicit measurement_id from CircuitOperation
+        dag.add_node(i, op_name=op_name, targets=qubits, measurement_id=measurement_id)
 
         # Determine dependencies based on qubit usage
         dependencies = set()
@@ -45,38 +44,33 @@ def build_circuit_dag(cv: CoveredZXGraph, n_data: int) -> nx.DiGraph:
     return dag
 
 
-def dag_to_circuit(dag: nx.DiGraph) -> tuple[list[tuple[str, list]], list[int], dict[int, int]]:
+def dag_to_circuit(dag: nx.DiGraph) -> tuple[stim.Circuit, dict[int, int]]:
     """
-    Converts a circuit dependency DAG back into a sequential list of operations.
+    Converts a circuit dependency DAG back into a Stim circuit and a measurement map.
+    Extraction MUST be done in topological order to respect causality constraints.
+    """
+    circuit = stim.Circuit()
+    measurement_map: dict[int, int] = {}
+    next_measurement_index = 0
 
-    Args:
-        dag: The directed acyclic graph representing the circuit operations.
-    """
-    ordered_operations = []
-    flags = []
-    matrix_indices = {}
-    meas_id = 0
-    for node in dag.nodes():
+    # Ensure operations are ordered correctly respecting the DAG's causal flow
+    for node in nx.topological_sort(dag):
         data = dag.nodes[node]
         op_name = data.get("op_name")
         targets = data.get("targets")
-        if op_name in ("M", "MX"):
-            is_flag = data.get("is_flag")
-            matrix_index = data.get("matrix_index")
-            if is_flag:
-                flags.append(meas_id)
-            else:
-                matrix_indices[meas_id] = matrix_index
-            meas_id += 1
+        measurement_id = data.get("measurement_id")
 
-        # Convert targets back to a list if stored as a tuple
         targets_list = list(targets) if isinstance(targets, tuple) else targets
+        circuit.append(op_name, targets_list)
 
-        ordered_operations.append([op_name, targets_list])
+        # Dynamically build the measurement map for tracking
+        if op_name in CoveredZXGraph.MEASUREMENT_OPS:
+            if measurement_id is not None:
+                for offset in range(len(targets_list)):
+                    measurement_map[next_measurement_index + offset] = measurement_id + offset
+            next_measurement_index += len(targets_list)
 
-    print(ordered_operations)
-
-    return ordered_operations, flags, matrix_indices
+    return circuit, measurement_map
 
 
 def visualize_circuit_dag(di_graph: nx.DiGraph, figsize=(12, 8)):
@@ -84,31 +78,23 @@ def visualize_circuit_dag(di_graph: nx.DiGraph, figsize=(12, 8)):
     Visualizes the circuit DAG using a multipartite layout based on
     topological generations.
     """
-    # 1. Assign layers using topological generations
     for layer, nodes in enumerate(nx.topological_generations(di_graph)):
         for node in nodes:
             di_graph.nodes[node]["layer"] = layer
 
-    # 2. Use the "layer" attribute for the layout
     pos = nx.multipartite_layout(di_graph, subset_key="layer", align="vertical")
 
-    # 3. Create readable labels
     labels = {}
     for node, data in di_graph.nodes(data=True):
         op = data.get("op_name")
         targs = "-".join([str(t) for t in data.get("targets", ())])
-        labels[node] = f"{op}\n{targs}" + str()
-        if data.get("is_flag"):
-            labels[node] += f"\nFLAG"
-        elif data.get("matrix_index") is not None:
-            labels[node] += f"\nH({data.get("matrix_index")})"
-        elif op in ("M", "MX"):
-            raise ValueError(f"Measurement {targs} is neither a flag nor a syndrome measurement.\n{data=}")
+        labels[node] = f"{op}\n{targs}"
 
-    # 4. Plotting
+        meas_id = data.get("measurement_id")
+        if meas_id is not None:
+            labels[node] += f"\nm_{meas_id}"
+
     plt.figure(figsize=figsize)
-
-    # Define a constant node size so both drawing functions align perfectly
     NODE_SIZE = 1500
 
     nx.draw_networkx_nodes(
@@ -118,11 +104,10 @@ def visualize_circuit_dag(di_graph: nx.DiGraph, figsize=(12, 8)):
         edgecolors="black"
     )
 
-    # FIXED: Passed node_size here so arrows stop at the boundary
     nx.draw_networkx_edges(
         di_graph, pos,
-        arrowstyle="-|>",  # Filled arrowhead for better visibility
-        arrowsize=20,  # Slightly larger arrow
+        arrowstyle="-|>",
+        arrowsize=20,
         edge_color="gray",
         width=1.5,
         node_size=NODE_SIZE
@@ -146,12 +131,9 @@ def inject_aggressive_reuse(dag: nx.DiGraph, n_data: int):
     Maximizes qubit reuse by explicitly injecting dependencies between
     the death (Measurement) of one qubit and the birth (Reset) of another.
     """
-    # Work on a copy so we don't destroy the original causal graph
     mod_dag = dag.copy()
-
     topo_order = list(nx.topological_sort(mod_dag))
 
-    # 1. Identify the Birth and Death nodes of every logical ancilla
     ancillas = set()
     birth_node = {}
     death_node = {}
@@ -162,17 +144,14 @@ def inject_aggressive_reuse(dag: nx.DiGraph, n_data: int):
             if q >= n_data:
                 ancillas.add(q)
                 if q not in birth_node:
-                    birth_node[q] = node  # First appearance
-                death_node[q] = node  # Last appearance (updates until end)
+                    birth_node[q] = node
+                death_node[q] = node
 
-    # 2. Heuristic Scoring (ASAP Layering)
-    # We want to chain qubits that naturally align in time to avoid exploding circuit depth.
     asap = {}
     for node in topo_order:
         preds = list(mod_dag.predecessors(node))
         asap[node] = max((asap[p] for p in preds), default=0) + 1
 
-    # 3. Build and Score Candidate Pairs (Death_A -> Birth_B)
     candidates = []
     for qA in ancillas:
         for qB in ancillas:
@@ -182,45 +161,34 @@ def inject_aggressive_reuse(dag: nx.DiGraph, n_data: int):
             dA = death_node[qA]
             bB = birth_node[qB]
 
-            # Fast rejection: If B MUST happen before A natively, we cannot invert them
             if nx.has_path(mod_dag, bB, dA):
                 continue
 
-            # Score: asap[Death_A] - asap[Birth_B]
-            # Lower score means A naturally finishes before B starts (ideal for chaining)
             score = asap[dA] - asap[bB]
             candidates.append((score, qA, qB, dA, bB))
 
-    # Sort to try the most natural sequences first
     candidates.sort(key=lambda x: x[0])
 
-    # 4. Greedy Dependency Injection with Cycle Checking
     next_q = {}
     prev_q = {}
 
     for score, qA, qB, dA, bB in candidates:
-        # Skip if A is already mapped to a successor, or B already has a predecessor
         if qA in next_q or qB in prev_q:
             continue
 
-        # Attempt the injection
         mod_dag.add_edge(dA, bB)
 
-        # Rigorous Cycle Check
         if not nx.is_directed_acyclic_graph(mod_dag):
-            # Cycle created! Reject the pairing and remove the edge
             mod_dag.remove_edge(dA, bB)
         else:
-            # Success! A and B now share a physical track
             next_q[qA] = qB
             prev_q[qB] = qA
 
-    # 5. Hardware Allocation via Chains
     logical_to_physical = {q: q for q in range(n_data)}
     next_hw = n_data
 
     for q in ancillas:
-        if q not in prev_q:  # This ancilla is the start of a new hardware chain
+        if q not in prev_q:
             curr = q
             while curr is not None:
                 logical_to_physical[curr] = next_hw
@@ -229,6 +197,219 @@ def inject_aggressive_reuse(dag: nx.DiGraph, n_data: int):
 
     total_hw = next_hw
     return mod_dag, logical_to_physical, total_hw
+
+
+def inject_depth_preserving_reuse(dag: nx.DiGraph, n_data: int):
+    """
+    Maximizes qubit reuse ONLY if the injection does not increase
+    the total topological depth (critical path) of the circuit.
+    """
+    mod_dag = dag.copy()
+
+    # Calculate the strict critical path length of the original DAG
+    orig_depth = nx.dag_longest_path_length(mod_dag)
+
+    topo_order = list(nx.topological_sort(mod_dag))
+    ancillas = set()
+    birth_node = {}
+    death_node = {}
+
+    for node in topo_order:
+        targets = mod_dag.nodes[node].get("targets", ())
+        for q in targets:
+            if q >= n_data:
+                ancillas.add(q)
+                if q not in birth_node:
+                    birth_node[q] = node
+                death_node[q] = node
+
+    asap = {}
+    for node in topo_order:
+        preds = list(mod_dag.predecessors(node))
+        asap[node] = max((asap[p] for p in preds), default=0) + 1
+
+    candidates = []
+    for qA in ancillas:
+        for qB in ancillas:
+            if qA == qB:
+                continue
+            dA = death_node[qA]
+            bB = birth_node[qB]
+
+            # Fast rejection: topological violation
+            if nx.has_path(mod_dag, bB, dA):
+                continue
+
+            score = asap[dA] - asap[bB]
+            candidates.append((score, qA, qB, dA, bB))
+
+    candidates.sort(key=lambda x: x[0])
+
+    next_q = {}
+    prev_q = {}
+
+    for score, qA, qB, dA, bB in candidates:
+        if qA in next_q or qB in prev_q:
+            continue
+
+        mod_dag.add_edge(dA, bB)
+
+        # 1. Check for cycles
+        if not nx.is_directed_acyclic_graph(mod_dag):
+            mod_dag.remove_edge(dA, bB)
+            continue
+
+        # 2. Check for global depth bloating
+        new_depth = nx.dag_longest_path_length(mod_dag)
+        if new_depth > orig_depth:
+            mod_dag.remove_edge(dA, bB)
+        else:
+            next_q[qA] = qB
+            prev_q[qB] = qA
+
+    logical_to_physical = {q: q for q in range(n_data)}
+    next_hw = n_data
+
+    for q in ancillas:
+        if q not in prev_q:
+            curr = q
+            while curr is not None:
+                logical_to_physical[curr] = next_hw
+                curr = next_q.get(curr)
+            next_hw += 1
+
+    total_hw = next_hw
+    return mod_dag, logical_to_physical, total_hw
+
+
+def _compute_active_volume(
+    dag: nx.DiGraph,
+    n_data: int,
+    ancillas: set,
+    next_q: dict,
+    prev_q: dict,
+    birth_node: dict,
+    death_node: dict,
+    data_birth: dict,
+    data_death: dict
+) -> int:
+    """Helper to rapidly calculate exact active volume during the greedy search."""
+    asap = {}
+    for n in nx.topological_sort(dag):
+        preds = list(dag.predecessors(n))
+        asap[n] = max((asap[p] for p in preds), default=0) + 1
+
+    vol = 0
+    # Add data qubit volume
+    for q in range(n_data):
+        if q in data_birth and q in data_death:
+            vol += (asap[data_death[q]] - asap[data_birth[q]] + 1)
+
+    # Add physical ancilla chain volume
+    for q in ancillas:
+        if q not in prev_q:  # Found the root logical qubit of a physical chain
+            curr = q
+            chain_birth = asap[birth_node[curr]]
+            chain_death = chain_birth
+
+            while curr is not None:
+                chain_death = asap[death_node[curr]]
+                curr = next_q.get(curr)
+
+            vol += (chain_death - chain_birth + 1)
+
+    return vol
+
+
+def inject_volume_optimizing_reuse(dag: nx.DiGraph, n_data: int):
+    """
+    Injects dependencies greedily, committing the reuse ONLY if it results
+    in a net decrease in the total spacetime volume of the circuit.
+    """
+    mod_dag = dag.copy()
+    topo_order = list(nx.topological_sort(mod_dag))
+
+    ancillas = set()
+    birth_node, death_node = {}, {}
+    data_birth, data_death = {}, {}
+
+    for node in topo_order:
+        targets = mod_dag.nodes[node].get("targets", ())
+        for q in targets:
+            if q >= n_data:
+                ancillas.add(q)
+                if q not in birth_node: birth_node[q] = node
+                death_node[q] = node
+            else:
+                if q not in data_birth: data_birth[q] = node
+                data_death[q] = node
+
+    next_q, prev_q = {}, {}
+
+    # Calculate baseline volume before any routing
+    current_vol = _compute_active_volume(
+        mod_dag, n_data, ancillas, next_q, prev_q,
+        birth_node, death_node, data_birth, data_death
+    )
+
+    asap = {}
+    for n in topo_order:
+        preds = list(mod_dag.predecessors(n))
+        asap[n] = max((asap[p] for p in preds), default=0) + 1
+
+    candidates = []
+    for qA in ancillas:
+        for qB in ancillas:
+            if qA == qB:
+                continue
+            dA = death_node[qA]
+            bB = birth_node[qB]
+            if not nx.has_path(mod_dag, bB, dA):
+                score = asap[dA] - asap[bB]
+                candidates.append((score, qA, qB, dA, bB))
+
+    candidates.sort(key=lambda x: x[0])
+
+    for score, qA, qB, dA, bB in candidates:
+        if qA in next_q or qB in prev_q:
+            continue
+
+        mod_dag.add_edge(dA, bB)
+
+        if not nx.is_directed_acyclic_graph(mod_dag):
+            mod_dag.remove_edge(dA, bB)
+        else:
+            temp_next = next_q.copy()
+            temp_next[qA] = qB
+            temp_prev = prev_q.copy()
+            temp_prev[qB] = qA
+
+            # Evaluate the global volume trade-off
+            new_vol = _compute_active_volume(
+                mod_dag, n_data, ancillas, temp_next, temp_prev,
+                birth_node, death_node, data_birth, data_death
+            )
+
+            if new_vol < current_vol:
+                # The merge saved more volume than the delay cost
+                current_vol = new_vol
+                next_q = temp_next
+                prev_q = temp_prev
+            else:
+                # The delay bloated the active lifespan of other qubits; reject it
+                mod_dag.remove_edge(dA, bB)
+
+    logical_to_physical = {q: q for q in range(n_data)}
+    next_hw = n_data
+    for q in ancillas:
+        if q not in prev_q:
+            curr = q
+            while curr is not None:
+                logical_to_physical[curr] = next_hw
+                curr = next_q.get(curr)
+            next_hw += 1
+
+    return mod_dag, logical_to_physical, next_hw
 
 
 def apply_logical_qubit_merge_and_compress(dag: nx.DiGraph, n_data: int) -> nx.DiGraph:
@@ -247,12 +428,12 @@ def apply_logical_qubit_merge_and_compress(dag: nx.DiGraph, n_data: int) -> nx.D
             curr = parent_map[curr]
         return curr
 
-    # Identify the injected reuse edges
     for u, v in mod_dag.edges():
         op_u = mod_dag.nodes[u].get("op_name", "")
         op_v = mod_dag.nodes[v].get("op_name", "")
 
-        if op_u in {"M", "MX"} and op_v in {"R", "RX"}:
+        # Generalize to match CoveredZXGraph definition
+        if op_u in CoveredZXGraph.MEASUREMENT_OPS and op_v in {"R", "RX"}:
             targets_u = mod_dag.nodes[u].get("targets", [])
             targets_v = mod_dag.nodes[v].get("targets", [])
 
@@ -265,24 +446,19 @@ def apply_logical_qubit_merge_and_compress(dag: nx.DiGraph, n_data: int) -> nx.D
                     parent_map[qB] = root_A
 
     # --- PHASE 2: Collect and Compress ---
-    # Find all unique surviving root qubits in the graph
     active_roots = set()
     for node in mod_dag.nodes():
         targets = mod_dag.nodes[node].get("targets", [])
         for q in targets:
             active_roots.add(get_root(q))
 
-    # Separate data roots from ancilla roots
     data_roots = [q for q in active_roots if q < n_data]
     ancilla_roots = sorted([q for q in active_roots if q >= n_data])
 
-    # Build the compression map
     compression_map = {}
-    # Data qubits map to themselves
     for q in data_roots:
         compression_map[q] = q
 
-    # Ancilla qubits get mapped to a dense, contiguous sequence starting at n_data
     next_dense_id = n_data
     for q in ancilla_roots:
         compression_map[q] = next_dense_id
@@ -305,106 +481,39 @@ def apply_logical_qubit_merge_and_compress(dag: nx.DiGraph, n_data: int) -> nx.D
     return mod_dag
 
 
-from qiskit import QuantumCircuit
-from qiskit_qubit_reuse import QubitReuse
+if __name__ == "__main__":
+    code_name, circuit_path = "17_1_5", "cc_4_8_8_d5/zero_ft_heuristic_opt"
 
+    code = CSSCode.load_code("FAO", code_name)
+    circuit = load_state_prep_circuit("SAT", circuit_path)
+    se = steane_se_from_stim_state_prep(circuit, se_basis="Z", n=code.n)
 
-def apply_qiskit_qubit_reuse(ordered_operations: list[tuple[str, list[int]]], n_data: int, total_logical_qubits: int):
-    """
-    Translates operations to Qiskit, applies the QubitReuse pass, and translates back.
-    Includes a "Data Qubit Shield" to prevent data qubits from being collapsed.
-    """
-    # 1. Setup Qiskit Circuit
-    num_measurements = sum(1 for op, _ in ordered_operations if op in {"M", "MX"})
-    qc = QuantumCircuit(total_logical_qubits, num_measurements)
+    covered = CoveredZXGraph.from_stim(se)
+    covered.basic_FE_rewrites()
 
-    # 🛡️ THE DATA SHIELD:
-    # We place a barrier on all data qubits at the very beginning and very end.
-    # This mathematically forces their "lifespan" to span the entire circuit,
-    # preventing the Qiskit allocator from assigning ancillas to their physical slots.
-    data_qubits = list(range(n_data))
-    qc.barrier(data_qubits)
+    optimised = covered.mcts_boundary_bends(
+        cost_func=metric_hardware_qubits_exact,
+        max_iterations=500,
+        rollout_depth=16,
+        seed=0,
+    )
 
-    meas_idx = 0
-    for op, targets in ordered_operations:
-        q = targets[0]
-        if op == "R":
-            qc.reset(q)
-        elif op == "RX":
-            # Qiskit has no native RX initialization; we decompose it.
-            qc.reset(q)
-            qc.h(q)
-        elif op == "CNOT":
-            qc.cx(targets[0], targets[1])
-        elif op == "M":
-            qc.measure(q, meas_idx)
-            meas_idx += 1
-        elif op == "MX":
-            # Qiskit has no native MX measurement; we decompose it.
-            qc.h(q)
-            qc.measure(q, meas_idx)
-            meas_idx += 1
+    print("Pre-reuse Ancilla qubits:", len(optimised.paths) - code.n)
+    _, pre_measurement_map = optimised.extract_circuit_with_measurement_map()
+    print("Pre-reuse Measurement map:", pre_measurement_map)
 
-    qc.barrier(data_qubits)
+    # 1. Build the DAG
+    dag = build_circuit_dag(optimised, code.n)
 
-    # 2. Run the Pass Manager
-    pm = QubitReuse()
-    optimized_qc = pm.run(qc)
+    # 2. Inject dependency edges for reuse
+    mod_dag, logical_to_physical, total_hw = inject_aggressive_reuse(dag, code.n)
 
-    # 3. Translate Back to Stim-Compatible Operations
-    # Qiskit creates new 'Qubit' objects; we map them back to strict integers.
-    q_map = {q: i for i, q in enumerate(optimized_qc.qubits)}
-    new_ops = []
+    # 3. Compress target IDs based on those edges
+    compressed_dag = apply_logical_qubit_merge_and_compress(mod_dag, code.n)
 
-    # We use a wire-aware buffer to perfectly reconstruct RX and MX gates.
-    # Qiskit might interleave operations on different qubits, so we queue
-    # single-qubit gates per wire and flush them when a 2-qubit gate forces synchronization.
-    qubit_queues = {i: [] for i in range(optimized_qc.num_qubits)}
+    # 4. Extract topologically
+    final_circ, final_meas_map = dag_to_circuit(compressed_dag)
 
-    def flush_wire(wire_id):
-        ops = qubit_queues[wire_id]
-        i = 0
-        while i < len(ops):
-            # Recompose RX
-            if ops[i] == "reset" and i + 1 < len(ops) and ops[i + 1] == "h":
-                new_ops.append(("RX", [wire_id]))
-                i += 2
-            # Recompose MX
-            elif ops[i] == "h" and i + 1 < len(ops) and ops[i + 1] == "measure":
-                new_ops.append(("MX", [wire_id]))
-                i += 2
-            # Standard single-qubit ops
-            else:
-                name = ops[i].upper()
-                if name == "RESET":
-                    name = "R"
-                elif name == "MEASURE":
-                    name = "M"
-                new_ops.append((name, [wire_id]))
-                i += 1
-        qubit_queues[wire_id].clear()
-
-    # Iterate through the optimized Qiskit circuit data
-    for inst in optimized_qc.data:
-        name = inst.operation.name
-        if name == "barrier":
-            continue
-
-        qubits = [q_map[q] for q in inst.qubits]
-
-        if len(qubits) == 2:
-            # 2-Qubit gate: flush pending single-qubit gates on these wires to maintain causality
-            flush_wire(qubits[0])
-            flush_wire(qubits[1])
-            new_ops.append(("CNOT", qubits))
-        else:
-            # 1-Qubit gate: queue it on the specific wire
-            qubit_queues[qubits[0]].append(name)
-
-    # Final flush for any trailing measurements
-    for q in range(optimized_qc.num_qubits):
-        flush_wire(q)
-
-    total_physical_qubits = optimized_qc.num_qubits
-    return new_ops, total_physical_qubits
-
+    print("\n--- Final Reused Circuit ---")
+    print(final_circ)
+    print("\nFinal Measurement Map:", final_meas_map)

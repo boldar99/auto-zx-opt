@@ -4,7 +4,7 @@ import math
 import random
 from collections import defaultdict
 from dataclasses import dataclass
-from typing import Iterator, Optional
+from typing import Protocol, Optional, Iterator
 
 import matplotlib.pyplot as plt
 import networkx as nx
@@ -41,6 +41,138 @@ class _MCTSNode:
     unexpanded_moves: Optional[list[dict[int, tuple[int, ...]]]]
     visits: int = 0
     total_reward: float = 0.0
+
+
+class PathCostFunction(Protocol):
+    """Protocol defining the signature for MCTS cost functions."""
+
+    def __call__(self, graph: "CoveredZXGraph", paths: dict[int, tuple[int, ...]]) -> float:
+        ...
+
+
+def metric_num_paths(graph: "CoveredZXGraph", paths: dict[int, tuple[int, ...]]) -> float:
+    return len(paths)
+
+
+def metric_parity_measurements(graph: "CoveredZXGraph", paths: dict[int, tuple[int, ...]]) -> float:
+    return graph._num_parity_measurement(paths)
+
+
+def metric_hardware_qubits_exact(graph: "CoveredZXGraph", paths: dict[int, tuple[int, ...]]) -> float:
+    """
+    Exact post-reuse hardware qubit count utilizing the heavy NetworkX injection pipeline.
+    WARNING: Do not use inside the MCTS inner loop due to cycle-checking overhead.
+    """
+    # Local import strictly required to prevent circular dependencies with qubit_reuse.py
+    from spiderwarp.qubit_reuse import build_circuit_dag, inject_aggressive_reuse
+
+    temp_graph = graph.shallow_copy()
+    temp_graph.paths = paths
+
+    dag = build_circuit_dag(temp_graph, graph._num_qubits)
+    _, _, total_hw = inject_aggressive_reuse(dag, graph._num_qubits)
+
+    return float(total_hw)
+
+
+def metric_depth(graph: "CoveredZXGraph", paths: dict[int, tuple[int, ...]]) -> float:
+    """Calculates depth by finding the longest path in the causal dependency DAG."""
+    flow_dag = graph._construct_flow_graph(paths)
+    # The number of layers is the longest path length + 1
+    return float(nx.dag_longest_path_length(flow_dag) + 1)
+
+
+def metric_spacetime_volume(graph: "CoveredZXGraph", paths: dict[int, tuple[int, ...]]) -> float:
+    """
+    Calculates Spacetime Volume: Sum of the active duration of all hardware paths.
+    This acts as a highly effective secondary metric to break ties.
+    """
+    flow_dag = graph._construct_flow_graph(paths)
+
+    asap_times = {}
+    for node in nx.topological_sort(flow_dag):
+        preds = list(flow_dag.predecessors(node))
+        asap_times[node] = max((asap_times[p] for p in preds), default=0) + 1
+
+    volume = 0
+    for path_nodes in paths.values():
+        birth_layer = asap_times[path_nodes[0]]
+        death_layer = asap_times[path_nodes[-1]]
+        # +1 because inclusive of both the birth and death tick
+        volume += (death_layer - birth_layer + 1)
+
+    return float(volume)
+
+
+def metric_spacetime_volume_exact(graph: "CoveredZXGraph", paths: dict[int, tuple[int, ...]]) -> float:
+    """
+    Exact spacetime volume calculated after full hardware qubit reuse.
+
+    Volume is defined as the sum of the active lifespans (death layer - birth layer + 1)
+    of all hardware qubits. Because aggressive reuse injects new causal dependencies,
+    the overall depth and individual lifespans will shift compared to the fast proxy.
+
+    WARNING: Uses the heavy NetworkX injection pipeline. Do not use inside the MCTS inner loop.
+    """
+    # Local import strictly required to prevent circular dependencies with qubit_reuse.py
+    from spiderwarp.qubit_reuse import (
+        build_circuit_dag,
+        inject_aggressive_reuse,
+        apply_logical_qubit_merge_and_compress,
+        inject_volume_optimizing_reuse
+    )
+    import networkx as nx
+
+    # 1. Isolate the candidate state
+    temp_graph = graph.shallow_copy()
+    temp_graph.paths = paths
+
+    # 2. Run the exact routing pipeline
+    dag = build_circuit_dag(temp_graph, graph._num_qubits)
+    mod_dag, _, total_hw = inject_volume_optimizing_reuse(dag, graph._num_qubits)
+
+    # We MUST compress the DAG so the targets reflect the shared hardware tracks
+    compressed_dag = apply_logical_qubit_merge_and_compress(mod_dag, graph._num_qubits)
+
+    # 3. Recalculate layers based on the new injected dependencies
+    layer_map = {}
+    for layer_idx, nodes in enumerate(nx.topological_generations(compressed_dag)):
+        for node in nodes:
+            layer_map[node] = layer_idx
+
+    # 4. Track the birth (first operation) and death (last operation) of each hardware qubit
+    birth = {}
+    death = {}
+
+    for node in compressed_dag.nodes():
+        layer = layer_map[node]
+        targets = compressed_dag.nodes[node].get("targets", [])
+
+        for q in targets:
+            if q not in birth or layer < birth[q]:
+                birth[q] = layer
+            if q not in death or layer > death[q]:
+                death[q] = layer
+
+    # 5. Sum the active lifespans across all allocated hardware
+    exact_volume = 0
+    for q in range(total_hw):
+        if q in birth and q in death:
+            exact_volume += (death[q] - birth[q] + 1)
+
+    return float(exact_volume)
+
+
+class LexicographicCost:
+    """Flattens primary and secondary metrics into a UCT-compatible scalar."""
+
+    def __init__(self, primary: PathCostFunction, secondary: PathCostFunction, secondary_weight: float = 1e-3):
+        self.primary = primary
+        self.secondary = secondary
+        self.weight = secondary_weight
+
+    def __call__(self, graph: "CoveredZXGraph", paths: dict[int, tuple[int, ...]]) -> float:
+        return self.primary(graph, paths) + (self.weight * self.secondary(graph, paths))
 
 
 class CoveredZXGraph:
@@ -688,10 +820,10 @@ class CoveredZXGraph:
 
     def mcts_boundary_bends(
         self,
+        cost_func: PathCostFunction,
         max_iterations: int = 1000,
         rollout_depth: int = 32,
         exploration_weight: float = 1.4,
-        parity_weight: float = 1e-3,
         seed: Optional[int] = None,
     ) -> "CoveredZXGraph":
         """Optimise the path cover using Monte Carlo Tree Search.
@@ -726,13 +858,11 @@ class CoveredZXGraph:
             raise ValueError("rollout_depth must be non-negative.")
         if exploration_weight < 0:
             raise ValueError("exploration_weight must be non-negative.")
-        if parity_weight < 0:
-            raise ValueError("parity_weight must be non-negative.")
 
         rng = random.Random(seed)
 
         def cost(paths: dict[int, tuple[int, ...]]) -> float:
-            return len(paths) + parity_weight * self._num_parity_measurement(paths)
+            return cost_func(self, paths)
 
         def reward(paths: dict[int, tuple[int, ...]]) -> float:
             return -cost(paths)
@@ -1156,7 +1286,7 @@ def all_good_FT_opts(
 
 
 if __name__ == "__main__":
-    code_name, circuit_path = "17_1_5", "z"
+    code_name, circuit_path = "17_1_5", "cc_4_8_8_d5/zero_ft_heuristic_opt"
     # code_name, circuit_path = "25_1_5", "rotated_surface_d5/zero_ft_heuristic_opt"
     # code_name, circuit_path = "15_7_3", "hamming/zero_ft_opt_opt"
     # code_name, circuit_path = "7_1_3", "steane/zero_ft_opt_opt"
@@ -1168,8 +1298,15 @@ if __name__ == "__main__":
     covered.visualize()
     covered.basic_FE_rewrites()
     covered.visualize()
-    # optimised = covered.min_ancilla_boundary_bends()[0]
+
+    search_strategy = LexicographicCost(
+        primary=metric_depth,
+        secondary=metric_num_paths,
+        secondary_weight=1e-3
+    )
+
     optimised = covered.mcts_boundary_bends(
+        cost_func=search_strategy,
         max_iterations=500,
         rollout_depth=16,
         seed=0,
