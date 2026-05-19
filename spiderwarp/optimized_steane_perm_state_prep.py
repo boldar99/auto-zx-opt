@@ -1,11 +1,21 @@
+import logging
+
 import numpy as np
+import stim
+from mqt.qecc.circuit_synthesis import CircuitLevelNoiseIdlingParallel
+from mqt.qecc.circuit_synthesis.circuit_utils import measured_qubits, unmeasured_qubits, collect_circuit_layers
+from mqt.qecc.circuit_synthesis.noise import NoiseModel
+from mqt.qecc.circuit_synthesis.simulation import NoisyNDFTStatePrepSimulator
 
 from spiderwarp.csscode import CSSCode
 from spiderwarp.path_cover_opt import CoveredZXGraph
-from spiderwarp.utils import load_steane_perm_circuits, steane_se_from_stim_state_prep, _layer_cnot_circuit
+from spiderwarp.utils import load_steane_perm_circuits, steane_se_from_stim_state_prep
+
+from mqt.qecc import CSSCode as MQTCSSCode
+import numpy.typing as npt
 
 
-def mqt_steane_opt(code_name, *, optimise_c2: bool = True):
+def mqt_steane_opt(code_name, *, optimise_c2: bool = True, verbose: bool = False):
     code = CSSCode.load_code("MQT", code_name)
     circuits = load_steane_perm_circuits(code_name)
 
@@ -16,7 +26,8 @@ def mqt_steane_opt(code_name, *, optimise_c2: bool = True):
         cov_graph_c2.basic_FE_rewrites()
         c2_opt = cov_graph_c2.best_first_boundary_bends(max_evaluations=1000, )
 
-        print(f"Optimised C_2: {circuits[1].num_qubits * 2} -> {len(c2_opt.paths)}")
+        if verbose:
+            print(f"Optimised C_2: {circuits[1].num_qubits * 2} -> {len(c2_opt.paths)}")
         se2_opt_circ, se2_mm = c2_opt.extract_circuit_with_measurement_map()
         circ_1_2_opt = circuits[0] + se2_opt_circ
     else:
@@ -28,11 +39,10 @@ def mqt_steane_opt(code_name, *, optimise_c2: bool = True):
     cov_graph_c4 = CoveredZXGraph.from_stim(se4)
     cov_graph_c4.offset_measurement_ids_by(code.n)
     cov_graph_c4.basic_FE_rewrites()
-    cov_graph_c4.visualize()
     cov_graph_c4_opt = cov_graph_c4.best_first_boundary_bends(max_evaluations=1000, )
 
-    print(f"Optimised C_4: {circuits[3].num_qubits * 2} -> {len(cov_graph_c4_opt.paths)}")
-    cov_graph_c4_opt.visualize()
+    if verbose:
+        print(f"Optimised C_4: {circuits[3].num_qubits * 2} -> {len(cov_graph_c4_opt.paths)}")
     se4_opt_circ, se4_mm = cov_graph_c4_opt.extract_circuit_with_measurement_map()
 
     # --- C3/C4 Combined Optimization ---
@@ -44,14 +54,14 @@ def mqt_steane_opt(code_name, *, optimise_c2: bool = True):
         if m_id is not None:
             cov_graph_c34.set_measurement_id(v, se4_mm.get(m_id, m_id + 2 * code.n - len(se4_mm)))
     # cov_graph_c34_opt = cov_graph_c34
-    cov_graph_c34.visualize()
     cov_graph_c34.basic_FE_rewrites()
     cov_graph_c34_opt = cov_graph_c34.best_first_boundary_bends(max_evaluations=1000, )
 
-    print(
-        f"Optimised C_3; C_4:"
-        f"{circuits[2].num_qubits * 2 + len(cov_graph_c4_opt.paths)} -> {len(cov_graph_c34_opt.paths)}"
-    )
+    if verbose:
+        print(
+            f"Optimised C_3; C_4:"
+            f"{circuits[2].num_qubits * 2 + len(cov_graph_c4_opt.paths)} -> {len(cov_graph_c34_opt.paths)}"
+        )
     se34_opt_circ, se34_mm = cov_graph_c34_opt.extract_circuit_with_measurement_map()
     og_circ = circuits[0] + se2 + steane_se_from_stim_state_prep(circuits[2] + se4, se_basis="Z", n=code.n)
     measurement_mapping = se2_mm | {k + len(se2_mm): v for k, v in se34_mm.items()}
@@ -59,21 +69,114 @@ def mqt_steane_opt(code_name, *, optimise_c2: bool = True):
     return  og_circ, circ_1_2_opt + se34_opt_circ, measurement_mapping
 
 
+class OptimisedSteaneNDFTStatePrepSimulator(NoisyNDFTStatePrepSimulator):
+    """Class for simulating Steane-type noisy state preparation circuit.
+
+    A state is checked using multiple copies of the state preparation circuit, which are connected using transversal CNOTs.
+    """
+
+    def __init__(
+        self,
+        circ: stim.Circuit,
+        measurement_mapping: dict[int, int],
+        code: MQTCSSCode,
+    ) -> None:
+        """Initialize the simulator."""
+        matrices = [code.Hx, np.vstack((code.Hz, code.Lz)), code.Hx]
+        total_rows = sum(m.shape[0] for m in matrices)
+        total_cols = sum(m.shape[1] for m in matrices)
+        effective_H_full = np.zeros((total_rows, total_cols), dtype=np.int8)
+        r, c = 0, 0
+        for m in matrices:
+            rows, cols = m.shape
+            effective_H_full[r:r + rows, c:c + cols] = m
+            r += rows
+            c += cols
+        self.effective_H_full = effective_H_full
+        mqs = measured_qubits(circ)
+        self.measurement_order = [(mqs[i], m) for i, m in measurement_mapping.items()]
+
+        super().__init__(circ, code, True)
+
+    def _build_noisy_circuit(self, noise: NoiseModel) -> stim.Circuit:
+        _noisy_circ = super()._build_noisy_circuit(noise)
+        mqs = measured_qubits(_noisy_circ)[:len(self.measurement_order)]
+        indices = []
+        for q in mqs:
+            for ix, (m, i) in enumerate(self.measurement_order):
+                if q == m:
+                    indices.append(i)
+                    break
+            self.measurement_order.pop(ix)
+        self.effective_H = self.effective_H_full[:,indices]
+        return _noisy_circ
+
+
+    def _filter_runs(self, samples: npt.NDArray[np.int8]) -> npt.NDArray[np.int8]:
+        """Filter samples based on measurement outcomes.
+
+        Args:
+            samples: The samples to filter.
+
+        Returns:
+            npt.NDArray[np.int8]: The filtered samples.
+        """
+        distillation_syndromes = samples[:,:-self.code.Hx.shape[1]] @ self.effective_H.T % 2
+        flag_raised = np.any(distillation_syndromes != 0, axis=1)
+        return samples[~flag_raised].astype(np.int8)
+
+
 if __name__ == '__main__':
-    # code_name = "31_1_7"
-    # code_name = "20_2_6"
     code_name = "17_1_5"
+    # code_name = "19_1_5"
+    # code_name = "20_2_6"
+    # code_name = "31_1_7"
+    opt_c2 = False
+
     code = CSSCode.load_code("MQT", code_name)
-    og_circ, circ, M = mqt_steane_opt(code_name, optimise_c2=False)
-    circuit = circ.copy()
-    circuit.append("M", range(code.H_x.shape[1]))
-    smplr = circuit.compile_sampler()
-    samples = smplr.sample(25)
-    raw_syndrome_measurements = samples[:, :-code.H_x.shape[1]]
-    raw_measurements = samples[:, -code.H_x.shape[1]:]
+    mqt_code = MQTCSSCode(Hx=code.H_x, Hz=code.H_z, distance=code.d)
+    og_circ, circ, M = mqt_steane_opt(code_name, optimise_c2=opt_c2)
 
-    effective_H_x = np.kron(np.eye(3, dtype=np.uint8), code.H_x)
-    effective_H_x = effective_H_x[:, tuple(M.values())].copy()
+    sim = OptimisedSteaneNDFTStatePrepSimulator(
+        circ=circ,
+        code=mqt_code,
+        measurement_mapping=M
+    )
+    p = 0.001
+    p_mem_factor = 0.01
+    noise = CircuitLevelNoiseIdlingParallel(p, 0, p * 2 / 3, p, p * p_mem_factor)
+    depth = len(collect_circuit_layers(circ))
+    print(f"Code: {code_name}\n"
+          f"#Qubits: {circ.num_qubits},  Depth: {depth},  p_mem: p*{p_mem_factor}")
+    ler, ar, num_err, num_samples = sim.logical_error_rate(noise=noise, min_errors=10)
+    print(f"LER: {ler:.4e},  AR: {ar:.2%},  #Err: {num_err},  #Samples: {num_samples}")
 
-    distillation_syndromes = raw_syndrome_measurements @ effective_H_x.T % 2
-    print(distillation_syndromes)
+    # 17_1_5
+    # With p_mem = p / 100
+    # No C2 opt: LER: 4.34063991136953e-08,  AR: 0.8375929471618616, 50,  1375900000
+    # C2 opt:    LER: 3.326459538771059e-08, AR: 0.8501083104247843, 50,  1767900000
+    # MQT:       LER: 8.908924288742791e-08, AR: 0.816381803898747,  50,  687400000
+    # With p_mem = p / 10
+    # No C2 opt: LER: 5.554656040439893e-07, AR: 0.8156263677536237, 50,  110400000
+    # C2 opt:    LER: 7.89615398591587e-07,  AR: 0.8117542307692311, 50,  78000000
+    # MQT:       LER: 1.833271826560692e-07, AR: 0.8075683979863748, 50,  337700000
+
+
+    # 19_1_5
+    # With p_mem = p / 10
+    # No C2 opt: LER: 8.318710496388861e-07,  AR: 0.7826692773437508, 100, 153600000
+    # MQT:       LER: 1.7246872672829994e-07, AR: 0.7819220879417323, 50,  370700000
+    # With p_mem = p / 100
+    # C2 opt:
+    # MQT:       LER: 1.0655376608753426e-07, AR: 0.7929108315024583, 50,  591700000
+
+
+    # 20_2_6
+    # With p_mem = p / 10
+    # No C2 opt: LER: 1.2630226444271337e-06, AR: 0.7382770335820892, 100, 53600000
+    # C2 opt:    LER: 2.822810201888519e-06,  AR: 0.7058635856573711, 100, 25100000
+    # MQT:       LER: 2.1890634019219403e-07, AR: 0.7374751000645592, 50,  154900000
+    # With p_mem = p / 100
+    # No C2 opt: LER:
+    # C2 opt:    LER: 6.379902238204728e-08,  AR: 0.7795077844073189, 50,  502800000
+    # MQT:       LER: 8.919712516436163e-08,  AR: 0.7513377506702422, 50,  373000000

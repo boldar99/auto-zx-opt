@@ -530,8 +530,6 @@ class CoveredZXGraph:
             return False
 
         n1, n2 = list(self.G.neighbors(v))
-        if n2 == 55 and n1 == 69:
-            pass
 
         flow_check = flow_preserving and not self._remove_id_preserves_flow(v)
         parity_spider_check = (

@@ -40,11 +40,11 @@ class NoiseModel:
 
     @classmethod
     def Quantinuum_H2(cls):
-        return cls(p_1=3e-5, p_2=1e-3, p_init=1e-3, p_meas=1e-3, p_mem=1e-4)
+        return cls(p_1=3e-5, p_2=1e-3, p_init=1e-3, p_meas=1e-3, p_mem=2e-4)
 
     @classmethod
     def Quantinuum_Helios(cls):
-        return cls(p_1=3e-5, p_2=8e-4, p_init=5e-4, p_meas=5e-4, p_mem=6e-4)
+        return cls(p_1=3e-5, p_2=8e-4, p_init=5e-4, p_meas=5e-4, p_mem=5e-4)
 
     @classmethod
     def Quantinuum_Sol(cls):
