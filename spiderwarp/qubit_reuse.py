@@ -7,6 +7,10 @@ from spiderwarp.utils import load_state_prep_circuit, steane_se_from_stim_state_
 
 from spiderwarp.path_cover_opt import CoveredZXGraph, metric_hardware_qubits_exact
 
+import networkx as nx
+from dataclasses import dataclass
+from typing import Protocol
+
 
 def build_circuit_dag(cv: CoveredZXGraph, n_data: int) -> nx.DiGraph:
     """
@@ -126,292 +130,6 @@ def visualize_circuit_dag(di_graph: nx.DiGraph, figsize=(12, 8)):
     plt.show()
 
 
-def inject_aggressive_reuse(dag: nx.DiGraph, n_data: int):
-    """
-    Maximizes qubit reuse by explicitly injecting dependencies between
-    the death (Measurement) of one qubit and the birth (Reset) of another.
-    """
-    mod_dag = dag.copy()
-    topo_order = list(nx.topological_sort(mod_dag))
-
-    ancillas = set()
-    birth_node = {}
-    death_node = {}
-
-    for node in topo_order:
-        targets = mod_dag.nodes[node].get("targets", ())
-        for q in targets:
-            if q >= n_data:
-                ancillas.add(q)
-                if q not in birth_node:
-                    birth_node[q] = node
-                death_node[q] = node
-
-    asap = {}
-    for node in topo_order:
-        preds = list(mod_dag.predecessors(node))
-        asap[node] = max((asap[p] for p in preds), default=0) + 1
-
-    candidates = []
-    for qA in ancillas:
-        for qB in ancillas:
-            if qA == qB:
-                continue
-
-            dA = death_node[qA]
-            bB = birth_node[qB]
-
-            if nx.has_path(mod_dag, bB, dA):
-                continue
-
-            score = asap[dA] - asap[bB]
-            candidates.append((score, qA, qB, dA, bB))
-
-    candidates.sort(key=lambda x: x[0])
-
-    next_q = {}
-    prev_q = {}
-
-    for score, qA, qB, dA, bB in candidates:
-        if qA in next_q or qB in prev_q:
-            continue
-
-        mod_dag.add_edge(dA, bB)
-
-        if not nx.is_directed_acyclic_graph(mod_dag):
-            mod_dag.remove_edge(dA, bB)
-        else:
-            next_q[qA] = qB
-            prev_q[qB] = qA
-
-    logical_to_physical = {q: q for q in range(n_data)}
-    next_hw = n_data
-
-    for q in ancillas:
-        if q not in prev_q:
-            curr = q
-            while curr is not None:
-                logical_to_physical[curr] = next_hw
-                curr = next_q.get(curr)
-            next_hw += 1
-
-    total_hw = next_hw
-    return mod_dag, logical_to_physical, total_hw
-
-
-def inject_depth_preserving_reuse(dag: nx.DiGraph, n_data: int):
-    """
-    Maximizes qubit reuse ONLY if the injection does not increase
-    the total topological depth (critical path) of the circuit.
-    """
-    mod_dag = dag.copy()
-
-    # Calculate the strict critical path length of the original DAG
-    orig_depth = nx.dag_longest_path_length(mod_dag)
-
-    topo_order = list(nx.topological_sort(mod_dag))
-    ancillas = set()
-    birth_node = {}
-    death_node = {}
-
-    for node in topo_order:
-        targets = mod_dag.nodes[node].get("targets", ())
-        for q in targets:
-            if q >= n_data:
-                ancillas.add(q)
-                if q not in birth_node:
-                    birth_node[q] = node
-                death_node[q] = node
-
-    asap = {}
-    for node in topo_order:
-        preds = list(mod_dag.predecessors(node))
-        asap[node] = max((asap[p] for p in preds), default=0) + 1
-
-    candidates = []
-    for qA in ancillas:
-        for qB in ancillas:
-            if qA == qB:
-                continue
-            dA = death_node[qA]
-            bB = birth_node[qB]
-
-            # Fast rejection: topological violation
-            if nx.has_path(mod_dag, bB, dA):
-                continue
-
-            score = asap[dA] - asap[bB]
-            candidates.append((score, qA, qB, dA, bB))
-
-    candidates.sort(key=lambda x: x[0])
-
-    next_q = {}
-    prev_q = {}
-
-    for score, qA, qB, dA, bB in candidates:
-        if qA in next_q or qB in prev_q:
-            continue
-
-        mod_dag.add_edge(dA, bB)
-
-        # 1. Check for cycles
-        if not nx.is_directed_acyclic_graph(mod_dag):
-            mod_dag.remove_edge(dA, bB)
-            continue
-
-        # 2. Check for global depth bloating
-        new_depth = nx.dag_longest_path_length(mod_dag)
-        if new_depth > orig_depth:
-            mod_dag.remove_edge(dA, bB)
-        else:
-            next_q[qA] = qB
-            prev_q[qB] = qA
-
-    logical_to_physical = {q: q for q in range(n_data)}
-    next_hw = n_data
-
-    for q in ancillas:
-        if q not in prev_q:
-            curr = q
-            while curr is not None:
-                logical_to_physical[curr] = next_hw
-                curr = next_q.get(curr)
-            next_hw += 1
-
-    total_hw = next_hw
-    return mod_dag, logical_to_physical, total_hw
-
-
-def _compute_active_volume(
-    dag: nx.DiGraph,
-    n_data: int,
-    ancillas: set,
-    next_q: dict,
-    prev_q: dict,
-    birth_node: dict,
-    death_node: dict,
-    data_birth: dict,
-    data_death: dict
-) -> int:
-    """Helper to rapidly calculate exact active volume during the greedy search."""
-    asap = {}
-    for n in nx.topological_sort(dag):
-        preds = list(dag.predecessors(n))
-        asap[n] = max((asap[p] for p in preds), default=0) + 1
-
-    vol = 0
-    # Add data qubit volume
-    for q in range(n_data):
-        if q in data_birth and q in data_death:
-            vol += (asap[data_death[q]] - asap[data_birth[q]] + 1)
-
-    # Add physical ancilla chain volume
-    for q in ancillas:
-        if q not in prev_q:  # Found the root logical qubit of a physical chain
-            curr = q
-            chain_birth = asap[birth_node[curr]]
-            chain_death = chain_birth
-
-            while curr is not None:
-                chain_death = asap[death_node[curr]]
-                curr = next_q.get(curr)
-
-            vol += (chain_death - chain_birth + 1)
-
-    return vol
-
-
-def inject_volume_optimizing_reuse(dag: nx.DiGraph, n_data: int):
-    """
-    Injects dependencies greedily, committing the reuse ONLY if it results
-    in a net decrease in the total spacetime volume of the circuit.
-    """
-    mod_dag = dag.copy()
-    topo_order = list(nx.topological_sort(mod_dag))
-
-    ancillas = set()
-    birth_node, death_node = {}, {}
-    data_birth, data_death = {}, {}
-
-    for node in topo_order:
-        targets = mod_dag.nodes[node].get("targets", ())
-        for q in targets:
-            if q >= n_data:
-                ancillas.add(q)
-                if q not in birth_node: birth_node[q] = node
-                death_node[q] = node
-            else:
-                if q not in data_birth: data_birth[q] = node
-                data_death[q] = node
-
-    next_q, prev_q = {}, {}
-
-    # Calculate baseline volume before any routing
-    current_vol = _compute_active_volume(
-        mod_dag, n_data, ancillas, next_q, prev_q,
-        birth_node, death_node, data_birth, data_death
-    )
-
-    asap = {}
-    for n in topo_order:
-        preds = list(mod_dag.predecessors(n))
-        asap[n] = max((asap[p] for p in preds), default=0) + 1
-
-    candidates = []
-    for qA in ancillas:
-        for qB in ancillas:
-            if qA == qB:
-                continue
-            dA = death_node[qA]
-            bB = birth_node[qB]
-            if not nx.has_path(mod_dag, bB, dA):
-                score = asap[dA] - asap[bB]
-                candidates.append((score, qA, qB, dA, bB))
-
-    candidates.sort(key=lambda x: x[0])
-
-    for score, qA, qB, dA, bB in candidates:
-        if qA in next_q or qB in prev_q:
-            continue
-
-        mod_dag.add_edge(dA, bB)
-
-        if not nx.is_directed_acyclic_graph(mod_dag):
-            mod_dag.remove_edge(dA, bB)
-        else:
-            temp_next = next_q.copy()
-            temp_next[qA] = qB
-            temp_prev = prev_q.copy()
-            temp_prev[qB] = qA
-
-            # Evaluate the global volume trade-off
-            new_vol = _compute_active_volume(
-                mod_dag, n_data, ancillas, temp_next, temp_prev,
-                birth_node, death_node, data_birth, data_death
-            )
-
-            if new_vol < current_vol:
-                # The merge saved more volume than the delay cost
-                current_vol = new_vol
-                next_q = temp_next
-                prev_q = temp_prev
-            else:
-                # The delay bloated the active lifespan of other qubits; reject it
-                mod_dag.remove_edge(dA, bB)
-
-    logical_to_physical = {q: q for q in range(n_data)}
-    next_hw = n_data
-    for q in ancillas:
-        if q not in prev_q:
-            curr = q
-            while curr is not None:
-                logical_to_physical[curr] = next_hw
-                curr = next_q.get(curr)
-            next_hw += 1
-
-    return mod_dag, logical_to_physical, next_hw
-
-
 def apply_logical_qubit_merge_and_compress(dag: nx.DiGraph, n_data: int) -> nx.DiGraph:
     """
     1. Merges logical qubits based on M -> R injected edges.
@@ -481,6 +199,272 @@ def apply_logical_qubit_merge_and_compress(dag: nx.DiGraph, n_data: int) -> nx.D
     return mod_dag
 
 
+@dataclass
+class RoutingState:
+    """Holds the live state of the DAG and logical-to-physical tracking pointers."""
+    dag: nx.DiGraph
+    n_data: int
+    ancillas: set[int]
+    next_q: dict[int, int]
+    prev_q: dict[int, int]
+    birth_node: dict[int, int]
+    death_node: dict[int, int]
+    data_birth: dict[int, int]
+    data_death: dict[int, int]
+
+
+import networkx as nx
+from typing import Protocol
+from dataclasses import dataclass
+
+
+@dataclass
+class RoutingState:
+    dag: nx.DiGraph
+    n_data: int
+    ancillas: set[int]
+    next_q: dict[int, int]
+    prev_q: dict[int, int]
+    birth_node: dict[int, int]
+    death_node: dict[int, int]
+    data_birth: dict[int, int]
+    data_death: dict[int, int]
+
+
+class ReuseStrategy(Protocol):
+    """Protocol defining the rules for evaluating a qubit reuse dependency."""
+
+    def setup(self, state: RoutingState) -> None:
+        """Initialize any baseline metrics before routing begins."""
+        ...
+
+    def evaluate_candidate(self, state: RoutingState) -> float:
+        """Evaluate the modified state. Return cost (lower is better) or float('inf') to reject."""
+        ...
+
+    def commit_edge(self, state: RoutingState) -> None:
+        """Called by the router when an edge is permanently committed."""
+        ...
+
+
+class AggressiveDepthAwareStrategy:
+    """
+    Evaluates candidates purely by their resulting circuit depth.
+    Guarantees minimum hardware qubits while selecting the permutations
+    that bloat the depth the least.
+    """
+
+    def setup(self, state: RoutingState) -> None:
+        pass
+
+    def evaluate_candidate(self, state: RoutingState) -> float:
+        return float(nx.dag_longest_path_length(state.dag))
+
+    def commit_edge(self, state: RoutingState) -> None:
+        # Stateless evaluation: no cached baselines to update
+        pass
+
+
+class PureAggressiveStrategy:
+    """Treats all valid edges equally. The router will pick the first valid one."""
+
+    def setup(self, state: RoutingState) -> None:
+        pass
+
+    def evaluate_candidate(self, state: RoutingState) -> float:
+        return 0.0
+
+    def commit_edge(self, state: RoutingState) -> None:
+        # Stateless evaluation: nothing to update
+        pass
+
+
+class DepthPreservingStrategy:
+    """Rejects any edge that increases the original baseline depth."""
+
+    def setup(self, state: RoutingState) -> None:
+        # The baseline is the original depth before ANY routing occurs
+        self.baseline_depth = nx.dag_longest_path_length(state.dag)
+
+    def evaluate_candidate(self, state: RoutingState) -> float:
+        current_depth = nx.dag_longest_path_length(state.dag)
+        if current_depth > self.baseline_depth:
+            return float('inf')  # Outright reject
+        return 0.0
+
+    def commit_edge(self, state: RoutingState) -> None:
+        # Stateful, but the baseline represents a static original constraint.
+        # Do not update self.baseline_depth here.
+        pass
+
+
+class VolumeOptimizingReuseStrategy:
+    """
+    Evaluates candidates by exact active spacetime volume.
+    Strictly rejects any edge that does not result in a net volume decrease.
+    """
+
+    def setup(self, state: RoutingState) -> None:
+        self.current_vol = self._compute_active_volume(state)
+
+    def evaluate_candidate(self, state: RoutingState) -> float:
+        new_vol = self._compute_active_volume(state)
+
+        # Strict constraint: Must strictly decrease volume
+        if new_vol < self.current_vol:
+            return float(new_vol)
+
+        return float('inf')
+
+    def commit_edge(self, state: RoutingState) -> None:
+        # Update the baseline to reflect the newly compressed DAG
+        self.current_vol = self._compute_active_volume(state)
+
+    @staticmethod
+    def _compute_active_volume(state: RoutingState) -> int:
+        asap = {}
+        for n in nx.topological_sort(state.dag):
+            preds = list(state.dag.predecessors(n))
+            asap[n] = max((asap[p] for p in preds), default=0) + 1
+
+        vol = 0
+        # 1. Data qubit volume
+        for q in range(state.n_data):
+            if q in state.data_birth and q in state.data_death:
+                vol += (asap[state.data_death[q]] - asap[state.data_birth[q]] + 1)
+
+        # 2. Physical ancilla chain volume
+        for q in state.ancillas:
+            if q not in state.prev_q:  # Found the root logical qubit of a physical chain
+                curr = q
+                chain_birth = asap[state.birth_node[curr]]
+                chain_death = chain_birth
+
+                while curr is not None:
+                    chain_death = asap[state.death_node[curr]]
+                    curr = state.next_q.get(curr)
+
+                vol += (chain_death - chain_birth + 1)
+
+        return vol
+
+
+def inject_qubit_reuse(dag: nx.DiGraph, n_data: int, strategy: ReuseStrategy):
+    """
+    Best-Fit routing engine. Groups potential reuse dependencies by target,
+    tests all valid sources, and commits the edge with the lowest strategy cost.
+    """
+    mod_dag = dag.copy()
+    topo_order = list(nx.topological_sort(mod_dag))
+
+    ancillas = set()
+    birth_node, death_node = {}, {}
+    data_birth, data_death = {}, {}
+
+    for node in topo_order:
+        targets = mod_dag.nodes[node].get("targets", ())
+        for q in targets:
+            if q >= n_data:
+                ancillas.add(q)
+                if q not in birth_node: birth_node[q] = node
+                death_node[q] = node
+            else:
+                if q not in data_birth: data_birth[q] = node
+                data_death[q] = node
+
+    state = RoutingState(
+        dag=mod_dag,
+        n_data=n_data,
+        ancillas=ancillas,
+        next_q={},
+        prev_q={},
+        birth_node=birth_node,
+        death_node=death_node,
+        data_birth=data_birth,
+        data_death=data_death
+    )
+
+    strategy.setup(state)
+
+    # Group candidates by the target Reset node (qB)
+    # We want to find the best Qubit A to feed into Qubit B
+    candidates_by_target = {qB: [] for qB in ancillas}
+
+    for qA in ancillas:
+        for qB in ancillas:
+            if qA == qB:
+                continue
+            dA = death_node[qA]
+            bB = birth_node[qB]
+
+            # Fast topological rejection
+            if not nx.has_path(mod_dag, bB, dA):
+                candidates_by_target[qB].append((qA, dA, bB))
+
+    # Evaluate best-fit for each target qubit
+    for qB, sources in candidates_by_target.items():
+        if qB in state.prev_q:
+            continue
+
+        best_cost = float('inf')
+        best_qA = None
+        best_dA = None
+        best_bB = None
+
+        for qA, dA, bB in sources:
+            if qA in state.next_q:
+                continue
+
+            # Tentatively apply the edge
+            state.dag.add_edge(dA, bB)
+
+            # 1. Hardware Constraint
+            if not nx.is_directed_acyclic_graph(state.dag):
+                state.dag.remove_edge(dA, bB)
+                continue
+
+            # 2. Update tracking state for accurate strategy evaluation
+            state.next_q[qA] = qB
+            state.prev_q[qB] = qA
+
+            # 3. Strategy Evaluation
+            cost = strategy.evaluate_candidate(state)
+
+            if cost < best_cost:
+                best_cost = cost
+                best_qA = qA
+                best_dA = dA
+                best_bB = bB
+
+            # Revert the tentative changes to test the next source
+            state.dag.remove_edge(dA, bB)
+            del state.next_q[qA]
+            del state.prev_q[qB]
+
+            # If we found at least one valid, non-rejected source, commit the best one permanently
+            if best_qA is not None and best_cost != float('inf'):
+                state.dag.add_edge(best_dA, best_bB)
+                state.next_q[best_qA] = qB
+                state.prev_q[qB] = best_qA
+
+                # ---> ADD THESE TWO LINES <---
+                # Notify the strategy that the graph architecture has permanently changed
+                strategy.commit_edge(state)
+
+    # Hardware Allocation Mapping
+    logical_to_physical = {q: q for q in range(n_data)}
+    next_hw = n_data
+
+    for q in ancillas:
+        if q not in state.prev_q:
+            curr = q
+            while curr is not None:
+                logical_to_physical[curr] = next_hw
+                curr = state.next_q.get(curr)
+            next_hw += 1
+
+    return state.dag, logical_to_physical, next_hw
+
 if __name__ == "__main__":
     code_name, circuit_path = "17_1_5", "cc_4_8_8_d5/zero_ft_heuristic_opt"
 
@@ -506,7 +490,7 @@ if __name__ == "__main__":
     dag = build_circuit_dag(optimised, code.n)
 
     # 2. Inject dependency edges for reuse
-    mod_dag, logical_to_physical, total_hw = inject_aggressive_reuse(dag, code.n)
+    mod_dag, logical_to_physical, total_hw = inject_qubit_reuse(dag, code.n, AggressiveDepthAwareStrategy())
 
     # 3. Compress target IDs based on those edges
     compressed_dag = apply_logical_qubit_merge_and_compress(mod_dag, code.n)

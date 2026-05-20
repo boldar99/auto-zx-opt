@@ -64,13 +64,13 @@ def metric_hardware_qubits_exact(graph: "CoveredZXGraph", paths: dict[int, tuple
     WARNING: Do not use inside the MCTS inner loop due to cycle-checking overhead.
     """
     # Local import strictly required to prevent circular dependencies with qubit_reuse.py
-    from spiderwarp.qubit_reuse import build_circuit_dag, inject_aggressive_reuse
+    from spiderwarp.qubit_reuse import build_circuit_dag, inject_qubit_reuse, AggressiveDepthAwareStrategy, VolumeOptimizingReuseStrategy
 
     temp_graph = graph.shallow_copy()
     temp_graph.paths = paths
 
     dag = build_circuit_dag(temp_graph, graph._num_qubits)
-    _, _, total_hw = inject_aggressive_reuse(dag, graph._num_qubits)
+    _, _, total_hw = inject_qubit_reuse(dag, graph._num_qubits, VolumeOptimizingReuseStrategy())
 
     return float(total_hw)
 
@@ -117,9 +117,9 @@ def metric_spacetime_volume_exact(graph: "CoveredZXGraph", paths: dict[int, tupl
     # Local import strictly required to prevent circular dependencies with qubit_reuse.py
     from spiderwarp.qubit_reuse import (
         build_circuit_dag,
-        inject_aggressive_reuse,
+        VolumeOptimizingReuseStrategy,
         apply_logical_qubit_merge_and_compress,
-        inject_volume_optimizing_reuse
+        inject_qubit_reuse
     )
     import networkx as nx
 
@@ -129,7 +129,7 @@ def metric_spacetime_volume_exact(graph: "CoveredZXGraph", paths: dict[int, tupl
 
     # 2. Run the exact routing pipeline
     dag = build_circuit_dag(temp_graph, graph._num_qubits)
-    mod_dag, _, total_hw = inject_volume_optimizing_reuse(dag, graph._num_qubits)
+    mod_dag, _, total_hw = inject_qubit_reuse(dag, graph._num_qubits, VolumeOptimizingReuseStrategy())
 
     # We MUST compress the DAG so the targets reflect the shared hardware tracks
     compressed_dag = apply_logical_qubit_merge_and_compress(mod_dag, graph._num_qubits)
