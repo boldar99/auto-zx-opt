@@ -1,5 +1,14 @@
+import re
 from collections import defaultdict
+from typing import Literal
+
+import pyzx as zx
 import stim
+import stimcirq
+from cirq.contrib.qasm_import import circuit_from_qasm
+
+from spiderwarp.utils import flatten
+
 
 TWO_QUBIT_GATES = {"CX", "CNOT", "CZ", "SWAP", "CY", "XCZ", "YCX"}
 Z_MEASUREMENTS = {"MR", "M", "MZ"}
@@ -7,6 +16,97 @@ X_MEASUREMENTS = {"MX"}
 Z_INITIALIZATIONS = {"MR", "R"}
 X_INITIALIZATIONS = {"RX"}
 SPECIAL_GATES = {"DETECTOR", "OBSERVABLE_INCLUDE", "SHIFT_COORDS", "QUBIT_COORDS", "TICK"}
+
+
+def qasm_str_to_stim_circuit(qasm_str: str) -> stim.Circuit:
+    cirq_circuit = circuit_from_qasm(qasm_str)
+    return stimcirq.cirq_circuit_to_stim_circuit(cirq_circuit)
+
+
+def stim_to_pyzx(stim_circuit: stim.Circuit, n_data: int) -> zx.Graph:
+    circ = zx.Circuit(n_data)
+
+    for op, targets, _ in stim_circuit.flattened_operations():
+        if op in ("R", "RX"):
+            for t in targets:
+                if t < n_data:
+                    continue
+                if op == "R":
+                    circ.add_gate("InitAncilla", label=t, state="0")
+                elif op == "RX":
+                    circ.add_gate("InitAncilla", label=t, state="+")
+
+        elif op == "CX":
+            for i in range(0, len(targets), 2):
+                c, n = targets[i], targets[i + 1]
+                circ.add_gate("CNOT", c, n)
+
+        elif op == "H":
+            for t in targets:
+                circ.add_gate("H", t)
+
+        elif op in ("M", "MX", "MR"):
+            for t in targets:
+                if op in ("M", "MR"):
+                    circ.add_gate("PostSelect", label=t, state="0")
+                elif op == "MX":
+                    circ.add_gate("PostSelect", label=t, state="+")
+
+    return circ.to_graph()
+
+
+def explode_circuit(circuit: stim.Circuit) -> list[stim.CircuitInstruction]:
+    """
+    Decomposes a circuit into a list of atomic instructions.
+    E.g., 'CX 0 1 2 3' becomes ['CX 0 1', 'CX 2 3'].
+    This allows injecting faults *between* gates that were originally grouped.
+    """
+    atomized_ops = []
+
+    # Common 2-qubit gates in CSS codes
+    TWO_QUBIT_GATES = {"CX", "CNOT", "CZ", "SWAP", "CY", "XCZ", "YCX"}
+
+    for op in circuit.flattened():
+        # Handle 2-Qubit Gates (Target pairs)
+        if op.name in TWO_QUBIT_GATES:
+            targets = op.targets_copy()
+            # Iterate in steps of 2
+            for k in range(0, len(targets), 2):
+                atomized_ops.append(
+                    stim.CircuitInstruction(op.name, targets[k:k + 2], op.gate_args_copy())
+                )
+
+        # Handle Annotations (Don't split, just keep)
+        elif op.name in {"DETECTOR", "OBSERVABLE_INCLUDE", "SHIFT_COORDS", "QUBIT_COORDS", "TICK"}:
+            atomized_ops.append(op)
+
+        # Handle 1-Qubit Gates & Measurements (Single targets)
+        else:
+            # e.g. H, X, Z, M, R, MR
+            targets = op.targets_copy()
+            for t in targets:
+                atomized_ops.append(
+                    stim.CircuitInstruction(op.name, [t], op.gate_args_copy())
+                )
+
+    return atomized_ops
+
+
+def steane_se_from_stim_state_prep(circ: stim.Circuit, se_basis: Literal["X"] | Literal["Z"], n: int) -> stim.Circuit:
+    ret = stim.Circuit()
+    for op in circ:
+        targets = [stim.GateTarget(t.value + n) for t in op.targets_copy()]
+        new_op = stim.CircuitInstruction(op.name, targets, op.gate_args_copy())
+        ret.append(new_op)
+    if se_basis == "Z":
+        ret.append("CX", flatten(zip(range(n, 2 * n), range(n))))
+        ret.append("MX", range(n, 2 * n))
+    elif se_basis == "X":
+        ret.append("CX", flatten(zip(range(n), range(n, 2 * n))))
+        ret.append("M", range(n, 2 * n))
+    else:
+        raise Exception("Unknown se_basis: {}".format(se_basis))
+    return ret
 
 
 def _get_target_values(targets: list[stim.GateTarget]) -> list[int]:
@@ -165,6 +265,13 @@ def get_circuit_depth(circ: stim.Circuit) -> int:
     expanded_ops = _expand_stim_operation_list(operations)
     layered_ops = _layer_circuit_ops(expanded_ops, circ.num_qubits)
     return len(layered_ops)
+
+
+def get_num_cnots(circ: stim.Circuit) -> int:
+    """Returns the strict ASAP depth of the circuit."""
+    raw_cnots = [l for (name, l, _) in circ.flattened_operations() if name in ("CX", "CNOT")]
+    cnots = [(ops[i], ops[i + 1]) for ops in raw_cnots for i in range(0, len(ops), 2)]
+    return len(cnots)
 
 
 def get_spacetime_volume(circ: stim.Circuit) -> int:

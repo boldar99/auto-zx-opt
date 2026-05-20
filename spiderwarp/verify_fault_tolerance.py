@@ -3,7 +3,7 @@ import itertools
 import numpy as np
 import stim
 
-from spiderwarp.utils import explode_circuit
+from spiderwarp.stim_utils import explode_circuit
 
 
 def build_css_syndrome_table(stabilizers: list[str], d: int):

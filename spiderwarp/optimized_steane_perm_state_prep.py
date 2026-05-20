@@ -1,18 +1,18 @@
-import logging
-
 import numpy as np
+import numpy.typing as npt
+
 import stim
+
 from mqt.qecc.circuit_synthesis import CircuitLevelNoiseIdlingParallel
 from mqt.qecc.circuit_synthesis.circuit_utils import measured_qubits, unmeasured_qubits, collect_circuit_layers
 from mqt.qecc.circuit_synthesis.noise import NoiseModel
 from mqt.qecc.circuit_synthesis.simulation import NoisyNDFTStatePrepSimulator
+from mqt.qecc import CSSCode as MQTCSSCode
 
 from spiderwarp.csscode import CSSCode
-from spiderwarp.path_cover_opt import CoveredZXGraph
-from spiderwarp.utils import load_steane_perm_circuits, steane_se_from_stim_state_prep
-
-from mqt.qecc import CSSCode as MQTCSSCode
-import numpy.typing as npt
+from spiderwarp.path_cover import CoveredZXGraph
+from spiderwarp.utils import load_steane_perm_circuits
+from spiderwarp.stim_utils import steane_se_from_stim_state_prep
 
 
 def mqt_steane_opt(code_name, *, optimise_c2: bool = True, verbose: bool = False):
@@ -133,6 +133,9 @@ if __name__ == '__main__':
     # code_name = "31_1_7"
     opt_c2 = False
 
+
+    print(f"Code: {code_name},  {opt_c2=}")
+
     code = CSSCode.load_code("MQT", code_name)
     mqt_code = MQTCSSCode(Hx=code.H_x, Hz=code.H_z, distance=code.d)
     og_circ, circ, M = mqt_steane_opt(code_name, optimise_c2=opt_c2)
@@ -146,8 +149,7 @@ if __name__ == '__main__':
     p_mem_factor = 0.01
     noise = CircuitLevelNoiseIdlingParallel(p, 0, p * 2 / 3, p, p * p_mem_factor)
     depth = len(collect_circuit_layers(circ))
-    print(f"Code: {code_name}\n"
-          f"#Qubits: {circ.num_qubits},  Depth: {depth},  p_mem: p*{p_mem_factor}")
+    print(f"#Qubits: {circ.num_qubits},  Depth: {depth},  p_mem: p*{p_mem_factor}")
     ler, ar, num_err, num_samples = sim.logical_error_rate(noise=noise, min_errors=10)
     print(f"LER: {ler:.4e},  AR: {ar:.2%},  #Err: {num_err},  #Samples: {num_samples}")
 

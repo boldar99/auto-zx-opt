@@ -1,225 +1,22 @@
+from __future__ import annotations
+
 import networkx as nx
-import matplotlib.pyplot as plt
 import stim
 
 from spiderwarp.csscode import CSSCode
-from spiderwarp.utils import load_state_prep_circuit, steane_se_from_stim_state_prep
+from spiderwarp.utils import load_state_prep_circuit
+from spiderwarp.stim_utils import steane_se_from_stim_state_prep
 
-from spiderwarp.path_cover_opt import CoveredZXGraph, metric_hardware_qubits_exact
-
-import networkx as nx
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Protocol, TYPE_CHECKING
 
-
-def build_circuit_dag(cv: CoveredZXGraph, n_data: int) -> nx.DiGraph:
-    """
-    Converts a sequential list of quantum operations into a dependency DAG.
-    Stores the original operation name, targets, and measurement_id in the node attributes.
-    """
-    dag = nx.DiGraph()
-    last_op_on_qubit = {}
-
-    ordered_operations = cv._find_total_ordering()
-
-    for i, circ_op in enumerate(ordered_operations):
-        op_name = circ_op.name
-        targets = circ_op.targets
-        measurement_id = circ_op.measurement_id
-
-        # Normalize targets to a tuple for consistent storage
-        qubits = tuple(targets) if isinstance(targets, (list, tuple)) else (targets,)
-
-        # Rely strictly on the explicit measurement_id from CircuitOperation
-        dag.add_node(i, op_name=op_name, targets=qubits, measurement_id=measurement_id)
-
-        # Determine dependencies based on qubit usage
-        dependencies = set()
-        for q in qubits:
-            if q in last_op_on_qubit:
-                dependencies.add(last_op_on_qubit[q])
-            # Update the tracker: this node 'i' is now the latest operation on qubit 'q'
-            last_op_on_qubit[q] = i
-
-        # Draw the edges from dependencies to the current operation
-        for dep in dependencies:
-            dag.add_edge(dep, i)
-
-    return dag
-
-
-def dag_to_circuit(dag: nx.DiGraph) -> tuple[stim.Circuit, dict[int, int]]:
-    """
-    Converts a circuit dependency DAG back into a Stim circuit and a measurement map.
-    Extraction MUST be done in topological order to respect causality constraints.
-    """
-    circuit = stim.Circuit()
-    measurement_map: dict[int, int] = {}
-    next_measurement_index = 0
-
-    # Ensure operations are ordered correctly respecting the DAG's causal flow
-    for node in nx.topological_sort(dag):
-        data = dag.nodes[node]
-        op_name = data.get("op_name")
-        targets = data.get("targets")
-        measurement_id = data.get("measurement_id")
-
-        targets_list = list(targets) if isinstance(targets, tuple) else targets
-        circuit.append(op_name, targets_list)
-
-        # Dynamically build the measurement map for tracking
-        if op_name in CoveredZXGraph.MEASUREMENT_OPS:
-            if measurement_id is not None:
-                for offset in range(len(targets_list)):
-                    measurement_map[next_measurement_index + offset] = measurement_id + offset
-            next_measurement_index += len(targets_list)
-
-    return circuit, measurement_map
-
-
-def visualize_circuit_dag(di_graph: nx.DiGraph, figsize=(12, 8)):
-    """
-    Visualizes the circuit DAG using a multipartite layout based on
-    topological generations.
-    """
-    for layer, nodes in enumerate(nx.topological_generations(di_graph)):
-        for node in nodes:
-            di_graph.nodes[node]["layer"] = layer
-
-    pos = nx.multipartite_layout(di_graph, subset_key="layer", align="vertical")
-
-    labels = {}
-    for node, data in di_graph.nodes(data=True):
-        op = data.get("op_name")
-        targs = "-".join([str(t) for t in data.get("targets", ())])
-        labels[node] = f"{op}\n{targs}"
-
-        meas_id = data.get("measurement_id")
-        if meas_id is not None:
-            labels[node] += f"\nm_{meas_id}"
-
-    plt.figure(figsize=figsize)
-    NODE_SIZE = 1500
-
-    nx.draw_networkx_nodes(
-        di_graph, pos,
-        node_color="#ADD8E6",
-        node_size=NODE_SIZE,
-        edgecolors="black"
-    )
-
-    nx.draw_networkx_edges(
-        di_graph, pos,
-        arrowstyle="-|>",
-        arrowsize=20,
-        edge_color="gray",
-        width=1.5,
-        node_size=NODE_SIZE
-    )
-
-    nx.draw_networkx_labels(
-        di_graph, pos,
-        labels=labels,
-        font_size=8,
-        font_weight="bold"
-    )
-
-    plt.title("Circuit Dependency DAG (ASAP Generations)", fontsize=14, fontweight="bold")
-    plt.axis("off")
-    plt.tight_layout()
-    plt.show()
-
-
-def apply_logical_qubit_merge_and_compress(dag: nx.DiGraph, n_data: int) -> nx.DiGraph:
-    """
-    1. Merges logical qubits based on M -> R injected edges.
-    2. Compresses the remaining active qubit IDs so they are contiguous.
-    """
-    mod_dag = dag.copy()
-
-    # --- PHASE 1: Union-Find for Merges ---
-    parent_map = {}
-
-    def get_root(q):
-        curr = q
-        while curr in parent_map:
-            curr = parent_map[curr]
-        return curr
-
-    for u, v in mod_dag.edges():
-        op_u = mod_dag.nodes[u].get("op_name", "")
-        op_v = mod_dag.nodes[v].get("op_name", "")
-
-        # Generalize to match CoveredZXGraph definition
-        if op_u in CoveredZXGraph.MEASUREMENT_OPS and op_v in {"R", "RX"}:
-            targets_u = mod_dag.nodes[u].get("targets", [])
-            targets_v = mod_dag.nodes[v].get("targets", [])
-
-            if len(targets_u) == 1 and len(targets_v) == 1:
-                qA = targets_u[0]
-                qB = targets_v[0]
-
-                if qA != qB:
-                    root_A = get_root(qA)
-                    parent_map[qB] = root_A
-
-    # --- PHASE 2: Collect and Compress ---
-    active_roots = set()
-    for node in mod_dag.nodes():
-        targets = mod_dag.nodes[node].get("targets", [])
-        for q in targets:
-            active_roots.add(get_root(q))
-
-    data_roots = [q for q in active_roots if q < n_data]
-    ancilla_roots = sorted([q for q in active_roots if q >= n_data])
-
-    compression_map = {}
-    for q in data_roots:
-        compression_map[q] = q
-
-    next_dense_id = n_data
-    for q in ancilla_roots:
-        compression_map[q] = next_dense_id
-        next_dense_id += 1
-
-    # --- PHASE 3: Rewrite the DAG ---
-    for node in mod_dag.nodes():
-        old_targets = mod_dag.nodes[node].get("targets", [])
-        new_targets = []
-        for q in old_targets:
-            root_q = get_root(q)
-            compressed_q = compression_map[root_q]
-            new_targets.append(compressed_q)
-
-        if isinstance(old_targets, tuple):
-            mod_dag.nodes[node]["targets"] = tuple(new_targets)
-        else:
-            mod_dag.nodes[node]["targets"] = new_targets
-
-    return mod_dag
+if TYPE_CHECKING:
+    from spiderwarp.path_cover import CoveredZXGraph
 
 
 @dataclass
 class RoutingState:
     """Holds the live state of the DAG and logical-to-physical tracking pointers."""
-    dag: nx.DiGraph
-    n_data: int
-    ancillas: set[int]
-    next_q: dict[int, int]
-    prev_q: dict[int, int]
-    birth_node: dict[int, int]
-    death_node: dict[int, int]
-    data_birth: dict[int, int]
-    data_death: dict[int, int]
-
-
-import networkx as nx
-from typing import Protocol
-from dataclasses import dataclass
-
-
-@dataclass
-class RoutingState:
     dag: nx.DiGraph
     n_data: int
     ancillas: set[int]
@@ -349,6 +146,71 @@ class VolumeOptimizingReuseStrategy:
         return vol
 
 
+def build_circuit_dag(cv: CoveredZXGraph) -> nx.DiGraph:
+    """
+    Converts a sequential list of quantum operations into a dependency DAG.
+    Stores the original operation name, targets, and measurement_id in the node attributes.
+    """
+    dag = nx.DiGraph()
+    last_op_on_qubit: dict[int,int] = {}
+
+    ordered_operations = cv._find_total_ordering()
+
+    for i, circ_op in enumerate(ordered_operations):
+        op_name = circ_op.name
+        targets = circ_op.targets
+        measurement_id = circ_op.measurement_id
+
+        # Normalize targets to a tuple for consistent storage
+        qubits = tuple(targets) if isinstance(targets, (list, tuple)) else (targets,)
+
+        # Rely strictly on the explicit measurement_id from CircuitOperation
+        dag.add_node(i, op_name=op_name, targets=qubits, measurement_id=measurement_id)
+
+        # Determine dependencies based on qubit usage
+        dependencies = set()
+        for q in qubits:
+            if q in last_op_on_qubit:
+                dependencies.add(last_op_on_qubit[q])
+            # Update the tracker: this node 'i' is now the latest operation on qubit 'q'
+            last_op_on_qubit[q] = i
+
+        # Draw the edges from dependencies to the current operation
+        for dep in dependencies:
+            dag.add_edge(dep, i)
+
+    return dag
+
+
+def dag_to_circuit(dag: nx.DiGraph) -> tuple[stim.Circuit, dict[int, int]]:
+    """
+    Converts a circuit dependency DAG back into a Stim circuit and a measurement map.
+    Extraction MUST be done in topological order to respect causality constraints.
+    """
+    circuit = stim.Circuit()
+    measurement_map: dict[int, int] = {}
+    next_measurement_index = 0
+
+    # Ensure operations are ordered correctly respecting the DAG's causal flow
+    for node in nx.topological_sort(dag):
+        data = dag.nodes[node]
+        op_name = data.get("op_name")
+        targets = data.get("targets")
+        measurement_id = data.get("measurement_id")
+
+        targets_list = list(targets) if isinstance(targets, tuple) else targets
+        circuit.append(op_name, targets_list)
+
+        # Dynamically build the measurement map for tracking
+        if op_name in CoveredZXGraph.MEASUREMENT_OPS:
+            if measurement_id is not None:
+                for offset in range(len(targets_list)):
+                    measurement_map[next_measurement_index + offset] = measurement_id + offset
+            next_measurement_index += len(targets_list)
+
+    return circuit, measurement_map
+
+
 def inject_qubit_reuse(dag: nx.DiGraph, n_data: int, strategy: ReuseStrategy):
     """
     Best-Fit routing engine. Groups potential reuse dependencies by target,
@@ -465,7 +327,79 @@ def inject_qubit_reuse(dag: nx.DiGraph, n_data: int, strategy: ReuseStrategy):
 
     return state.dag, logical_to_physical, next_hw
 
+
+def apply_logical_qubit_merge_and_compress(dag: nx.DiGraph, n_data: int) -> nx.DiGraph:
+    """
+    1. Merges logical qubits based on M -> R injected edges.
+    2. Compresses the remaining active qubit IDs so they are contiguous.
+    """
+    mod_dag = dag.copy()
+
+    # --- PHASE 1: Union-Find for Merges ---
+    parent_map: dict[int, int] = {}
+
+    def get_root(q):
+        curr = q
+        while curr in parent_map:
+            curr = parent_map[curr]
+        return curr
+
+    for u, v in mod_dag.edges():
+        op_u = mod_dag.nodes[u].get("op_name", "")
+        op_v = mod_dag.nodes[v].get("op_name", "")
+
+        # Generalize to match CoveredZXGraph definition
+        if op_u in CoveredZXGraph.MEASUREMENT_OPS and op_v in {"R", "RX"}:
+            targets_u = mod_dag.nodes[u].get("targets", [])
+            targets_v = mod_dag.nodes[v].get("targets", [])
+
+            if len(targets_u) == 1 and len(targets_v) == 1:
+                qA = targets_u[0]
+                qB = targets_v[0]
+
+                if qA != qB:
+                    root_A = get_root(qA)
+                    parent_map[qB] = root_A
+
+    # --- PHASE 2: Collect and Compress ---
+    active_roots = set()
+    for node in mod_dag.nodes():
+        targets = mod_dag.nodes[node].get("targets", [])
+        for q in targets:
+            active_roots.add(get_root(q))
+
+    data_roots = [q for q in active_roots if q < n_data]
+    ancilla_roots = sorted([q for q in active_roots if q >= n_data])
+
+    compression_map = {}
+    for q in data_roots:
+        compression_map[q] = q
+
+    next_dense_id = n_data
+    for q in ancilla_roots:
+        compression_map[q] = next_dense_id
+        next_dense_id += 1
+
+    # --- PHASE 3: Rewrite the DAG ---
+    for node in mod_dag.nodes():
+        old_targets = mod_dag.nodes[node].get("targets", [])
+        new_targets = []
+        for q in old_targets:
+            root_q = get_root(q)
+            compressed_q = compression_map[root_q]
+            new_targets.append(compressed_q)
+
+        if isinstance(old_targets, tuple):
+            mod_dag.nodes[node]["targets"] = tuple(new_targets)
+        else:
+            mod_dag.nodes[node]["targets"] = new_targets
+
+    return mod_dag
+
+
 if __name__ == "__main__":
+    from spiderwarp.path_cover import CoveredZXGraph, metric_hardware_qubits_exact
+
     code_name, circuit_path = "17_1_5", "cc_4_8_8_d5/zero_ft_heuristic_opt"
 
     code = CSSCode.load_code("FAO", code_name)
@@ -486,16 +420,9 @@ if __name__ == "__main__":
     _, pre_measurement_map = optimised.extract_circuit_with_measurement_map()
     print("Pre-reuse Measurement map:", pre_measurement_map)
 
-    # 1. Build the DAG
-    dag = build_circuit_dag(optimised, code.n)
-
-    # 2. Inject dependency edges for reuse
+    dag = build_circuit_dag(optimised)
     mod_dag, logical_to_physical, total_hw = inject_qubit_reuse(dag, code.n, AggressiveDepthAwareStrategy())
-
-    # 3. Compress target IDs based on those edges
     compressed_dag = apply_logical_qubit_merge_and_compress(mod_dag, code.n)
-
-    # 4. Extract topologically
     final_circ, final_meas_map = dag_to_circuit(compressed_dag)
 
     print("\n--- Final Reused Circuit ---")

@@ -14,7 +14,8 @@ import stimcirq
 from cirq.contrib.qasm_import import circuit_from_qasm
 from mqt.qecc.circuit_synthesis import LutDecoder
 
-from spiderwarp.utils import _layer_cnot_circuit, explode_circuit, get_project_root
+from spiderwarp.utils import get_project_root
+from spiderwarp.stim_utils import explode_circuit
 
 
 class Basis(Enum):
