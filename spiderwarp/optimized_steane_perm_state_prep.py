@@ -11,11 +11,13 @@ from mqt.qecc import CSSCode as MQTCSSCode
 
 from spiderwarp.csscode import CSSCode
 from spiderwarp.path_cover import CoveredZXGraph
+from spiderwarp.path_cover_metrics import metric_num_paths, metric_depth_exact
+from spiderwarp.qubit_reuse import NoReuseStrategy
 from spiderwarp.utils import load_steane_perm_circuits
 from spiderwarp.stim_utils import steane_se_from_stim_state_prep
 
 
-def mqt_steane_opt(code_name, *, optimise_c2: bool = True, verbose: bool = False):
+def mqt_steane_opt(code_name, *, cost_func=metric_num_paths, max_evaluations=1000, optimise_c2: bool = True, verbose: bool = False):
     code = CSSCode.load_code("MQT", code_name)
     circuits = load_steane_perm_circuits(code_name)
 
@@ -24,7 +26,7 @@ def mqt_steane_opt(code_name, *, optimise_c2: bool = True, verbose: bool = False
     if optimise_c2:
         cov_graph_c2 = CoveredZXGraph.from_stim(se2)
         cov_graph_c2.basic_FE_rewrites()
-        c2_opt = cov_graph_c2.best_first_boundary_bends(max_evaluations=1000, )
+        c2_opt = cov_graph_c2.greedy_best_first_boundary_bends(cost_func=cost_func, max_evaluations=max_evaluations)
 
         if verbose:
             print(f"Optimised C_2: {circuits[1].num_qubits * 2} -> {len(c2_opt.paths)}")
@@ -39,7 +41,7 @@ def mqt_steane_opt(code_name, *, optimise_c2: bool = True, verbose: bool = False
     cov_graph_c4 = CoveredZXGraph.from_stim(se4)
     cov_graph_c4.offset_measurement_ids_by(code.n)
     cov_graph_c4.basic_FE_rewrites()
-    cov_graph_c4_opt = cov_graph_c4.best_first_boundary_bends(max_evaluations=1000, )
+    cov_graph_c4_opt = cov_graph_c4.greedy_best_first_boundary_bends(cost_func=cost_func, max_evaluations=max_evaluations)
 
     if verbose:
         print(f"Optimised C_4: {circuits[3].num_qubits * 2} -> {len(cov_graph_c4_opt.paths)}")
@@ -55,7 +57,7 @@ def mqt_steane_opt(code_name, *, optimise_c2: bool = True, verbose: bool = False
             cov_graph_c34.set_measurement_id(v, se4_mm.get(m_id, m_id + 2 * code.n - len(se4_mm)))
     # cov_graph_c34_opt = cov_graph_c34
     cov_graph_c34.basic_FE_rewrites()
-    cov_graph_c34_opt = cov_graph_c34.best_first_boundary_bends(max_evaluations=1000, )
+    cov_graph_c34_opt = cov_graph_c34.greedy_best_first_boundary_bends(cost_func=cost_func, max_evaluations=max_evaluations)
 
     if verbose:
         print(
@@ -138,7 +140,7 @@ if __name__ == '__main__':
 
     code = CSSCode.load_code("MQT", code_name)
     mqt_code = MQTCSSCode(Hx=code.H_x, Hz=code.H_z, distance=code.d)
-    og_circ, circ, M = mqt_steane_opt(code_name, optimise_c2=opt_c2)
+    og_circ, circ, M = mqt_steane_opt(code_name, optimise_c2=opt_c2, cost_func=metric_depth_exact(NoReuseStrategy), max_evaluations=100, verbose=True)
 
     sim = OptimisedSteaneNDFTStatePrepSimulator(
         circ=circ,
@@ -146,11 +148,11 @@ if __name__ == '__main__':
         measurement_mapping=M
     )
     p = 0.001
-    p_mem_factor = 0.01
+    p_mem_factor = 0.1
     noise = CircuitLevelNoiseIdlingParallel(p, 0, p * 2 / 3, p, p * p_mem_factor)
     depth = len(collect_circuit_layers(circ))
     print(f"#Qubits: {circ.num_qubits},  Depth: {depth},  p_mem: p*{p_mem_factor}")
-    ler, ar, num_err, num_samples = sim.logical_error_rate(noise=noise, min_errors=10)
+    ler, ar, num_err, num_samples = sim.logical_error_rate(noise=noise, min_errors=100)
     print(f"LER: {ler:.4e},  AR: {ar:.2%},  #Err: {num_err},  #Samples: {num_samples}")
 
     # 17_1_5

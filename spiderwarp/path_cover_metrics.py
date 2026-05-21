@@ -2,6 +2,9 @@ import networkx as nx
 
 from typing import TYPE_CHECKING, Protocol
 
+from spiderwarp.qubit_reuse import dag_to_circuit
+from spiderwarp.stim_utils import get_circuit_depth
+
 if TYPE_CHECKING:
     from spiderwarp.path_cover import CoveredZXGraph
     
@@ -30,21 +33,23 @@ def metric_parity_measurements(graph: "CoveredZXGraph", paths: dict[int, tuple[i
     return graph._num_parity_measurement(paths)
 
 
-def metric_hardware_qubits_exact(graph: "CoveredZXGraph", paths: dict[int, tuple[int, ...]]) -> float:
-    """
-    Exact post-reuse hardware qubit count utilizing the heavy NetworkX injection pipeline.
-    WARNING: Do not use inside the MCTS inner loop due to cycle-checking overhead.
-    """
-    # Local import strictly required to prevent circular dependencies with qubit_reuse.py
-    from spiderwarp.qubit_reuse import build_circuit_dag, inject_qubit_reuse, AggressiveDepthAwareStrategy, VolumeOptimizingReuseStrategy
+def metric_hardware_qubits_exact(ReuseStrategy):
+    def metric_hardware_qubits_exact_with_qubit_reuse(graph: "CoveredZXGraph", paths: dict[int, tuple[int, ...]]) -> float:
+        """
+        Exact post-reuse hardware qubit count utilizing the heavy NetworkX injection pipeline.
+        WARNING: Do not use inside the MCTS inner loop due to cycle-checking overhead.
+        """
+        from spiderwarp.qubit_reuse import build_circuit_dag, inject_qubit_reuse
 
-    temp_graph = graph.shallow_copy()
-    temp_graph.paths = paths
+        temp_graph = graph.shallow_copy()
+        temp_graph.paths = paths
 
-    dag = build_circuit_dag(temp_graph)
-    _, _, total_hw = inject_qubit_reuse(dag, graph._num_qubits, VolumeOptimizingReuseStrategy())
+        dag = build_circuit_dag(temp_graph)
+        _, _, total_hw = inject_qubit_reuse(dag, graph._num_qubits, ReuseStrategy())
 
-    return float(total_hw)
+        return float(total_hw)
+
+    return metric_hardware_qubits_exact_with_qubit_reuse
 
 
 def metric_depth(graph: "CoveredZXGraph", paths: dict[int, tuple[int, ...]]) -> float:
@@ -52,6 +57,23 @@ def metric_depth(graph: "CoveredZXGraph", paths: dict[int, tuple[int, ...]]) -> 
     flow_dag = graph._construct_flow_graph(paths)
     # The number of layers is the longest path length + 1
     return float(nx.dag_longest_path_length(flow_dag) + 1)
+
+
+def metric_depth_exact(ReuseStrategy):
+    def metric_depth_exact_with_qubit_reuse(graph: "CoveredZXGraph", paths: dict[int, tuple[int, ...]]) -> float:
+        """Calculates depth by finding the longest path in the causal dependency DAG."""
+        from spiderwarp.qubit_reuse import build_circuit_dag, inject_qubit_reuse, apply_logical_qubit_merge_and_compress
+
+        temp_graph = graph.shallow_copy()
+        temp_graph.paths = paths
+
+        dag = build_circuit_dag(temp_graph)
+        mod_dag, _, _ = inject_qubit_reuse(dag, graph._num_qubits, ReuseStrategy())
+        compressed_dag = apply_logical_qubit_merge_and_compress(mod_dag, graph._num_qubits)
+        circ, _ = dag_to_circuit(compressed_dag)
+
+        return float(get_circuit_depth(circ))
+    return metric_depth_exact_with_qubit_reuse
 
 
 def metric_num_paths(graph: "CoveredZXGraph", paths: dict[int, tuple[int, ...]]) -> float:
@@ -80,59 +102,36 @@ def metric_spacetime_volume(graph: "CoveredZXGraph", paths: dict[int, tuple[int,
     return float(volume)
 
 
-def metric_spacetime_volume_exact(graph: "CoveredZXGraph", paths: dict[int, tuple[int, ...]]) -> float:
-    """
-    Exact spacetime volume calculated after full hardware qubit reuse.
+def metric_spacetime_volume_exact(ReuseStrategy):
+    def metric_spacetime_volume_exact_with_qubit_reuse(graph: "CoveredZXGraph", paths: dict[int, tuple[int, ...]]) -> float:
+        """
+        Exact spacetime volume calculated after full hardware qubit reuse.
 
-    Volume is defined as the sum of the active lifespans (death layer - birth layer + 1)
-    of all hardware qubits. Because aggressive reuse injects new causal dependencies,
-    the overall depth and individual lifespans will shift compared to the fast proxy.
+        Volume is defined as the sum of the active lifespans (death layer - birth layer + 1)
+        of all hardware qubits. Because aggressive reuse injects new causal dependencies,
+        the overall depth and individual lifespans will shift compared to the fast proxy.
 
-    WARNING: Uses the heavy NetworkX injection pipeline. Do not use inside the MCTS inner loop.
-    """
-    # Local import strictly required to prevent circular dependencies with qubit_reuse.py
-    from spiderwarp.qubit_reuse import (
-        build_circuit_dag,
-        VolumeOptimizingReuseStrategy,
-        apply_logical_qubit_merge_and_compress,
-        inject_qubit_reuse
-    )
+        WARNING: Uses the heavy NetworkX injection pipeline. Do not use inside the MCTS inner loop.
+        """
+        # Local import strictly required to prevent circular dependencies with qubit_reuse.py
+        from spiderwarp.qubit_reuse import (
+            build_circuit_dag,
+            apply_logical_qubit_merge_and_compress,
+            inject_qubit_reuse
+        )
 
-    # 1. Isolate the candidate state
-    temp_graph = graph.shallow_copy()
-    temp_graph.paths = paths
+        # 1. Isolate the candidate state
+        temp_graph = graph.shallow_copy()
+        temp_graph.paths = paths
 
-    # 2. Run the exact routing pipeline
-    dag = build_circuit_dag(temp_graph)
-    mod_dag, _, total_hw = inject_qubit_reuse(dag, graph._num_qubits, VolumeOptimizingReuseStrategy())
+        # 2. Run the exact routing pipeline
+        dag = build_circuit_dag(temp_graph)
+        mod_dag, _, total_hw = inject_qubit_reuse(dag, graph._num_qubits, ReuseStrategy())
 
-    # We MUST compress the DAG so the targets reflect the shared hardware tracks
-    compressed_dag = apply_logical_qubit_merge_and_compress(mod_dag, graph._num_qubits)
+        # We MUST compress the DAG so the targets reflect the shared hardware tracks
+        compressed_dag = apply_logical_qubit_merge_and_compress(mod_dag, graph._num_qubits)
 
-    # 3. Recalculate layers based on the new injected dependencies
-    layer_map = {}
-    for layer_idx, nodes in enumerate(nx.topological_generations(compressed_dag)):
-        for node in nodes:
-            layer_map[node] = layer_idx
+        circ, _ = dag_to_circuit(compressed_dag)
 
-    # 4. Track the birth (first operation) and death (last operation) of each hardware qubit
-    birth: dict[int, int] = {}
-    death: dict[int, int] = {}
-
-    for node in compressed_dag.nodes():
-        layer = layer_map[node]
-        targets = compressed_dag.nodes[node].get("targets", [])
-
-        for q in targets:
-            if q not in birth or layer < birth[q]:
-                birth[q] = layer
-            if q not in death or layer > death[q]:
-                death[q] = layer
-
-    # 5. Sum the active lifespans across all allocated hardware
-    exact_volume = 0
-    for q in range(total_hw):
-        if q in birth and q in death:
-            exact_volume += (death[q] - birth[q] + 1)
-
-    return float(exact_volume)
+        return float(get_circuit_volume(circ))
+    return metric_spacetime_volume_exact_with_qubit_reuse

@@ -1,6 +1,7 @@
-import re
+from __future__ import annotations
+
 from collections import defaultdict
-from typing import Literal
+from typing import Literal, TYPE_CHECKING
 
 import pyzx as zx
 import stim
@@ -8,6 +9,9 @@ import stimcirq
 from cirq.contrib.qasm_import import circuit_from_qasm
 
 from spiderwarp.utils import flatten
+
+if TYPE_CHECKING:
+    from spiderwarp.csscode import CSSCode
 
 
 TWO_QUBIT_GATES = {"CX", "CNOT", "CZ", "SWAP", "CY", "XCZ", "YCX"}
@@ -114,11 +118,14 @@ def _get_target_values(targets: list[stim.GateTarget]) -> list[int]:
     return [t.value for t in targets if t.is_qubit_target]
 
 
-def _expand_stim_operation_list(operations: list[tuple[str, list[stim.GateTarget]]]):
+def _expand_stim_operation_list(operations: list[tuple[str, list[stim.GateTarget | int]]]):
     stim_operations = []
     for op_name, targets in operations:
-        t_vals = _get_target_values(targets)
-        if not t_vals:
+        if isinstance(targets, stim.GateTarget):
+            t_vals = _get_target_values(targets)
+        else:
+            t_vals = targets
+        if not targets:
             continue
 
         if op_name in TWO_QUBIT_GATES:
@@ -213,7 +220,7 @@ def layered_ops_to_noisy_stim_circuit(
 
             if is_tagged_meas:
                 _, og_meas_id = item[0]
-                measurement_mapping[og_meas_id] = meas_id
+                measurement_mapping[meas_id] = og_meas_id
                 meas_id += 1
 
             if op_name in Z_MEASUREMENTS and p_meas > 0:
@@ -240,12 +247,15 @@ def layered_ops_to_noisy_stim_circuit(
     return circuit, measurement_mapping
 
 
-def make_stim_circ_noisy(circ: stim.Circuit, p: float) -> tuple[stim.Circuit, dict[int, int]]:
+def make_stim_circ_noisy(circ: stim.Circuit, p: float, one_cnot_per_layer: bool=False) -> tuple[stim.Circuit, dict[int, int]]:
     """Properly utilizes the layer structure to construct the noisy circuit."""
     operations = [(op, targets) for (op, targets, _) in circ.flattened_operations() if op != "DETECTOR"]
 
     expanded_ops = _expand_stim_operation_list(operations)
-    layered_ops = _layer_circuit_ops(expanded_ops, circ.num_qubits)
+    if one_cnot_per_layer:
+        layered_ops = [[op] for op in expanded_ops]
+    else:
+        layered_ops = _layer_circuit_ops(expanded_ops, circ.num_qubits)
 
     noisy_circ, mm = layered_ops_to_noisy_stim_circuit(
         layered_ops=layered_ops,
@@ -259,8 +269,25 @@ def make_stim_circ_noisy(circ: stim.Circuit, p: float) -> tuple[stim.Circuit, di
     return noisy_circ, mm
 
 
+def perfect_state_from_code(code: CSSCode, basis: Literal["X"] | Literal["Z"]):
+    perfect_state = stim.Circuit()
+    perfect_state.append("RX" if basis == "X" else "R", range(len(code.H_x[0])))
+    target_function = stim.target_z if basis == "X" else stim.target_x
+    for row in code.H_z:  # Note: H_x, not H_z
+        targets = []
+        support = [i for i, r in enumerate(row) if r == 1]
+        for q in support:
+            targets.append(target_function(q))
+            targets.append(stim.target_combiner())
+        if targets:
+            targets.pop()
+            perfect_state.append("MPP", targets)
+    return perfect_state
+
+
 def get_circuit_depth(circ: stim.Circuit) -> int:
     """Returns the strict ASAP depth of the circuit."""
+    operations = [(op, targets) for (op, targets, _) in circ.flattened_operations() if op not in SPECIAL_GATES]
     operations = [(op, targets) for (op, targets, _) in circ.flattened_operations() if op not in SPECIAL_GATES]
     expanded_ops = _expand_stim_operation_list(operations)
     layered_ops = _layer_circuit_ops(expanded_ops, circ.num_qubits)
@@ -268,21 +295,17 @@ def get_circuit_depth(circ: stim.Circuit) -> int:
 
 
 def get_num_cnots(circ: stim.Circuit) -> int:
-    """Returns the strict ASAP depth of the circuit."""
     raw_cnots = [l for (name, l, _) in circ.flattened_operations() if name in ("CX", "CNOT")]
     cnots = [(ops[i], ops[i + 1]) for ops in raw_cnots for i in range(0, len(ops), 2)]
     return len(cnots)
 
 
+def get_num_measurements(circ: stim.Circuit) -> int:
+    return sum(
+        len(l) for (name, l, _) in circ.flattened_operations() if name in Z_MEASUREMENTS or name in X_MEASUREMENTS
+    )
+
+
 def get_spacetime_volume(circ: stim.Circuit) -> int:
     """Calculates the sum of active ticks for all qubits across the circuit."""
-    operations = [(op, targets) for (op, targets, _) in circ.flattened_operations() if op not in SPECIAL_GATES]
-    expanded_ops = _expand_stim_operation_list(operations)
-    layered_ops = _layer_circuit_ops(expanded_ops, circ.num_qubits)
-
-    volume = 0
-    for ops in layered_ops:
-        # Count unique qubits targeted in this layer
-        active_in_layer = {t for _, targets in ops for t in targets}
-        volume += len(active_in_layer)
-    return volume
+    return get_circuit_depth(circ) * circ.num_qubits

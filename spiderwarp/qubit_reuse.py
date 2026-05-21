@@ -1,17 +1,17 @@
 from __future__ import annotations
 
 import networkx as nx
+import numpy as np
 import stim
 
 from spiderwarp.csscode import CSSCode
 from spiderwarp.utils import load_state_prep_circuit
 from spiderwarp.stim_utils import steane_se_from_stim_state_prep
+from spiderwarp.path_cover import CoveredZXGraph
 
 from dataclasses import dataclass
 from typing import Protocol, TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from spiderwarp.path_cover import CoveredZXGraph
 
 
 @dataclass
@@ -42,6 +42,25 @@ class ReuseStrategy(Protocol):
     def commit_edge(self, state: RoutingState) -> None:
         """Called by the router when an edge is permanently committed."""
         ...
+
+
+class NoReuseStrategy:
+    """
+    Evaluates candidates purely by their resulting circuit depth.
+    Guarantees minimum hardware qubits while selecting the permutations
+    that bloat the depth the least.
+    """
+
+    def setup(self, state: RoutingState) -> None:
+        pass
+
+    def evaluate_candidate(self, state: RoutingState) -> float:
+        return float('inf')
+
+    def commit_edge(self, state: RoutingState) -> None:
+        # Stateless evaluation: no cached baselines to update
+        pass
+
 
 
 class AggressiveDepthAwareStrategy:

@@ -19,7 +19,7 @@ from spiderwarp.utils import (
     _sorted_pair,
     load_state_prep_circuit,
 )
-from spiderwarp.stim_utils import steane_se_from_stim_state_prep, stim_to_pyzx
+from spiderwarp.stim_utils import steane_se_from_stim_state_prep, stim_to_pyzx, get_circuit_depth, get_num_measurements
 from spiderwarp.verify_fault_tolerance import (
     build_css_syndrome_table,
     compute_modified_lookup_table,
@@ -642,50 +642,64 @@ class CoveredZXGraph:
                     seen.add(candidate_hash)
                     yield candidate_graph
 
-    def min_ancilla_boundary_bends(self) -> list["CoveredZXGraph"]:
-        min_num_qubits = self.total_hardware_qubits()
-        best_graphs: list[CoveredZXGraph] = []
+    def exhaustive_optimal_boundary_bends(
+        self,
+        cost_func: "PathCostFunction"
+    ) -> list["CoveredZXGraph"]:
+        """
+        Exhaustively searches the reachable boundary bend space to find the absolute minimum.
+        WARNING: Scales extremely poorly. Do not use for large circuits.
+        """
+        min_cost = float('inf')
+        best_graphs: list["CoveredZXGraph"] = []
 
         for current_graph in self.bfs_causal_boundary_bends():
-            current_num_qubits = current_graph.total_hardware_qubits()
-            if current_num_qubits < min_num_qubits:
-                min_num_qubits = current_num_qubits
+            current_cost = cost_func(current_graph, current_graph.paths)
+
+            if current_cost < min_cost:
+                min_cost = current_cost
                 best_graphs = [current_graph]
-            elif current_num_qubits == min_num_qubits:
+            elif current_cost == min_cost:
                 best_graphs.append(current_graph)
 
         return best_graphs
 
-    def best_first_boundary_bends(self, max_evaluations: int = 1000) -> "CoveredZXGraph":
-        start_paths = len(self.paths)
-        start_parity = self._num_parity_measurement(self.paths)
-        pq = [(start_paths, start_parity, 0, self)]
+    def greedy_best_first_boundary_bends(
+        self,
+        cost_func: "PathCostFunction",
+        max_evaluations: int = 1000
+    ) -> "CoveredZXGraph":
+        start_paths = self.paths
+        start_cost = cost_func(self, start_paths)
+
+        # Priority queue stores: (cost, tie_breaker, graph)
+        pq = [(start_cost, 0, self)]
         seen = {self.path_hash()}
 
         best_graph = self
-        min_paths = start_paths
+        min_cost = start_cost
         eval_count = 0
         tie_breaker = 1
 
         while pq and eval_count < max_evaluations:
-            current_path_count, _, _, current_graph = heapq.heappop(pq)
+            current_cost, _, current_graph = heapq.heappop(pq)
             eval_count += 1
 
-            if current_path_count < min_paths:
-                min_paths = current_path_count
+            if current_cost < min_cost:
+                min_cost = current_cost
                 best_graph = current_graph
 
             for candidate_paths in current_graph.all_causal_single_boundary_bends():
                 candidate_graph = current_graph.shallow_copy()
                 candidate_graph.paths = candidate_paths
                 candidate_hash = candidate_graph.path_hash()
+
                 if candidate_hash in seen:
                     continue
 
                 seen.add(candidate_hash)
-                n_paths = len(candidate_graph.paths)
-                n_parity = candidate_graph._num_parity_measurement(candidate_graph.paths)
-                heapq.heappush(pq, (n_paths, n_parity, tie_breaker, candidate_graph))
+                c_cost = cost_func(candidate_graph, candidate_graph.paths)
+                heapq.heappush(pq, (c_cost, tie_breaker, candidate_graph))
                 tie_breaker += 1
 
         return best_graph
@@ -857,20 +871,26 @@ class CoveredZXGraph:
         result.paths = best_paths
         return result
 
-    def greedy_path_opt(self) -> None:
+    def greedy_path_opt(self, cost_func: "PathCostFunction") -> None:
+        """
+        Steepest-ascent hill climbing. Evaluates all local single boundary bends
+        and permanently commits the one that reduces the cost the most.
+        Stops when no local bend provides a strict cost improvement.
+        """
         current_paths = self.paths
 
         while True:
-            min_pcheck = self._num_parity_measurement(current_paths)
+            min_cost = cost_func(self, current_paths)
             best_candidate = None
 
             for candidate_paths in self.all_causal_single_boundary_bends(current_paths):
-                candidate_pcheck = self._num_parity_measurement(candidate_paths)
-                if candidate_pcheck < min_pcheck:
-                    min_pcheck = candidate_pcheck
-                    best_candidate = candidate_paths
-                    break
+                candidate_cost = cost_func(self, candidate_paths)
 
+                if candidate_cost < min_cost:
+                    min_cost = candidate_cost
+                    best_candidate = candidate_paths
+
+            # If no neighbor strictly improved the cost, we have hit a local minimum
             if best_candidate is None:
                 break
 
@@ -925,8 +945,8 @@ class CoveredZXGraph:
             elif path[-1] == u:
                 self.paths[path_id] = path + (new_node,)
                 self.set_measurement_id(new_node, self.measurement_id(u))
-                del self.G.nodes[u]["measurement_id"]
-                raise ValueError("This implementation should be double checked")
+                # del self.G.nodes[u]["measurement_id"]
+                # raise ValueError("This implementation should be double checked")
             else:
                 raise NotImplementedError("Insertion of new paths not implemented.")
             return new_node
@@ -1140,37 +1160,62 @@ def all_good_FT_opts(
 
 
 if __name__ == "__main__":
-    from spiderwarp.path_cover_metrics import LexicographicCost, metric_depth, metric_num_paths
+    from spiderwarp.path_cover_metrics import LexicographicCost, metric_depth, metric_num_paths, metric_hardware_qubits_exact, metric_spacetime_volume_exact
 
-    code_name, circuit_path = "17_1_5", "cc_4_8_8_d5/zero_ft_heuristic_opt"
-    # code_name, circuit_path = "25_1_5", "rotated_surface_d5/zero_ft_heuristic_opt"
-    # code_name, circuit_path = "15_7_3", "hamming/zero_ft_opt_opt"
-    # code_name, circuit_path = "7_1_3", "steane/zero_ft_opt_opt"
+    # code_dir, code_name, circ_dir, circ_path = "MQT", "17_1_5", "SAT", "cc_4_8_8_d5/zero_ft_heuristic_opt"
+    # code_dir, code_name, circ_dir, circ_path = "MQT", "25_1_5", "SAT", "rotated_surface_d5/zero_ft_heuristic_opt"
+    code_dir, code_name, circ_dir, circ_path = "MQT", "15_7_3", "SAT", "hamming/zero_ft_opt_opt"
+    # code_dir, code_name, circ_dir, circ_path = "MQT", "12_2_4", "SAT", "carbon/zero_ft_opt_opt"
+    # code_dir, code_name, circ_dir, circ_path = "MQT", "7_1_3", "SAT", "steane/zero_ft_opt_opt"
+    # code_dir, code_name, circ_dir, circ_path = "misc", "32_20_4", "misc", "zero_32_20_4"
 
-    code = CSSCode.load_code("FAO", code_name)
-    circuit = load_state_prep_circuit("SAT", circuit_path)
+    code = CSSCode.load_code(code_dir, code_name)
+    circuit = load_state_prep_circuit(circ_dir, circ_path)
     se = steane_se_from_stim_state_prep(circuit, se_basis="Z", n=code.n)
     covered = CoveredZXGraph.from_stim(se)
     covered.visualize()
     covered.basic_FE_rewrites()
     covered.visualize()
-
-    search_strategy = LexicographicCost(
-        primary=metric_depth,
-        secondary=metric_num_paths,
-        secondary_weight=1e-3
+    optimised = covered.greedy_best_first_boundary_bends(
+        cost_func=metric_hardware_qubits_exact,
+        max_evaluations=10
     )
-
-    optimised = covered.mcts_boundary_bends(
-        cost_func=search_strategy,
-        max_iterations=500,
-        rollout_depth=16,
-        seed=0,
-    )
-    # optimised = covered.best_first_boundary_bends(max_evaluations=2_000)
     optimised.visualize()
-    print("Number of ancilla qubits:", len(optimised.paths) - code.n)
     new_circuit, measurement_map = optimised.extract_circuit_with_measurement_map()
-    print(new_circuit)
-    print("Measurement map:", measurement_map)
-    print()
+
+    print("Sim Qubits:", metric_hardware_qubits_exact(optimised, optimised.paths))
+    print("Circuit Depth:", get_circuit_depth(new_circuit))
+    print("Circuit Volume:", metric_spacetime_volume_exact(optimised, optimised.paths))
+
+    perfect_state = stim.Circuit()
+    perfect_state.append("RX", range(len(code.H_x[0])))
+    for row in code.H_z:  # Note: H_x, not H_z
+        targets = []
+        support = [i for i, r in enumerate(row) if r == 1]
+        for q in support:
+            targets.append(stim.target_z(q))
+            targets.append(stim.target_combiner())
+        if targets:
+            targets.pop()
+            perfect_state.append("MPP", targets)
+
+    samples = (perfect_state + new_circuit).compile_sampler().sample(10)
+    samples = samples[:, code.H_z.shape[0]:]
+
+    num_measurements = get_num_measurements(se)
+    flag_indices = [k for k, v in measurement_map.items() if v < num_measurements - code.n]
+    flags = samples[:, flag_indices].astype(int)
+
+    print(samples.shape, num_measurements - len(flag_indices))
+
+    print("Flags:", flags, sep="\n", end="\n\n")
+
+    print("measurement_map:", measurement_map)
+    syndrome_indices = {k: v - (num_measurements - code.n) for k, v in measurement_map.items() if
+                        v >= num_measurements - code.n}
+    print("syndrome_indices:", syndrome_indices)
+    effective_H = code.H_z[:, list(syndrome_indices.values())]
+    raw_syndrome_measurements = samples[:, list(syndrome_indices.keys())]
+    syndromes = raw_syndrome_measurements @ effective_H.T % 2
+
+    print("Syndromes:", syndromes, sep="\n")
