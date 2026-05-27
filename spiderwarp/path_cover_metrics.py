@@ -3,7 +3,7 @@ import networkx as nx
 from typing import TYPE_CHECKING, Protocol
 
 from spiderwarp.qubit_reuse import dag_to_circuit
-from spiderwarp.stim_utils import get_circuit_depth
+from spiderwarp.stim_utils import get_circuit_depth, get_spacetime_volume
 
 if TYPE_CHECKING:
     from spiderwarp.path_cover import CoveredZXGraph
@@ -133,5 +133,5 @@ def metric_spacetime_volume_exact(ReuseStrategy):
 
         circ, _ = dag_to_circuit(compressed_dag)
 
-        return float(get_circuit_volume(circ))
+        return float(get_spacetime_volume(circ))
     return metric_spacetime_volume_exact_with_qubit_reuse

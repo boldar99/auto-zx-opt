@@ -96,20 +96,21 @@ def explode_circuit(circuit: stim.Circuit) -> list[stim.CircuitInstruction]:
     return atomized_ops
 
 
-def steane_se_from_stim_state_prep(circ: stim.Circuit, se_basis: Literal["X"] | Literal["Z"], n: int) -> stim.Circuit:
+def steane_se_from_stim_state_prep(circ: stim.Circuit, se_basis: Literal["X"] | Literal["Z"], n: int, offset = 0) -> stim.Circuit:
     ret = stim.Circuit()
     for op in circ:
-        targets = [stim.GateTarget(t.value + n) for t in op.targets_copy()]
+        targets = [stim.GateTarget(t.value + n + offset) for t in op.targets_copy()]
         new_op = stim.CircuitInstruction(op.name, targets, op.gate_args_copy())
         ret.append(new_op)
     if se_basis == "Z":
-        ret.append("CX", flatten(zip(range(n, 2 * n), range(n))))
-        ret.append("MX", range(n, 2 * n))
+        ret.append("CX", flatten(zip(range(n + offset, 2 * n + offset), range(n))))
+        ret.append("MX", range(n + offset, 2 * n + offset))
     elif se_basis == "X":
-        ret.append("CX", flatten(zip(range(n), range(n, 2 * n))))
-        ret.append("M", range(n, 2 * n))
+        ret.append("CX", flatten(zip(range(n), range(n + offset, 2 * n + offset))))
+        ret.append("M", range(n + offset, 2 * n + offset))
     else:
         raise Exception("Unknown se_basis: {}".format(se_basis))
+
     return ret
 
 
@@ -288,10 +289,16 @@ def perfect_state_from_code(code: CSSCode, basis: Literal["X"] | Literal["Z"]):
 def get_circuit_depth(circ: stim.Circuit) -> int:
     """Returns the strict ASAP depth of the circuit."""
     operations = [(op, targets) for (op, targets, _) in circ.flattened_operations() if op not in SPECIAL_GATES]
-    operations = [(op, targets) for (op, targets, _) in circ.flattened_operations() if op not in SPECIAL_GATES]
     expanded_ops = _expand_stim_operation_list(operations)
     layered_ops = _layer_circuit_ops(expanded_ops, circ.num_qubits)
     return len(layered_ops)
+
+def get_circuit_width_per_timestep(circ: stim.Circuit) -> list[int]:
+    """Returns the strict ASAP depth of the circuit."""
+    operations = [(op, targets) for (op, targets, _) in circ.flattened_operations() if op not in SPECIAL_GATES]
+    expanded_ops = _expand_stim_operation_list(operations)
+    layered_ops = _layer_circuit_ops(expanded_ops, circ.num_qubits)
+    return [len(ops) for ops in layered_ops]
 
 
 def get_num_cnots(circ: stim.Circuit) -> int:

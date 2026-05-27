@@ -47,6 +47,19 @@ class _MCTSNode:
     total_reward: float = 0.0
 
 
+class _OrderingNode:
+    def __init__(self, state_hash, remaining, depths, seq, parent=None):
+        self.state_hash = state_hash
+        self.remaining = remaining      # frozenset of nodes left
+        self.depths = depths            # tuple of current qubit depths
+        self.seq = seq                  # tuple of extraction order so far
+        self.parent = parent
+        self.children = []
+        self.untried_moves = None       # Populated on expansion
+        self.visits = 0
+        self.total_reward = 0.0
+
+
 class CoveredZXGraph:
     """
     A NetworkX-backed ZX graph together with a path cover.
@@ -85,7 +98,7 @@ class CoveredZXGraph:
     # ---------------------------------------------------------------------
 
     @classmethod
-    def from_stim(cls, circuit: stim.Circuit) -> "CoveredZXGraph":
+    def from_stim(cls, circuit: stim.Circuit, num_data_qubits = None) -> "CoveredZXGraph":
         """Build a CoveredZXGraph from Stim via PyZX.
 
         ``stim_to_pyzx`` needs the number of data qubits, which is inferred
@@ -101,7 +114,7 @@ class CoveredZXGraph:
         by this importer, terminal non-boundary vertices sorted by ZX vertex ID
         are in the original Stim measurement-sample order.
         """
-        num_data_qubits = cls._infer_num_data_qubits_from_stim(circuit)
+        num_data_qubits = cls._infer_num_data_qubits_from_stim(circuit) if num_data_qubits is None else num_data_qubits
         diagram = stim_to_pyzx(circuit, num_data_qubits)
         return cls.from_zx_diagram(diagram, num_data_qubits=num_data_qubits)
 
@@ -541,7 +554,8 @@ class CoveredZXGraph:
             and self.node_type(n1) == self.node_type(n2) != self.node_type(v)
             and (self.G.degree(n1) != 2 and self.G.degree(n2) != 2)
         )
-        if flow_check or parity_spider_check:
+        to_boundary = parity_measurement_preserving and zx.VertexType.BOUNDARY in (self.node_type(n1), self.node_type(n2))
+        if flow_check or parity_spider_check or to_boundary:
             return False
 
         self.G.add_edge(n1, n2)
@@ -898,6 +912,193 @@ class CoveredZXGraph:
 
         self.paths = current_paths
 
+    def optimize_path_extremities(self, max_iterations: int = 100) -> None:
+        """
+        Greedily searches for valid path-extremity swaps to minimize depth.
+        Dynamically inserts identity nodes to resolve same-color uncovered edges,
+        routing them to preserve the measurement basis of the original paths.
+        """
+        try:
+            best_depth = get_circuit_depth(self.extract_circuit())
+        except Exception:
+            best_depth = float('inf')
+
+        improved = True
+        iterations = 0
+
+        while improved and iterations < max_iterations:
+            improved = False
+            iterations += 1
+            path_ids = list(self.paths.keys())
+            best_swap = None
+
+            for i in range(len(path_ids)):
+                for j in range(i + 1, len(path_ids)):
+                    p1_id, p2_id = path_ids[i], path_ids[j]
+                    p1, p2 = self.paths[p1_id], self.paths[p2_id]
+
+                    if not p1 or not p2:
+                        continue
+
+                    # The 4 possible extremity pairs: (p1_is_front, p2_is_front, n1, n2)
+                    extremity_pairs = [
+                        (True, True, p1[0], p2[0]),
+                        (True, False, p1[0], p2[-1]),
+                        (False, True, p1[-1], p2[0]),
+                        (False, False, p1[-1], p2[-1])
+                    ]
+
+                    for p1_is_front, p2_is_front, n1, n2 in extremity_pairs:
+                        if not self.G.has_edge(n1, n2):
+                            continue
+
+                        # Evaluate both directions of the swap
+                        for move_n2_to_p1 in [True, False]:
+                            if move_n2_to_p1:
+                                src_path, src_is_front = p2, p2_is_front
+                                dst_path, dst_is_front = p1, p1_is_front
+                                n_move, n_target = n2, n1
+                                src_id, dst_id = p2_id, p1_id
+                            else:
+                                src_path, src_is_front = p1, p1_is_front
+                                dst_path, dst_is_front = p2, p2_is_front
+                                n_move, n_target = n1, n2
+                                src_id, dst_id = p1_id, p2_id
+
+                            if len(src_path) <= 1:
+                                continue  # Cannot effectively chop a path of length 1
+
+                            m_adj = src_path[1] if src_is_front else src_path[-2]
+
+                            # If the exposed edge is the same color, we need a buffer identity
+                            needs_id = (self.node_type(n_move) == self.node_type(m_adj))
+                            new_src = src_path[1:] if src_is_front else src_path[:-1]
+
+                            nodes_to_add = []
+                            edges_to_remove = []
+                            edges_to_add = []
+                            meas_transfers = []  # Tracks (from_node, to_node, value) to preserve syndromes
+
+                            # --- ESSENTIAL CHANGE 1: Preserve src_path's measurement ID ---
+                            if not src_is_front:
+                                val_src = self.G.nodes[n_move].get("measurement_id")
+                                if val_src is not None:
+                                    meas_transfers.append((n_move, m_adj, val_src))
+
+                            if needs_id:
+                                # Create the buffer identity
+                                I_id = max(self.G.nodes()) + 1 if self.G.nodes() else 0
+                                I_type = self._opposite_spider_type(self.node_type(n_move))
+
+                                p_move = self.node_pos(n_move)
+                                p_adj = self.node_pos(m_adj)
+                                I_pos = ((p_move[0] + p_adj[0]) / 2, (p_move[1] + p_adj[1]) / 2)
+                                q_idx = self.G.nodes[n_target].get("qubit_index", 0)
+
+                                nodes_to_add.append({'id': I_id, 'type': I_type, 'pos': I_pos, 'qubit_index': q_idx})
+
+                                # Splice it into the graph
+                                if self.G.has_edge(n_move, m_adj):
+                                    edges_to_remove.append((n_move, m_adj))
+                                edges_to_add.extend([(n_move, I_id), (I_id, m_adj)])
+
+                                # Route the identity to the *receiving* path to preserve the src_path color
+                                if dst_is_front:
+                                    new_dst = (I_id, n_move) + dst_path
+                                else:
+                                    new_dst = dst_path + (n_move, I_id)
+
+                                    # If capping the back, transfer the measurement ID to the new terminal
+                                    old_terminal = dst_path[-1]
+                                    val = self.G.nodes[old_terminal].get("measurement_id")
+                                    if val is not None:
+                                        meas_transfers.append((old_terminal, I_id, val))
+
+                            else:
+                                if dst_is_front:
+                                    new_dst = (n_move,) + dst_path
+                                else:
+                                    new_dst = dst_path + (n_move,)
+
+                                    old_terminal = dst_path[-1]
+                                    val = self.G.nodes[old_terminal].get("measurement_id")
+                                    if val is not None:
+                                        meas_transfers.append((old_terminal, n_move, val))
+
+                            # --- 1. Apply Speculative Mutation ---
+                            for nd in nodes_to_add:
+                                self.G.add_node(nd['id'], type=nd['type'], pos=nd['pos'], qubit_index=nd['qubit_index'])
+                            for u, v in edges_to_remove:
+                                self.G.remove_edge(u, v)
+                            for u, v in edges_to_add:
+                                self.G.add_edge(u, v)
+
+                            # --- ESSENTIAL CHANGE 2: Split Clear/Set loops to avoid overwriting ---
+                            for frm, to, val in meas_transfers:
+                                self.G.nodes[frm]["measurement_id"] = None
+                            for frm, to, val in meas_transfers:
+                                self.G.nodes[to]["measurement_id"] = val
+
+                            old_src_path = self.paths[src_id]
+                            old_dst_path = self.paths[dst_id]
+                            self.paths[src_id] = new_src
+                            self.paths[dst_id] = new_dst
+
+                            # --- 2. Evaluate Integrity and Physical Depth ---
+                            try:
+                                flow_graph = self._construct_flow_graph(self.paths)
+                                list(nx.topological_sort(flow_graph))
+                                current_depth = get_circuit_depth(self.extract_circuit())
+
+                                if current_depth < best_depth:
+                                    best_depth = current_depth
+                                    best_swap = {
+                                        'src_id': src_id, 'dst_id': dst_id,
+                                        'new_src': new_src, 'new_dst': new_dst,
+                                        'nodes_to_add': nodes_to_add,
+                                        'edges_to_remove': edges_to_remove,
+                                        'edges_to_add': edges_to_add,
+                                        'meas_transfers': meas_transfers
+                                    }
+                            except Exception:
+                                pass
+
+                            # --- 3. Revert Speculative Mutation ---
+                            self.paths[src_id] = old_src_path
+                            self.paths[dst_id] = old_dst_path
+
+                            # Revert loops split
+                            for frm, to, val in meas_transfers:
+                                self.G.nodes[to]["measurement_id"] = None
+                            for frm, to, val in meas_transfers:
+                                self.G.nodes[frm]["measurement_id"] = val
+
+                            for u, v in edges_to_add:
+                                self.G.remove_edge(u, v)
+                            for u, v in edges_to_remove:
+                                self.G.add_edge(u, v)
+                            for nd in nodes_to_add:
+                                self.G.remove_node(nd['id'])
+
+            # --- 4. Commit the best swap found in this sweep ---
+            if best_swap:
+                for nd in best_swap['nodes_to_add']:
+                    self.G.add_node(nd['id'], type=nd['type'], pos=nd['pos'], qubit_index=nd['qubit_index'])
+                for u, v in best_swap['edges_to_remove']:
+                    self.G.remove_edge(u, v)
+                for u, v in best_swap['edges_to_add']:
+                    self.G.add_edge(u, v)
+
+                # Commit loops split
+                for frm, to, val in best_swap['meas_transfers']:
+                    self.G.nodes[frm]["measurement_id"] = None
+                for frm, to, val in best_swap['meas_transfers']:
+                    self.G.nodes[to]["measurement_id"] = val
+
+                self.paths[best_swap['src_id']] = best_swap['new_src']
+                self.paths[best_swap['dst_id']] = best_swap['new_dst']
+                improved = True
+
     def _new_node_id(self) -> int:
         return max(self.G.nodes, default=-1) + 1
 
@@ -915,43 +1116,82 @@ class CoveredZXGraph:
         v: int,
         identity_type: zx.VertexType,
     ) -> int:
-        """Insert an identity node (of the opposite type of u and v) between u and v, placing it on u's path."""
+        """
+        Insert an identity node (of the opposite type) between u and v.
+        Intelligently places the new node on a path extremity if available,
+        otherwise creates a new ancilla path.
+        """
         new_node = self._new_node_id()
-
         u_pos = self.node_pos(u)
-        # v_pos = self.node_pos(v)
-        new_pos = (
-            u_pos[0] - 2,
-            u_pos[1],
-        )
+        v_pos = self.node_pos(v)
+
+        # Place it visually exactly halfway between the nodes
+        new_pos = ((u_pos[0] + v_pos[0]) / 2, (u_pos[1] + v_pos[1]) / 2)
 
         self.G.remove_edge(u, v)
+
+        # 1. Dynamically discover which node (if any) sits at a path extremity
+        adopting_path_id = None
+        target_node = None
+        is_front = False
+
+        for pid, path in self.paths.items():
+            if not path:
+                continue
+
+            # Check if u can adopt the node
+            if path[0] == u:
+                adopting_path_id, target_node, is_front = pid, u, True
+                break
+            if path[-1] == u:
+                adopting_path_id, target_node, is_front = pid, u, False
+                break
+
+            # Check if v can adopt the node (Crucial for the Boundary bug)
+            if path[0] == v:
+                adopting_path_id, target_node, is_front = pid, v, True
+                break
+            if path[-1] == v:
+                adopting_path_id, target_node, is_front = pid, v, False
+                break
+
+        # 2. Assign the hardware qubit index
+        if adopting_path_id is not None:
+            qubit_idx = self.G.nodes[target_node].get("qubit_index", 0)
+        else:
+            # If both are internal, allocate a new ancilla qubit
+            qubit_idx = max((self.G.nodes[n].get("qubit_index", -1) for n in self.G.nodes()), default=-1) + 1
+
+        # 3. Commit the new node and edges to the graph
         self.G.add_node(
             new_node,
             type=identity_type,
             pos=new_pos,
             measurement_id=None,
-            qubit_index=self.G.nodes[u]["qubit_index"],
+            qubit_index=qubit_idx,
         )
         self.G.add_edge(u, new_node)
         self.G.add_edge(new_node, v)
 
-        for path_id, path in self.paths.items():
-            if u not in path:
-                continue
-
-            if path[0] == u:
-                self.paths[path_id] = (new_node,) + path
-            elif path[-1] == u:
-                self.paths[path_id] = path + (new_node,)
-                self.set_measurement_id(new_node, self.measurement_id(u))
-                # del self.G.nodes[u]["measurement_id"]
-                # raise ValueError("This implementation should be double checked")
+        # 4. Integrate into the Path Cover
+        if adopting_path_id is not None:
+            path = self.paths[adopting_path_id]
+            if is_front:
+                self.paths[adopting_path_id] = (new_node,) + path
             else:
-                raise NotImplementedError("Insertion of new paths not implemented.")
-            return new_node
+                self.paths[adopting_path_id] = path + (new_node,)
 
-        raise ValueError(f"Could not find path containing {u}.")
+                # Securely transfer measurement ID if capping the back of a path
+                target_meas_id = self.G.nodes[target_node].get("measurement_id")
+                if target_meas_id is not None:
+                    self.set_measurement_id(new_node, target_meas_id)
+                    self.G.nodes[target_node]["measurement_id"] = None
+        else:
+            # 5. The Ancilla Fix: Generate a new path for deeply internal uncovered edges
+            new_path_id = max(self.paths.keys(), default=-1) + 1
+            self.paths[new_path_id] = (new_node,)
+
+        return new_node
 
     def add_identities_for_same_type_uncovered_edges(self) -> None:
         """Insert identity spiders so extraction never sees same-type uncovered edges."""
@@ -959,10 +1199,15 @@ class CoveredZXGraph:
             u_type = self.node_type(u)
             v_type = self.node_type(v)
 
-            if u_type != v_type or u_type not in (zx.VertexType.X, zx.VertexType.Z):
+            if u_type != v_type and zx.VertexType.BOUNDARY not in (u_type, v_type):
                 continue
 
-            identity_type = self._opposite_spider_type(u_type)
+            if u_type == zx.VertexType.BOUNDARY:
+                identity_type = self._opposite_spider_type(v_type)
+            elif v_type == zx.VertexType.BOUNDARY:
+                identity_type = self._opposite_spider_type(u_type)
+            else:
+                identity_type = self._opposite_spider_type(u_type)
 
             self._insert_identity_on_uncovered_edge(u, v, identity_type)
 
@@ -984,13 +1229,19 @@ class CoveredZXGraph:
         node_to_qubit = self._node_to_qubit()
         terminal_nodes = {path[-1] for path in self.paths.values() if path}
 
+        # Track the current depth of each hardware qubit wire
+        qubit_depths = {qubit: 0 for qubit in set(node_to_qubit.values())}
+
+        # Initial state preparation
         for path_id, path in self.paths.items():
             first_node_type = self.node_type(path[0])
             qubit = path_to_qubit[path_id]
             if first_node_type == zx.VertexType.Z:
                 ordered_operations.append(CircuitOperation("RX", [qubit]))
+                qubit_depths[qubit] += 1
             elif first_node_type == zx.VertexType.X:
                 ordered_operations.append(CircuitOperation("R", [qubit]))
+                qubit_depths[qubit] += 1
 
         path_edges = self._path_edges(self.paths)
         constraint_graph = self._construct_flow_graph(self.paths)
@@ -999,58 +1250,116 @@ class CoveredZXGraph:
             if self.node_type(node) == zx.VertexType.BOUNDARY and constraint_graph.has_node(node):
                 constraint_graph.remove_node(node)
 
+        # Precompute Criticality for the ultimate tie-breaker
+        successors = {n: list(constraint_graph.successors(n)) for n in constraint_graph.nodes()}
+        criticality = {n: 0 for n in constraint_graph.nodes()}
+        try:
+            rev_topo = list(reversed(list(nx.topological_sort(constraint_graph))))
+            for node in rev_topo:
+                criticality[node] = max((criticality[child] for child in successors[node]), default=0) + 1
+        except nx.NetworkXUnfeasible:
+            raise ValueError("No solution found: cycle detected in causal-flow constraints.")
+
         processed_edges: set[tuple[int, int]] = set()
 
+        # Optimized Depth-aware topological sort
         while constraint_graph.nodes:
             sources = [node for node, degree in constraint_graph.in_degree() if degree == 0]
-            if not sources:
-                raise ValueError("No solution found: cycle detected in causal-flow constraints.")
 
-            for source in sources:
-                constraint_graph.remove_node(source)
-                source_qubit = node_to_qubit[source]
-                source_type = self.node_type(source)
+            best_source = None
+            # Score format: (Max Peak Depth, Total Depth Sum Increase, Negative Criticality)
+            # We want to minimize all three. Negative criticality means higher criticality is better.
+            best_score = (float('inf'), float('inf'), float('inf'))
 
-                neighbors = sorted(
-                    self.G.neighbors(source),
-                    key=lambda neighbor: int(self.node_type(neighbor) == source_type),
+            for candidate in sources:
+                cand_qubit = node_to_qubit[candidate]
+                cand_type = self.node_type(candidate)
+
+                # 1. Simulate using the OPTIMAL execution order (Lowest depth targets first)
+                simulated_neighbors = sorted(
+                    self.G.neighbors(candidate),
+                    key=lambda neighbor: (
+                        int(self.node_type(neighbor) == cand_type),
+                        qubit_depths[node_to_qubit[neighbor]]  # Magic depth-saver
+                    )
                 )
 
-                for neighbor in neighbors:
+                sim_source_depth = qubit_depths[cand_qubit]
+                total_depth_increase = 0
+
+                for neighbor in simulated_neighbors:
                     if self.node_type(neighbor) == zx.VertexType.BOUNDARY:
                         continue
-
-                    edge = _sorted_pair(source, neighbor)
+                    edge = _sorted_pair(candidate, neighbor)
                     if edge in path_edges or edge in processed_edges:
                         continue
 
-                    neighbor_qubit = node_to_qubit[neighbor]
-                    neighbor_type = self.node_type(neighbor)
+                    target_qubit = node_to_qubit[neighbor]
+                    target_depth = qubit_depths[target_qubit]
 
-                    if source_type != neighbor_type:
-                        if source_type == zx.VertexType.Z:
-                            ordered_operations.append(
-                                CircuitOperation("CNOT", [source_qubit, neighbor_qubit])
-                            )
-                        else:
-                            ordered_operations.append(
-                                CircuitOperation("CNOT", [neighbor_qubit, source_qubit])
-                            )
-                    else:
-                        raise ValueError("Cannot extract same-type uncovered edge ...")
+                    # Simulate the depth sync
+                    new_depth = max(sim_source_depth, target_depth) + 1
 
-                    processed_edges.add(edge)
+                    # Calculate how much slack we just destroyed
+                    total_depth_increase += (new_depth - sim_source_depth) + (new_depth - target_depth)
+                    sim_source_depth = new_depth
 
-                if source in terminal_nodes:
-                    measurement_id = self.measurement_id(source)
+                if candidate in terminal_nodes:
+                    sim_source_depth += 1
+                    total_depth_increase += 1
+
+                score = (sim_source_depth, total_depth_increase, -criticality[candidate])
+
+                if score < best_score:
+                    best_score = score
+                    best_source = candidate
+
+            source = best_source
+            constraint_graph.remove_node(source)
+            source_qubit = node_to_qubit[source]
+            source_type = self.node_type(source)
+
+            # 2. Extract using the OPTIMAL execution order
+            neighbors = sorted(
+                self.G.neighbors(source),
+                key=lambda neighbor: (
+                    int(self.node_type(neighbor) == source_type),
+                    qubit_depths[node_to_qubit[neighbor]]  # Dynamically routing to low-depth qubits first
+                ),
+            )
+
+            for neighbor in neighbors:
+                if self.node_type(neighbor) == zx.VertexType.BOUNDARY:
+                    continue
+
+                edge = _sorted_pair(source, neighbor)
+                if edge in path_edges or edge in processed_edges:
+                    continue
+
+                neighbor_qubit = node_to_qubit[neighbor]
+                neighbor_type = self.node_type(neighbor)
+
+                if source_type != neighbor_type:
                     if source_type == zx.VertexType.Z:
-                        ordered_operations.append(
-                            CircuitOperation("MX", [source_qubit], measurement_id)
-                        )
-                    elif source_type == zx.VertexType.X:
-                        ordered_operations.append(
-                            CircuitOperation("M", [source_qubit], measurement_id)
-                        )
+                        ordered_operations.append(CircuitOperation("CNOT", [source_qubit, neighbor_qubit]))
+                    else:
+                        ordered_operations.append(CircuitOperation("CNOT", [neighbor_qubit, source_qubit]))
+
+                    new_depth = max(qubit_depths[source_qubit], qubit_depths[neighbor_qubit]) + 1
+                    qubit_depths[source_qubit] = new_depth
+                    qubit_depths[neighbor_qubit] = new_depth
+                else:
+                    raise ValueError("Cannot extract same-type uncovered edge ...")
+
+                processed_edges.add(edge)
+
+            if source in terminal_nodes:
+                measurement_id = self.measurement_id(source)
+                if source_type == zx.VertexType.Z:
+                    ordered_operations.append(CircuitOperation("MX", [source_qubit], measurement_id))
+                elif source_type == zx.VertexType.X:
+                    ordered_operations.append(CircuitOperation("M", [source_qubit], measurement_id))
+                qubit_depths[source_qubit] += 1
 
         return ordered_operations
 
@@ -1059,9 +1368,6 @@ class CoveredZXGraph:
         return circuit
 
     def extract_circuit_with_measurement_map(self) -> tuple[stim.Circuit, dict[int, int]]:
-        if not self.check_causal_flow():
-            raise ValueError("Circuit must have causal flow.")
-
         extraction_graph = self.deepcopy()
         extraction_graph.add_identities_for_same_type_uncovered_edges()
 
@@ -1161,6 +1467,7 @@ def all_good_FT_opts(
 
 if __name__ == "__main__":
     from spiderwarp.path_cover_metrics import LexicographicCost, metric_depth, metric_num_paths, metric_hardware_qubits_exact, metric_spacetime_volume_exact
+    from spiderwarp.qubit_reuse import NoReuseStrategy
 
     # code_dir, code_name, circ_dir, circ_path = "MQT", "17_1_5", "SAT", "cc_4_8_8_d5/zero_ft_heuristic_opt"
     # code_dir, code_name, circ_dir, circ_path = "MQT", "25_1_5", "SAT", "rotated_surface_d5/zero_ft_heuristic_opt"
@@ -1177,7 +1484,7 @@ if __name__ == "__main__":
     covered.basic_FE_rewrites()
     covered.visualize()
     optimised = covered.greedy_best_first_boundary_bends(
-        cost_func=metric_hardware_qubits_exact,
+        cost_func=metric_hardware_qubits_exact(NoReuseStrategy),
         max_evaluations=10
     )
     optimised.visualize()

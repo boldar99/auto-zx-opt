@@ -11,10 +11,73 @@ from mqt.qecc import CSSCode as MQTCSSCode
 
 from spiderwarp.csscode import CSSCode
 from spiderwarp.path_cover import CoveredZXGraph
-from spiderwarp.path_cover_metrics import metric_num_paths, metric_depth_exact
+from spiderwarp.path_cover_metrics import metric_num_paths, metric_depth_exact, metric_spacetime_volume_exact, \
+    LexicographicCost
 from spiderwarp.qubit_reuse import NoReuseStrategy
 from spiderwarp.utils import load_steane_perm_circuits
 from spiderwarp.stim_utils import steane_se_from_stim_state_prep
+
+
+def mqt_steane_depth_opt(code_name, *, max_iterations=1000, verbose: bool = False):
+    code = CSSCode.load_code("MQT", code_name)
+    circuits = load_steane_perm_circuits(code_name)
+
+    # --- C1 Optimization ---
+    cov_graph_c1 = CoveredZXGraph.from_stim(circuits[0], num_data_qubits=0)
+    # cov_graph_c1.basic_FE_rewrites()
+    cov_graph_c1.optimize_path_extremities(max_iterations)
+    se1_opt_circ, _ = cov_graph_c1.extract_circuit_with_measurement_map()
+    if verbose:
+        print(f"Optimised C_1: {len(collect_circuit_layers(circuits[0]))} -> {len(collect_circuit_layers(se1_opt_circ))}")
+
+    # print(circuits[0])
+    # print()
+    # print(se1_opt_circ)
+
+    # --- C2 Optimization ---
+    se2 = steane_se_from_stim_state_prep(circuits[1], se_basis="X", n=code.n)
+    cov_graph_c2 = CoveredZXGraph.from_stim(se2)
+    # cov_graph_c2.basic_FE_rewrites()
+    cov_graph_c2.optimize_path_extremities(max_iterations)
+    se2_opt_circ, se2_mm = cov_graph_c2.extract_circuit_with_measurement_map()
+    if verbose:
+        print(f"Optimised C_2: {len(collect_circuit_layers(se2))} -> {len(collect_circuit_layers(se2_opt_circ))}")
+    circ_1_2_opt = se1_opt_circ + se2_opt_circ
+
+    # --- C4 Optimization ---
+    se4 = steane_se_from_stim_state_prep(circuits[3], se_basis="X", n=code.n, )
+    cov_graph_c4 = CoveredZXGraph.from_stim(se4)
+    cov_graph_c4.offset_measurement_ids_by(code.n)
+    # cov_graph_c4.basic_FE_rewrites()
+    cov_graph_c2.optimize_path_extremities(max_iterations)
+    se4_opt_circ, se4_mm = cov_graph_c2.extract_circuit_with_measurement_map()
+    if verbose:
+        print(f"Optimised C_4: {len(collect_circuit_layers(se4))} -> {len(collect_circuit_layers(se4_opt_circ))}")
+
+    # --- C3/C4 Combined Optimization ---
+    cric_3_4 = circuits[2] + se4_opt_circ
+    se34 = steane_se_from_stim_state_prep(cric_3_4, se_basis="Z", n=code.n)
+    cov_graph_c34 = CoveredZXGraph.from_stim(se34)
+    for v in cov_graph_c34.G.nodes():
+        m_id = cov_graph_c34.G.nodes[v]["measurement_id"]
+        if m_id is not None:
+            cov_graph_c34.set_measurement_id(v, se4_mm.get(m_id, m_id + 2 * code.n - len(se4_mm)))
+    # cov_graph_c34.basic_FE_rewrites()
+    cov_graph_c34.optimize_path_extremities()
+    se34_opt_circ, se34_mm = cov_graph_c34.extract_circuit_with_measurement_map()
+    if verbose:
+        print(
+            f"Optimised C_3; C_4:"
+            f"{len(collect_circuit_layers(cric_3_4))} -> {len(collect_circuit_layers(se34_opt_circ))}"
+        )
+    measurement_mapping = se2_mm | {k + len(se2_mm): v for k, v in se34_mm.items()}
+    offset_circ = stim.Circuit()
+    for (opname, optargs, _) in se34_opt_circ.flattened_operations():
+        offset_circ.append(opname, [t if t < code.n else t + code.n for t in optargs])
+
+    og_circ = circuits[0] + se2 + steane_se_from_stim_state_prep(circuits[2] + se4, se_basis="Z", n=code.n, offset=code.n)
+
+    return  og_circ, circ_1_2_opt + offset_circ, measurement_mapping
 
 
 def mqt_steane_opt(code_name, *, cost_func=metric_num_paths, max_evaluations=1000, optimise_c2: bool = True, verbose: bool = False):
@@ -55,20 +118,23 @@ def mqt_steane_opt(code_name, *, cost_func=metric_num_paths, max_evaluations=100
         m_id = cov_graph_c34.G.nodes[v]["measurement_id"]
         if m_id is not None:
             cov_graph_c34.set_measurement_id(v, se4_mm.get(m_id, m_id + 2 * code.n - len(se4_mm)))
-    # cov_graph_c34_opt = cov_graph_c34
     cov_graph_c34.basic_FE_rewrites()
     cov_graph_c34_opt = cov_graph_c34.greedy_best_first_boundary_bends(cost_func=cost_func, max_evaluations=max_evaluations)
 
     if verbose:
         print(
             f"Optimised C_3; C_4:"
-            f"{circuits[2].num_qubits * 2 + len(cov_graph_c4_opt.paths)} -> {len(cov_graph_c34_opt.paths)}"
+            f"{circuits[2].num_qubits * 3} -> {len(cov_graph_c34_opt.paths)}"
         )
     se34_opt_circ, se34_mm = cov_graph_c34_opt.extract_circuit_with_measurement_map()
-    og_circ = circuits[0] + se2 + steane_se_from_stim_state_prep(circuits[2] + se4, se_basis="Z", n=code.n)
     measurement_mapping = se2_mm | {k + len(se2_mm): v for k, v in se34_mm.items()}
+    offset_circ = stim.Circuit()
+    for (opname, optargs, _) in se34_opt_circ.flattened_operations():
+        offset_circ.append(opname, [t if t < code.n else t + code.n for t in optargs])
 
-    return  og_circ, circ_1_2_opt + se34_opt_circ, measurement_mapping
+    og_circ = circuits[0] + se2 + steane_se_from_stim_state_prep(circuits[2] + se4, se_basis="Z", n=code.n, offset=code.n)
+
+    return  og_circ, circ_1_2_opt + offset_circ, measurement_mapping
 
 
 class OptimisedSteaneNDFTStatePrepSimulator(NoisyNDFTStatePrepSimulator):
@@ -129,31 +195,40 @@ class OptimisedSteaneNDFTStatePrepSimulator(NoisyNDFTStatePrepSimulator):
 
 
 if __name__ == '__main__':
-    code_name = "17_1_5"
+    # code_name = "17_1_5"
     # code_name = "19_1_5"
-    # code_name = "20_2_6"
+    code_name = "20_2_6"
     # code_name = "31_1_7"
-    opt_c2 = False
+    opt_c2 = True
 
 
     print(f"Code: {code_name},  {opt_c2=}")
 
     code = CSSCode.load_code("MQT", code_name)
     mqt_code = MQTCSSCode(Hx=code.H_x, Hz=code.H_z, distance=code.d)
+    # og_circ, circ, M = mqt_steane_depth_opt(code_name, max_iterations=100, verbose=True)
     og_circ, circ, M = mqt_steane_opt(code_name, optimise_c2=opt_c2, cost_func=metric_depth_exact(NoReuseStrategy), max_evaluations=100, verbose=True)
+
+
+    p = 0.001
+    p_mem_factor = 0.1 / 4
+    depth = len(collect_circuit_layers(circ))
+    og_depth = len(collect_circuit_layers(og_circ))
+    print(f"New circuit: #Qubits: {circ.num_qubits},  Depth: {depth},  Circuit Volume: {circ.num_qubits * depth},  p_mem: p*{p_mem_factor}")
+    print(f"Orig circuit: #Qubits: {og_circ.num_qubits},  Depth: {og_depth},  Circuit Volume: {og_circ.num_qubits * og_depth},  p_mem: p*{p_mem_factor}")
 
     sim = OptimisedSteaneNDFTStatePrepSimulator(
         circ=circ,
         code=mqt_code,
         measurement_mapping=M
     )
-    p = 0.001
-    p_mem_factor = 0.1
     noise = CircuitLevelNoiseIdlingParallel(p, 0, p * 2 / 3, p, p * p_mem_factor)
-    depth = len(collect_circuit_layers(circ))
-    print(f"#Qubits: {circ.num_qubits},  Depth: {depth},  p_mem: p*{p_mem_factor}")
-    ler, ar, num_err, num_samples = sim.logical_error_rate(noise=noise, min_errors=100)
+    ler, ar, num_err, num_samples = sim.logical_error_rate(noise=noise, min_errors=50)
     print(f"LER: {ler:.4e},  AR: {ar:.2%},  #Err: {num_err},  #Samples: {num_samples}")
+
+    # Code: cc_4_8_8_d5
+    # #Qubits: 68, Depth: 11, p_mem: p*0.1
+    # LER: 1.4940e-07, AR: 80.75 %,  # Err: 10, #Samples: 82900000
 
     # 17_1_5
     # With p_mem = p / 100
