@@ -1,5 +1,6 @@
 import itertools
-
+import sys
+from collections import defaultdict
 import numpy as np
 import stim
 
@@ -8,12 +9,10 @@ from spiderwarp.stim_utils import explode_circuit
 
 def build_css_syndrome_table(stabilizers: list[str], d: int):
     """
-    Builds a lookup table for CSS codes.
-    Only considers pure X error strings and pure Z error strings up to weight t.
+    Builds a lookup table for standard, unflagged CSS syndrome decoding up to t faults.
     """
     num_qubits = len(stabilizers[0])
     t_faults = (d - 1) // 2
-
     stab_paulis = [stim.PauliString(s) for s in stabilizers]
     decoder_table = {}
 
@@ -31,131 +30,112 @@ def build_css_syndrome_table(stabilizers: list[str], d: int):
 
 
 def list_to_str_stabs(stabs):
-    xs = [
-        "".join("X" if c == 1 else "I" for c in s)
-        for s in stabs
-    ]
-    zs = [
-        "".join("Z" if c == 1 else "I" for c in s)
-        for s in stabs
-    ]
-    return xs
+    return ["".join("X" if c == 1 else "I" for c in s) for s in stabs]
 
 
-def compute_modified_lookup_table(
-        circuit: stim.Circuit,
-        H_matrix: np.ndarray,  # Binary Matrix (num_stabilizers x num_data_qubits)
-        L_matrix: np.ndarray,  # Binary Matrix (num_logicals x num_data_qubits)
-        correction_table: dict,  # Your pre-computed Phase 1 table
-        flag_measurements: list[int],
-        basis: str,  # "Z" (Measuring Z-stabs) or "X" (Measuring X-stabs)
-        d: int,
-        verbose=False,
-):
+def catalog_flag_and_residual_errors(
+    circuit: stim.Circuit,
+    ops: list[stim.CircuitInstruction],
+    possible_faults: list[tuple[int, int]],
+    max_faults: int,
+    num_data_qubits: int,
+    flag_measurements: list[int],
+    syndrome_measurements: list[int],
+    basis: str
+) -> dict:
     """
-    Verifies a syndrome extraction circuit and builds a lookup table for flag corrections.
+    Simulates internal faults and groups the RAW residual physical errors by
+    their resulting (Flag Pattern -> Syndrome Pattern).
     """
-    num_data_qubits = len(H_matrix[0])
-    t_faults = (d - 1) // 2
-
-    init_str = "" if basis == "Z" else f"H {' '.join(str(q) for q in range(num_data_qubits))}"
     fault_type = "X" if basis == "Z" else "Z"
+    init_str = "" if basis == "Z" else f"H {' '.join(str(q) for q in range(num_data_qubits))}"
 
-    # Helpers assumed to be defined externally or imported
-    ops = explode_circuit(circuit)
-    possible_faults = get_fault_locations(ops)
+    # Structure: flag_pattern -> syndrome_pattern -> list of raw residual errors
+    fault_catalog = defaultdict(lambda: defaultdict(list))
 
-    modified_correction_table = dict()
-    modified_correction_table_origin = dict()
+    for num_faults in range(1, max_faults + 1):
+        for fault_combo in itertools.combinations(possible_faults, num_faults):
+            noisy_c = stim.Circuit()
+            noisy_c.append_from_stim_program_text(init_str)
 
-    # Iterate fault combinations
-    for fault_combo in itertools.combinations(possible_faults, t_faults):
-        # 1. Simulate the fault
-        noisy_c = build_noisy_circuit(fault_combo, fault_type, init_str, ops)
-        sim = stim.TableauSimulator()
-        sim.do_circuit(noisy_c)
+            fault_dict = defaultdict(list)
+            for op_idx, target_qubit in fault_combo:
+                fault_dict[op_idx].append(target_qubit)
 
-        # 2. Extract measurements and data
-        non_flag_measurements = list(set(range(len(sim.current_measurement_record()))) - set(flag_measurements))
-        ancilla_record = np.array(sim.current_measurement_record()).astype(int)[non_flag_measurements]
-        flag_record = np.array(sim.current_measurement_record()).astype(int)[flag_measurements]
+            for i, op in enumerate(ops):
+                noisy_c.append(op)
+                if i in fault_dict:
+                    for q in fault_dict[i]:
+                        noisy_c.append(fault_type, [q])
 
-        if basis == "X":
-            sim.do_circuit(stim.Circuit(f"H {' '.join(str(q) for q in range(num_data_qubits))}"))
+            if basis == "X":
+                noisy_c.append("H", range(num_data_qubits))
 
-        data_bits = np.array(sim.measure_many(*range(num_data_qubits))).astype(int)
-        actual_syndrome = tuple(((H_matrix @ data_bits) % 2).tolist())
+            sim = stim.TableauSimulator()
+            sim.do_circuit(noisy_c)
 
-        # 3. Standard Decoding Check
-        if actual_syndrome not in correction_table:
-            return None  # Should not happen if correction_table is complete for t faults
+            record = np.array(sim.current_measurement_record()).astype(int)
+            flag_record = tuple(record[flag_measurements].tolist())
+            syndrome_record = tuple(record[syndrome_measurements].tolist())
 
-        standard_correction = correction_table[actual_syndrome]
+            data_bits = np.array(sim.measure_many(*range(num_data_qubits))).astype(int)
+            raw_residual = tuple(data_bits.tolist())
 
-        # Check if standard decoding fails (Logical Flip)
-        final_state_standard = (data_bits + standard_correction) % 2
-        logical_flip = (L_matrix @ final_state_standard) % 2
+            fault_catalog[flag_record][syndrome_record].append(raw_residual)
 
-        # 4. If Flag is raised and Logic Fails, calculate the optimal correction
-        if np.any(flag_record):
-            if verbose:
-                print(f"Syndrome: {actual_syndrome} + Flags: {flag_record} -> Logical Flip: {logical_flip}")
+    return fault_catalog
 
-            # --- BEGIN FIX ---
-            stabs = np.array(H_matrix.tolist() + L_matrix.tolist())
-            num_stabs = len(H_matrix)
-            min_correction_val = num_data_qubits + 1
-            min_correction = np.zeros(num_data_qubits, dtype=int)
 
-            # Brute force search for the simplest error equivalent to data_bits
-            for i in range(2 ** len(stabs)):
-                # Create binary vector vec_i selecting stabilizers/logicals
-                vec_i = np.array(list(map(int, ('0' * len(stabs) + format(i, "b"))[-len(stabs):])))
-                vec_l = vec_i[num_stabs:]
+def verify_logical_uniqueness_and_get_correction(
+    residual_errors: list[tuple[int, ...]],
+    stabilizer_matrix: np.ndarray,
+    logical_matrix: np.ndarray
+) -> tuple[tuple[int, ...], tuple[int, ...]]:
+    """
+    Projects errors into the logical frame to guarantee uniqueness.
+    If ambiguous, throws an error. If logically unique, calculates the
+    absolute minimum-weight physical correction string for the fallback table.
+    """
+    logical_signatures = set()
 
-                # Calculate residual noise: (Stabilizers + Data)
-                # This finds the "class" of the error
-                final_state = (vec_i @ stabs + data_bits) % 2
+    # 1. Project all physical errors through the logical matrix
+    for E in residual_errors:
+        E_np = np.array(E)
+        signature = tuple(((logical_matrix @ E_np) % 2).tolist())
+        logical_signatures.add(signature)
 
-                # Weight of the physical error
-                correction_val = final_state.sum()
+    # 2. Check for Logical Ambiguity
+    if len(logical_signatures) > 1:
+        print(
+            f"FAULT TOLERANCE BREAKDOWN! \n"
+            f"Multiple distinct logical outcomes detected for the same Flag+Syndrome symptom.\n"
+            f"Logical Signatures found: {logical_signatures}\n"
+            f"The circuit is not fault-tolerant for this error configuration.",
+            file=sys.stderr,
+        )
 
-                if correction_val < min_correction_val:
-                    min_correction = (final_state + vec_l @ L_matrix) % 2
-                    min_correction_val = correction_val
+    # 3. Compute Unique Minimum-Weight Correction
+    # Since they are logically identical, we can use the first error as a representative
+    # to search its stabilizer coset for the simplest physical correction.
+    representative_error = np.array(residual_errors[0])
+    num_stabs = len(stabilizer_matrix)
 
-            min_correction = min_correction.tolist()
-            # --- END FIX ---
+    min_weight = len(representative_error) + 1
+    best_correction = representative_error
 
-            full_syndrome = tuple(flag_record.tolist()) + actual_syndrome
+    for i in range(2 ** num_stabs):
+        vec_i = np.array([int(x) for x in format(i, f'0{num_stabs}b')])
+        stab_element = (vec_i @ stabilizer_matrix) % 2
 
-            # 5. Update Table or Check Consistency
-            if full_syndrome in modified_correction_table and np.any(logical_flip == 1):
-                assert not np.any(L_matrix @ ((data_bits + min_correction) % 2) % 2)
-                # Ensure the correction is unique for this syndrome+flag combination
-                if np.any(modified_correction_table[full_syndrome] != min_correction):
-                    if verbose:
-                        print(f"NON UNIQUE CORRECTION for {full_syndrome}")
-                        print("Saved correction:", modified_correction_table[full_syndrome])
-                        print("New correction:", min_correction)
-                        print("Fault Combos:", modified_correction_table_origin[full_syndrome], fault_combo)
-                    return None
-            elif np.any(logical_flip == 1):
-                # Save the new correction
-                modified_correction_table[full_syndrome] = min_correction
-                modified_correction_table_origin[full_syndrome] = fault_combo
-            else:
-                if verbose:
-                    print("Skipping saving measurement (Standard decoding worked despite flag)")
+        candidate_correction = (representative_error + stab_element) % 2
+        current_weight = np.sum(candidate_correction)
 
-        elif np.any(logical_flip):
-            if verbose:
-                print(f"LOGICAL FAILURE via Extraction Circuit (No Flag Raised)!")
-                print(f"Faults: {fault_combo}")
-                print(f"Data has error: {data_bits} (Syndrome {actual_syndrome})")
-            return None
+        if current_weight < min_weight:
+            min_weight = current_weight
+            best_correction = candidate_correction
 
-    return modified_correction_table
+    logical_signature_result = list(logical_signatures)[0]
+    return tuple(best_correction.tolist()), logical_signature_result
 
 
 def get_fault_locations(ops: list) -> list[tuple[int, int]]:
@@ -169,69 +149,94 @@ def get_fault_locations(ops: list) -> list[tuple[int, int]]:
     return [(0, i) for i in range(max_qubit)] + possible_faults
 
 
-def build_noisy_circuit(fault_combo: tuple[tuple[int, int], ...], fault_type: str, init_str: str,
-                        ops: list) -> stim.Circuit:
-    # A. Build Noisy Circuit
-    noisy_c = stim.Circuit()
-    noisy_c.append_from_stim_program_text(init_str)  # Initialize clean state
-
-    current_faults = {f[0]: [] for f in fault_combo}
-    for f in fault_combo:
-        current_faults[f[0]].append(f[1])
-
-    for i, op in enumerate(ops):
-        noisy_c.append(op)
-        if i in current_faults:
-            for q in current_faults[i]:
-                noisy_c.append(fault_type, [q])
-
-    # B. Run Simulation
-    return noisy_c
-
-
 if __name__ == "__main__":
-    # Example Usage
-    stabs = list_to_str_stabs(steane_code_stabs())
-    print(stabs)
-    decoder_table = build_css_syndrome_table(stabs, 3)
-    print(decoder_table)
+    from spiderwarp.csscode import CSSCode
+    from spiderwarp.utils import load_state_prep_circuit
+    from spiderwarp.stim_utils import steane_se_from_stim_state_prep, get_num_measurements, perfect_state_from_code
+    from spiderwarp.path_cover import CoveredZXGraph
+    from spiderwarp.path_cover_metrics import metric_spacetime_volume_exact
+    from spiderwarp.qubit_reuse import build_circuit_dag, apply_logical_qubit_merge_and_compress, dag_to_circuit, \
+        inject_qubit_reuse, VolumeOptimizingReuseStrategy
 
-    steane_circ = stim.Circuit("""
-R 15
-RX 16 17
-R 23
-RX 22
-CX 16 15 17 23
-R 22
-RX 18
-R 19
-CX 16 19 17 9 18 23 22 3
-R 20
-CX 18 10 16 20
-CX 20 17 16 22
-R 21
-CX 22 21 18 16 20 8
-CX 17 21 22 18 16 1
-CX 21 13 22 12 17 2 18 15
-MX 22
-CX 15 14
-CX 18 22 21 15
-CX 15 18 16 21 22 17
-MX 16
-CX 22 5 15 19 21 11 17 4 18 6
-MX 22 18
-CX 15 23 17 21 19 7
-CX 15 0
-M 23
-MX 17
-CX 20 21
-MX 19
-MX 15
-M 21
-MX 20
-        """)
+    # Requested configuration for the [15, 7, 3] Quantum Hamming Code
+    code_dir, code_name, circ_dir, circ_path = "MQT", "15_7_3", "SAT", "hamming/zero_ft_heuristic_opt"
 
-    compute_modified_lookup_table(steane_circ, steane_code_stabs(), np.array([0, 0, 0, 0, 1, 1, 1]), decoder_table, [3],
-                                  "X", 3)
+    code = CSSCode.load_code(code_dir, code_name)
+    stabs = list_to_str_stabs(code.H_z)
+    decoder_table = build_css_syndrome_table(stabs, code.d)
 
-# verify_t_fault_tolerance(steane_code(), list_to_str_stabs(steane_code_stabs()), t_faults=1)
+    circuit = load_state_prep_circuit(circ_dir, circ_path)
+
+    # Extracting Z stabilizers to test against physical X errors
+    se = steane_se_from_stim_state_prep(circuit, se_basis="Z", n=code.n)
+
+    covered = CoveredZXGraph.from_stim(se)
+    covered.basic_FE_rewrites()
+    optimised = covered.greedy_best_first_boundary_bends(
+        cost_func=metric_spacetime_volume_exact(VolumeOptimizingReuseStrategy),
+        max_evaluations=100
+    )
+    optimised.optimize_path_extremities()
+
+    dag = build_circuit_dag(optimised)
+    mod_dag, logical_to_physical, total_hw = inject_qubit_reuse(dag, code.n, VolumeOptimizingReuseStrategy())
+    compressed_dag = apply_logical_qubit_merge_and_compress(mod_dag, code.n)
+    final_circ, final_meas_map = dag_to_circuit(compressed_dag)
+
+    num_measurements = get_num_measurements(se)
+    flag_indices = [k for k, v in final_meas_map.items() if v < num_measurements - code.n]
+
+    syndrome_indices = {k: v - (num_measurements - code.n) for k, v in final_meas_map.items() if
+                        v >= num_measurements - code.n}
+    syndrome_keys = list(syndrome_indices.keys())
+
+    ops = explode_circuit(final_circ)
+    possible_faults = get_fault_locations(ops)
+
+    # For a distance 3 code, t=1 fault
+    max_faults_to_test = (code.d - 1) // 2
+
+    print(f"Executing fault injection for '{code_name}' (up to {max_faults_to_test} fault)...")
+
+    catalog = catalog_flag_and_residual_errors(
+        circuit=final_circ,
+        ops=ops,
+        possible_faults=possible_faults,
+        max_faults=max_faults_to_test,
+        num_data_qubits=code.n,
+        flag_measurements=flag_indices,
+        syndrome_measurements=syndrome_keys,
+        basis="Z",
+    )
+
+    print("\nValidating Logical Uniqueness and Building Fallback Table:")
+    print("-" * 75)
+    flagged_events = 0
+
+    fallback_table = {}
+
+    for flag_pattern, syndromes in catalog.items():
+        if any(flag_pattern):
+            flagged_events += 1
+            print(f"Flag Pattern Raised: {flag_pattern}")
+
+            for syn_pattern, raw_residuals in syndromes.items():
+                print(f"  Syndrome: {syn_pattern}")
+
+                # Check uniqueness and get the correction using H_z (Stabilizers) and L_z (Logicals for X-errors)
+                unique_correction, logical_signature = verify_logical_uniqueness_and_get_correction(
+                    residual_errors=raw_residuals,
+                    stabilizer_matrix=code.H_z,
+                    logical_matrix=code.L_z
+                )
+
+                # Store it in our final lookup table
+                fallback_table[(flag_pattern, syn_pattern)] = unique_correction
+
+                print(f"    -> Status: VALIDATED (Logically Unique)")
+                print(f"    -> Logical Error Signature: {logical_signature}")
+                print(f"    -> Unique Optimal Correction: {unique_correction} (Weight {sum(unique_correction)})")
+            print("-" * 50)
+
+    if flagged_events == 0:
+        print("No active flags were captured. Verify the flag mapping registers.")

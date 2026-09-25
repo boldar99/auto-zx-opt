@@ -100,6 +100,8 @@ def steane_se_from_stim_state_prep(circ: stim.Circuit, se_basis: Literal["X"] | 
     ret = stim.Circuit()
     for op in circ:
         targets = [stim.GateTarget(t.value + n + offset) for t in op.targets_copy()]
+        if op.name == "DETECTOR":
+            continue
         new_op = stim.CircuitInstruction(op.name, targets, op.gate_args_copy())
         ret.append(new_op)
     if se_basis == "Z":

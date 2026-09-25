@@ -197,9 +197,9 @@ class OptimisedSteaneNDFTStatePrepSimulator(NoisyNDFTStatePrepSimulator):
 if __name__ == '__main__':
     # code_name = "17_1_5"
     # code_name = "19_1_5"
-    code_name = "20_2_6"
+    code_name = "17_1_5"
     # code_name = "31_1_7"
-    opt_c2 = True
+    opt_c2 = False
 
 
     print(f"Code: {code_name},  {opt_c2=}")
@@ -207,11 +207,11 @@ if __name__ == '__main__':
     code = CSSCode.load_code("MQT", code_name)
     mqt_code = MQTCSSCode(Hx=code.H_x, Hz=code.H_z, distance=code.d)
     # og_circ, circ, M = mqt_steane_depth_opt(code_name, max_iterations=100, verbose=True)
-    og_circ, circ, M = mqt_steane_opt(code_name, optimise_c2=opt_c2, cost_func=metric_depth_exact(NoReuseStrategy), max_evaluations=100, verbose=True)
+    og_circ, circ, M = mqt_steane_opt(code_name, optimise_c2=opt_c2, cost_func=metric_spacetime_volume_exact(NoReuseStrategy), max_evaluations=100, verbose=True)
 
 
     p = 0.001
-    p_mem_factor = 0.1 / 4
+    p_mem_factor = 0.01
     depth = len(collect_circuit_layers(circ))
     og_depth = len(collect_circuit_layers(og_circ))
     print(f"New circuit: #Qubits: {circ.num_qubits},  Depth: {depth},  Circuit Volume: {circ.num_qubits * depth},  p_mem: p*{p_mem_factor}")

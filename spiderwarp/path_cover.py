@@ -22,7 +22,6 @@ from spiderwarp.utils import (
 from spiderwarp.stim_utils import steane_se_from_stim_state_prep, stim_to_pyzx, get_circuit_depth, get_num_measurements
 from spiderwarp.verify_fault_tolerance import (
     build_css_syndrome_table,
-    compute_modified_lookup_table,
     list_to_str_stabs,
 )
 
@@ -1126,7 +1125,7 @@ class CoveredZXGraph:
         v_pos = self.node_pos(v)
 
         # Place it visually exactly halfway between the nodes
-        new_pos = ((u_pos[0] + v_pos[0]) / 2, (u_pos[1] + v_pos[1]) / 2)
+        new_pos = ((u_pos[0] + v_pos[0]) / 2, (u_pos[1] + v_pos[1]) / 2 - 0.5)
 
         self.G.remove_edge(u, v)
 
@@ -1140,18 +1139,18 @@ class CoveredZXGraph:
                 continue
 
             # Check if u can adopt the node
-            if path[0] == u:
+            if path[0] == u and path[-1] != v:
                 adopting_path_id, target_node, is_front = pid, u, True
                 break
-            if path[-1] == u:
+            if path[-1] == u and path[0] != v:
                 adopting_path_id, target_node, is_front = pid, u, False
                 break
 
             # Check if v can adopt the node (Crucial for the Boundary bug)
-            if path[0] == v:
+            if path[0] == v and path[-1] != u:
                 adopting_path_id, target_node, is_front = pid, v, True
                 break
-            if path[-1] == v:
+            if path[-1] == v and path[0] != u:
                 adopting_path_id, target_node, is_front = pid, v, False
                 break
 
@@ -1423,55 +1422,14 @@ class CoveredZXGraph:
         return indices
 
 
-def all_good_FT_opts(
-    covered_zx_graph: CoveredZXGraph,
-    H_matrix: np.ndarray,
-    L_matrix: np.ndarray,
-    basis: str,
-    d: int,
-) -> Iterator[CoveredZXGraph]:
-    stabs = list_to_str_stabs(H_matrix)
-    decoder_table = build_css_syndrome_table(stabs, d)
-
-    yield covered_zx_graph
-    covered_graphs = [covered_zx_graph]
-    seen = {covered_zx_graph.path_hash()}
-
-    while covered_graphs:
-        current_graph = covered_graphs.pop(0)
-        for candidate_paths in current_graph.all_causal_single_boundary_bends():
-            candidate_graph = current_graph.shallow_copy()
-            candidate_graph.paths = candidate_paths
-            circuit = candidate_graph.extract_circuit()
-            good = compute_modified_lookup_table(
-                circuit,
-                H_matrix,
-                L_matrix,
-                decoder_table,
-                candidate_graph.flag_qubit_indices(),
-                basis,
-                d,
-                verbose=True,
-            )
-            candidate_hash = candidate_graph.path_hash()
-            if not good:
-                print("BAD")
-            if candidate_hash not in seen:
-                covered_graphs.append(candidate_graph)
-                seen.add(candidate_hash)
-                candidate_graph.visualize()
-                yield candidate_graph
-            else:
-                print("PRUNED")
-
-
 if __name__ == "__main__":
     from spiderwarp.path_cover_metrics import LexicographicCost, metric_depth, metric_num_paths, metric_hardware_qubits_exact, metric_spacetime_volume_exact
     from spiderwarp.qubit_reuse import NoReuseStrategy
 
     # code_dir, code_name, circ_dir, circ_path = "MQT", "17_1_5", "SAT", "cc_4_8_8_d5/zero_ft_heuristic_opt"
     # code_dir, code_name, circ_dir, circ_path = "MQT", "25_1_5", "SAT", "rotated_surface_d5/zero_ft_heuristic_opt"
-    code_dir, code_name, circ_dir, circ_path = "MQT", "15_7_3", "SAT", "hamming/zero_ft_opt_opt"
+    # code_dir, code_name, circ_dir, circ_path = "MQT", "15_7_3", "SAT", "hamming/zero_ft_opt_opt"
+    code_dir, code_name, circ_dir, circ_path = "MQT", "17_1_5", "boldi", "17_1_5"
     # code_dir, code_name, circ_dir, circ_path = "MQT", "12_2_4", "SAT", "carbon/zero_ft_opt_opt"
     # code_dir, code_name, circ_dir, circ_path = "MQT", "7_1_3", "SAT", "steane/zero_ft_opt_opt"
     # code_dir, code_name, circ_dir, circ_path = "misc", "32_20_4", "misc", "zero_32_20_4"
@@ -1480,14 +1438,15 @@ if __name__ == "__main__":
     circuit = load_state_prep_circuit(circ_dir, circ_path)
     se = steane_se_from_stim_state_prep(circuit, se_basis="Z", n=code.n)
     covered = CoveredZXGraph.from_stim(se)
-    covered.visualize()
+    covered.visualize(figsize=(50,20))
     covered.basic_FE_rewrites()
-    covered.visualize()
-    optimised = covered.greedy_best_first_boundary_bends(
-        cost_func=metric_hardware_qubits_exact(NoReuseStrategy),
-        max_evaluations=10
-    )
-    optimised.visualize()
+    # covered.visualize(figsize=(50,20))
+    # optimised = covered.greedy_best_first_boundary_bends(
+    #     cost_func=metric_hardware_qubits_exact(NoReuseStrategy),
+    #     max_evaluations=10
+    # )
+    optimised = covered.deepcopy()
+    optimised.visualize(figsize=(50,20))
     new_circuit, measurement_map = optimised.extract_circuit_with_measurement_map()
 
     print("Sim Qubits:", metric_hardware_qubits_exact(optimised, optimised.paths))
