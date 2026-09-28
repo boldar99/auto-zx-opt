@@ -173,9 +173,7 @@ def build_circuit_dag(cv: CoveredZXGraph) -> nx.DiGraph:
     dag = nx.DiGraph()
     last_op_on_qubit: dict[int,int] = {}
 
-    ordered_operations = cv._find_total_ordering()
-
-    for i, circ_op in enumerate(ordered_operations):
+    for i, circ_op in enumerate(cv.circuit_operations()):
         op_name = circ_op.name
         targets = circ_op.targets
         measurement_id = circ_op.measurement_id

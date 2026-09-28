@@ -14,7 +14,7 @@ if TYPE_CHECKING:
     from spiderwarp.csscode import CSSCode
 
 
-TWO_QUBIT_GATES = {"CX", "CNOT", "CZ", "SWAP", "CY", "XCZ", "YCX"}
+TWO_QUBIT_GATES = {"CX", "CNOT", "CZ", "XCX", "SWAP", "CY", "XCZ", "YCX"}
 Z_MEASUREMENTS = {"MR", "M", "MZ"}
 X_MEASUREMENTS = {"MX"}
 Z_INITIALIZATIONS = {"MR", "R"}
@@ -45,6 +45,23 @@ def stim_to_pyzx(stim_circuit: stim.Circuit, n_data: int) -> zx.Graph:
                 c, n = targets[i], targets[i + 1]
                 circ.add_gate("CNOT", c, n)
 
+        elif op == "CZ":
+            for i in range(0, len(targets), 2):
+                q1, q2 = targets[i], targets[i + 1]
+                circ.add_gate("CZ", q1, q2)
+
+        elif op == "XCX":
+            # XCX = (H ⊗ H) CZ (H ⊗ H).  PyZX has no dedicated XCX
+            # circuit gate, but this decomposition produces the desired
+            # Hadamard edge between X spiders after simplification.
+            for i in range(0, len(targets), 2):
+                q1, q2 = targets[i], targets[i + 1]
+                circ.add_gate("H", q1)
+                circ.add_gate("H", q2)
+                circ.add_gate("CZ", q1, q2)
+                circ.add_gate("H", q1)
+                circ.add_gate("H", q2)
+
         elif op == "H":
             for t in targets:
                 circ.add_gate("H", t)
@@ -66,9 +83,6 @@ def explode_circuit(circuit: stim.Circuit) -> list[stim.CircuitInstruction]:
     This allows injecting faults *between* gates that were originally grouped.
     """
     atomized_ops = []
-
-    # Common 2-qubit gates in CSS codes
-    TWO_QUBIT_GATES = {"CX", "CNOT", "CZ", "SWAP", "CY", "XCZ", "YCX"}
 
     for op in circuit.flattened():
         # Handle 2-Qubit Gates (Target pairs)
@@ -96,7 +110,12 @@ def explode_circuit(circuit: stim.Circuit) -> list[stim.CircuitInstruction]:
     return atomized_ops
 
 
-def steane_se_from_stim_state_prep(circ: stim.Circuit, se_basis: Literal["X"] | Literal["Z"], n: int, offset = 0) -> stim.Circuit:
+def steane_se_from_stim_state_prep(
+    circ: stim.Circuit,
+    se_basis: Literal["X", "Z"],
+    n: int,
+    offset: int = 0,
+) -> stim.Circuit:
     ret = stim.Circuit()
     for op in circ:
         targets = [stim.GateTarget(t.value + n + offset) for t in op.targets_copy()]
@@ -104,14 +123,14 @@ def steane_se_from_stim_state_prep(circ: stim.Circuit, se_basis: Literal["X"] | 
             continue
         new_op = stim.CircuitInstruction(op.name, targets, op.gate_args_copy())
         ret.append(new_op)
-    if se_basis == "Z":
+    if se_basis == "X":
         ret.append("CX", flatten(zip(range(n + offset, 2 * n + offset), range(n))))
         ret.append("MX", range(n + offset, 2 * n + offset))
-    elif se_basis == "X":
+    elif se_basis == "Z":
         ret.append("CX", flatten(zip(range(n), range(n + offset, 2 * n + offset))))
         ret.append("M", range(n + offset, 2 * n + offset))
     else:
-        raise Exception("Unknown se_basis: {}".format(se_basis))
+        raise ValueError(f"Unknown SE basis: {se_basis!r}")
 
     return ret
 

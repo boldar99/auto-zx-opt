@@ -69,6 +69,10 @@ class CoveredZXGraph:
         zx.VertexType.X: "#ff6666",
         zx.VertexType.BOUNDARY: "black",
     }
+    SUPPORTED_EDGE_TYPES = {
+        zx.EdgeType.SIMPLE,
+        zx.EdgeType.HADAMARD
+    }
 
     MEASUREMENT_OPS = {"M", "MX", "MY", "MR", "MRX", "MRY"}
     _STIM_ANNOTATION_OPS = {
@@ -90,6 +94,7 @@ class CoveredZXGraph:
         self._num_qubits = (
             num_data_qubits if num_data_qubits is not None else self._infer_num_data_qubits()
         )
+        self._normalise_edge_attributes()
         self._validate_node_attributes()
 
     # ---------------------------------------------------------------------
@@ -121,15 +126,17 @@ class CoveredZXGraph:
     def _infer_num_data_qubits_from_stim(cls, circuit: stim.Circuit) -> int:
         """Infer the number of unmeasured data qubits at the end of a Stim circuit.
 
-        The result is the count of qubit indices whose last relevant operation
-        leaves the qubit live. Destructive measurements make a qubit non-live;
-        resets, reset-measurements, and later unitary/noisy operations make it
-        live again. Annotation instructions such as ``TICK`` and ``DETECTOR``
-        are ignored.
+        Data wires are assumed to occupy a zero-based prefix. The result is
+        therefore one past the highest live qubit index, not merely the number
+        of live wires. Destructive measurements make a qubit non-live; resets,
+        reset-measurements, and later unitary/noisy operations make it live
+        again. Annotation instructions such as ``TICK`` and ``DETECTOR`` are
+        ignored.
         """
         qubit_is_live: dict[int, bool] = {}
         cls._update_live_qubits_from_stim_block(circuit, qubit_is_live)
-        return sum(qubit_is_live.values())
+        live_qubits = [qubit for qubit, is_live in qubit_is_live.items() if is_live]
+        return max(live_qubits, default=-1) + 1
 
     @classmethod
     def _update_live_qubits_from_stim_block(
@@ -187,7 +194,10 @@ class CoveredZXGraph:
         is exactly the original Stim measurement order because the PyZX circuit
         and graph are constructed operation-by-operation.
         """
-        cls._normalise_terminal_hadamards(diagram)
+        # H-box replacement mutates a PyZX graph.  Work on a copy so
+        # constructing a CoveredZXGraph does not change the caller's diagram.
+        diagram = diagram.copy()
+        cls._normalise_hadamards(diagram)
 
         graph_dict = diagram.to_dict()
         G = nx.Graph()
@@ -205,8 +215,8 @@ class CoveredZXGraph:
                 measurement_id=None,
             )
 
-        for u, v, _ in graph_dict["edges"]:
-            G.add_edge(u, v)
+        for u, v, edge_type in graph_dict["edges"]:
+            G.add_edge(u, v, type=edge_type)
 
         paths = cls._initial_paths_by_qubit_track(G, qubit_indices)
         inferred_num_data_qubits = (
@@ -216,19 +226,23 @@ class CoveredZXGraph:
         return cls(G, paths, num_data_qubits=inferred_num_data_qubits)
 
     @staticmethod
-    def _normalise_terminal_hadamards(diagram: zx.graph.graph.BaseGraph) -> None:
-        apply_h_at = []
-        zx.simplify.id_simp(diagram)
-        for v in diagram.vertices():
-            if diagram.vertex_degree(v) != 1:
-                continue
-            [neighbor] = list(diagram.neighbors(v))
-            edge = list(diagram.edges(v, neighbor))[0]
-            if diagram.edge_type(edge) == zx.EdgeType.HADAMARD:
-                apply_h_at.append(v)
+    def _normalise_hadamards(diagram: zx.graph.graph.BaseGraph) -> None:
+        """Convert explicit Hadamard boxes to typed Hadamard edges.
 
-        for v in apply_h_at:
-            zx.simplify.color_change(diagram, v)
+        Degree-two spiders and terminal Hadamards are intentionally retained.
+        They are physical circuit locations for fault-equivalent extraction,
+        even when a noiseless ZX simplification could eliminate them.
+        """
+        # PyZX can encode a Hadamard either as a HADAMARD edge or as a
+        # standard, degree-two H-box.  Internally we use the former
+        # representation exclusively.
+        for v in list(diagram.vertices()):
+            if diagram.type(v) != zx.VertexType.H_BOX:
+                continue
+            if not zx.simplify.replace_hadamard(diagram, v):
+                raise ValueError(
+                    "Only standard degree-two H-boxes (Hadamard gates) are supported."
+                )
 
     @staticmethod
     def _flipped_xz_type(vertex_type: zx.VertexType) -> zx.VertexType:
@@ -301,6 +315,20 @@ class CoveredZXGraph:
     # Basic graph metadata helpers
     # ---------------------------------------------------------------------
 
+    def _normalise_edge_attributes(self) -> None:
+        """Give legacy edges their implicit SIMPLE type and validate all others."""
+        for u, v, data in self.G.edges(data=True):
+            try:
+                edge_type = zx.EdgeType(data.get("type", zx.EdgeType.SIMPLE))
+            except (TypeError, ValueError) as exc:
+                raise ValueError(f"Edge {(u, v)!r} has an invalid type.") from exc
+            if edge_type not in self.SUPPORTED_EDGE_TYPES:
+                raise ValueError(
+                    f"Edge {(u, v)!r} has unsupported type {edge_type!r}; "
+                    "only SIMPLE and HADAMARD edges are supported."
+                )
+            data["type"] = edge_type
+
     def _validate_node_attributes(self) -> None:
         required = {"type", "pos", "qubit_index", "measurement_id"}
         for v, data in self.G.nodes(data=True):
@@ -324,6 +352,44 @@ class CoveredZXGraph:
 
     def node_type(self, v: int) -> zx.VertexType:
         return self.G.nodes[v]["type"]
+
+    def edge_type(self, u: int, v: int) -> zx.EdgeType:
+        return zx.EdgeType(
+            self.G.edges[u, v].get("type", zx.EdgeType.SIMPLE)
+        )
+
+    def _add_edge(
+        self,
+        u: int,
+        v: int,
+        edge_type: zx.EdgeType = zx.EdgeType.SIMPLE,
+    ) -> None:
+        self.G.add_edge(u, v, type=edge_type)
+
+    @staticmethod
+    def _combined_edge_type(
+        first: zx.EdgeType,
+        second: zx.EdgeType,
+    ) -> zx.EdgeType:
+        """Compose two ZX edges separated by a degree-two identity spider."""
+        return (
+            zx.EdgeType.SIMPLE
+            if first == second
+            else zx.EdgeType.HADAMARD
+        )
+
+    def _is_extractable_uncovered_edge(self, u: int, v: int) -> bool:
+        u_type = self.node_type(u)
+        v_type = self.node_type(v)
+        if u_type not in (zx.VertexType.X, zx.VertexType.Z):
+            return False
+        if v_type not in (zx.VertexType.X, zx.VertexType.Z):
+            return False
+        # Opposite-colour simple edges are CNOTs.  Same-colour Hadamard
+        # edges are CZ (Z/Z) or XCX (X/X) gates.
+        return (self.edge_type(u, v) == zx.EdgeType.HADAMARD) == (
+            u_type == v_type
+        )
 
     def node_pos(self, v: int) -> tuple[float, float]:
         return self.G.nodes[v]["pos"]
@@ -456,7 +522,11 @@ class CoveredZXGraph:
     def _num_parity_measurement(self, paths: dict[int, tuple[int, ...]]) -> int:
         count = 0
         for v, w in self._get_uncovered_edges(paths):
-            if self.node_type(v) == self.node_type(w):
+            v_type = self.node_type(v)
+            w_type = self.node_type(w)
+            if zx.VertexType.BOUNDARY in (v_type, w_type):
+                count += int(v_type == w_type)
+            elif not self._is_extractable_uncovered_edge(v, w):
                 count += 1
         return count
 
@@ -513,13 +583,17 @@ class CoveredZXGraph:
             self.G.has_edge(u, v)
             and self.node_type(u) == self.node_type(v)
             and self.node_type(u) in (zx.VertexType.X, zx.VertexType.Z)
+            and self.edge_type(u, v) == zx.EdgeType.SIMPLE
         ):
             return False
 
         self.G.remove_edge(u, v)
-        u_neighbors = list(self.G.neighbors(u))
-        for neighbor in u_neighbors:
-            self.G.add_edge(neighbor, v)
+        u_neighbors = [
+            (neighbor, self.edge_type(u, neighbor))
+            for neighbor in self.G.neighbors(u)
+        ]
+        for neighbor, edge_type in u_neighbors:
+            self._add_edge(neighbor, v, edge_type)
         self._purge_vertex(u)
         return True
 
@@ -557,7 +631,11 @@ class CoveredZXGraph:
         if flow_check or parity_spider_check or to_boundary:
             return False
 
-        self.G.add_edge(n1, n2)
+        combined_edge_type = self._combined_edge_type(
+            self.edge_type(v, n1),
+            self.edge_type(v, n2),
+        )
+        self._add_edge(n1, n2, combined_edge_type)
         self._purge_vertex(v)
         return True
 
@@ -969,8 +1047,17 @@ class CoveredZXGraph:
 
                             m_adj = src_path[1] if src_is_front else src_path[-2]
 
-                            # If the exposed edge is the same color, we need a buffer identity
-                            needs_id = (self.node_type(n_move) == self.node_type(m_adj))
+                            # Once n_move changes paths, its old path edge becomes
+                            # uncovered.  Insert a buffer exactly when that edge is
+                            # not directly extractable as a Clifford gate.
+                            endpoint_types_are_spiders = all(
+                                self.node_type(node) in (zx.VertexType.X, zx.VertexType.Z)
+                                for node in (n_move, m_adj)
+                            )
+                            needs_id = (
+                                endpoint_types_are_spiders
+                                and not self._is_extractable_uncovered_edge(n_move, m_adj)
+                            )
                             new_src = src_path[1:] if src_is_front else src_path[:-1]
 
                             nodes_to_add = []
@@ -988,6 +1075,7 @@ class CoveredZXGraph:
                                 # Create the buffer identity
                                 I_id = max(self.G.nodes()) + 1 if self.G.nodes() else 0
                                 I_type = self._opposite_spider_type(self.node_type(n_move))
+                                exposed_edge_type = self.edge_type(n_move, m_adj)
 
                                 p_move = self.node_pos(n_move)
                                 p_adj = self.node_pos(m_adj)
@@ -998,8 +1086,13 @@ class CoveredZXGraph:
 
                                 # Splice it into the graph
                                 if self.G.has_edge(n_move, m_adj):
-                                    edges_to_remove.append((n_move, m_adj))
-                                edges_to_add.extend([(n_move, I_id), (I_id, m_adj)])
+                                    edges_to_remove.append((n_move, m_adj, exposed_edge_type))
+                                edges_to_add.extend(
+                                    [
+                                        (n_move, I_id, zx.EdgeType.SIMPLE),
+                                        (I_id, m_adj, exposed_edge_type),
+                                    ]
+                                )
 
                                 # Route the identity to the *receiving* path to preserve the src_path color
                                 if dst_is_front:
@@ -1027,10 +1120,10 @@ class CoveredZXGraph:
                             # --- 1. Apply Speculative Mutation ---
                             for nd in nodes_to_add:
                                 self.G.add_node(nd['id'], type=nd['type'], pos=nd['pos'], qubit_index=nd['qubit_index'])
-                            for u, v in edges_to_remove:
+                            for u, v, _ in edges_to_remove:
                                 self.G.remove_edge(u, v)
-                            for u, v in edges_to_add:
-                                self.G.add_edge(u, v)
+                            for u, v, edge_type in edges_to_add:
+                                self._add_edge(u, v, edge_type)
 
                             # --- ESSENTIAL CHANGE 2: Split Clear/Set loops to avoid overwriting ---
                             for frm, to, val in meas_transfers:
@@ -1072,10 +1165,10 @@ class CoveredZXGraph:
                             for frm, to, val in meas_transfers:
                                 self.G.nodes[frm]["measurement_id"] = val
 
-                            for u, v in edges_to_add:
+                            for u, v, _ in edges_to_add:
                                 self.G.remove_edge(u, v)
-                            for u, v in edges_to_remove:
-                                self.G.add_edge(u, v)
+                            for u, v, edge_type in edges_to_remove:
+                                self._add_edge(u, v, edge_type)
                             for nd in nodes_to_add:
                                 self.G.remove_node(nd['id'])
 
@@ -1083,10 +1176,10 @@ class CoveredZXGraph:
             if best_swap:
                 for nd in best_swap['nodes_to_add']:
                     self.G.add_node(nd['id'], type=nd['type'], pos=nd['pos'], qubit_index=nd['qubit_index'])
-                for u, v in best_swap['edges_to_remove']:
+                for u, v, _ in best_swap['edges_to_remove']:
                     self.G.remove_edge(u, v)
-                for u, v in best_swap['edges_to_add']:
-                    self.G.add_edge(u, v)
+                for u, v, edge_type in best_swap['edges_to_add']:
+                    self._add_edge(u, v, edge_type)
 
                 # Commit loops split
                 for frm, to, val in best_swap['meas_transfers']:
@@ -1123,6 +1216,7 @@ class CoveredZXGraph:
         new_node = self._new_node_id()
         u_pos = self.node_pos(u)
         v_pos = self.node_pos(v)
+        original_edge_type = self.edge_type(u, v)
 
         # Place it visually exactly halfway between the nodes
         new_pos = ((u_pos[0] + v_pos[0]) / 2, (u_pos[1] + v_pos[1]) / 2 - 0.5)
@@ -1169,8 +1263,20 @@ class CoveredZXGraph:
             measurement_id=None,
             qubit_index=qubit_idx,
         )
-        self.G.add_edge(u, new_node)
-        self.G.add_edge(new_node, v)
+        # The identity must preserve the parity of Hadamards on the original
+        # edge.  Put that Hadamard on the path side when an existing path
+        # extremity adopts the node, leaving the uncovered side directly
+        # extractable.  With a new singleton path, the first edge is the
+        # canonical simple edge and the second retains the original type.
+        if target_node == u:
+            u_edge_type = original_edge_type
+            v_edge_type = zx.EdgeType.SIMPLE
+        else:
+            u_edge_type = zx.EdgeType.SIMPLE
+            v_edge_type = original_edge_type
+
+        self._add_edge(u, new_node, u_edge_type)
+        self._add_edge(new_node, v, v_edge_type)
 
         # 4. Integrate into the Path Cover
         if adopting_path_id is not None:
@@ -1193,12 +1299,17 @@ class CoveredZXGraph:
         return new_node
 
     def add_identities_for_same_type_uncovered_edges(self) -> None:
-        """Insert identity spiders so extraction never sees same-type uncovered edges."""
+        """Make every uncovered edge directly extractable.
+
+        This handles both non-canonical simple edges (same-colour endpoints)
+        and non-canonical Hadamard edges (opposite-colour endpoints), while
+        leaving Z--Z Hadamard edges available for direct CZ extraction.
+        """
         for u, v in list(self._get_uncovered_edges(self.paths)):
             u_type = self.node_type(u)
             v_type = self.node_type(v)
 
-            if u_type != v_type and zx.VertexType.BOUNDARY not in (u_type, v_type):
+            if self._is_extractable_uncovered_edge(u, v):
                 continue
 
             if u_type == zx.VertexType.BOUNDARY:
@@ -1227,6 +1338,11 @@ class CoveredZXGraph:
         path_to_qubit = self._get_path_to_qubit()
         node_to_qubit = self._node_to_qubit()
         terminal_nodes = {path[-1] for path in self.paths.values() if path}
+        path_successors = {
+            u: v
+            for path in self.paths.values()
+            for u, v in zip(path, path[1:])
+        }
 
         # Track the current depth of each hardware qubit wire
         qubit_depths = {qubit: 0 for qubit in set(node_to_qubit.values())}
@@ -1240,6 +1356,17 @@ class CoveredZXGraph:
                 qubit_depths[qubit] += 1
             elif first_node_type == zx.VertexType.X:
                 ordered_operations.append(CircuitOperation("R", [qubit]))
+                qubit_depths[qubit] += 1
+
+            # Input boundary vertices are not processed by the topological
+            # extraction loop.  Emit a leading path Hadamard here, including
+            # the boundary--boundary representation of a lone H gate.
+            if (
+                first_node_type == zx.VertexType.BOUNDARY
+                and len(path) > 1
+                and self.edge_type(path[0], path[1]) == zx.EdgeType.HADAMARD
+            ):
+                ordered_operations.append(CircuitOperation("H", [qubit]))
                 qubit_depths[qubit] += 1
 
         path_edges = self._path_edges(self.paths)
@@ -1303,6 +1430,14 @@ class CoveredZXGraph:
                     total_depth_increase += (new_depth - sim_source_depth) + (new_depth - target_depth)
                     sim_source_depth = new_depth
 
+                successor = path_successors.get(candidate)
+                if (
+                    successor is not None
+                    and self.edge_type(candidate, successor) == zx.EdgeType.HADAMARD
+                ):
+                    sim_source_depth += 1
+                    total_depth_increase += 1
+
                 if candidate in terminal_nodes:
                     sim_source_depth += 1
                     total_depth_increase += 1
@@ -1337,20 +1472,45 @@ class CoveredZXGraph:
 
                 neighbor_qubit = node_to_qubit[neighbor]
                 neighbor_type = self.node_type(neighbor)
+                edge_type = self.edge_type(source, neighbor)
 
-                if source_type != neighbor_type:
+                if edge_type == zx.EdgeType.SIMPLE and source_type != neighbor_type:
                     if source_type == zx.VertexType.Z:
                         ordered_operations.append(CircuitOperation("CNOT", [source_qubit, neighbor_qubit]))
                     else:
                         ordered_operations.append(CircuitOperation("CNOT", [neighbor_qubit, source_qubit]))
-
-                    new_depth = max(qubit_depths[source_qubit], qubit_depths[neighbor_qubit]) + 1
-                    qubit_depths[source_qubit] = new_depth
-                    qubit_depths[neighbor_qubit] = new_depth
+                elif edge_type == zx.EdgeType.HADAMARD and source_type == neighbor_type:
+                    if source_type == zx.VertexType.Z:
+                        ordered_operations.append(
+                            CircuitOperation("CZ", [source_qubit, neighbor_qubit])
+                        )
+                    elif source_type == zx.VertexType.X:
+                        ordered_operations.append(
+                            CircuitOperation("XCX", [source_qubit, neighbor_qubit])
+                        )
+                    else:
+                        raise ValueError(
+                            f"Cannot extract Hadamard edge {edge}: unsupported endpoint type."
+                        )
                 else:
-                    raise ValueError("Cannot extract same-type uncovered edge ...")
+                    raise ValueError(
+                        f"Cannot extract non-canonical uncovered edge {edge} "
+                        f"with type {edge_type!r}."
+                    )
+
+                new_depth = max(qubit_depths[source_qubit], qubit_depths[neighbor_qubit]) + 1
+                qubit_depths[source_qubit] = new_depth
+                qubit_depths[neighbor_qubit] = new_depth
 
                 processed_edges.add(edge)
+
+            successor = path_successors.get(source)
+            if (
+                successor is not None
+                and self.edge_type(source, successor) == zx.EdgeType.HADAMARD
+            ):
+                ordered_operations.append(CircuitOperation("H", [source_qubit]))
+                qubit_depths[source_qubit] += 1
 
             if source in terminal_nodes:
                 measurement_id = self.measurement_id(source)
@@ -1366,15 +1526,18 @@ class CoveredZXGraph:
         circuit, _ = self.extract_circuit_with_measurement_map()
         return circuit
 
-    def extract_circuit_with_measurement_map(self) -> tuple[stim.Circuit, dict[int, int]]:
+    def circuit_operations(self) -> list[CircuitOperation]:
+        """Return extractable operations without mutating this graph."""
         extraction_graph = self.deepcopy()
         extraction_graph.add_identities_for_same_type_uncovered_edges()
+        return extraction_graph._find_total_ordering()
 
+    def extract_circuit_with_measurement_map(self) -> tuple[stim.Circuit, dict[int, int]]:
         circuit = stim.Circuit()
         measurement_map: dict[int, int] = {}
         next_measurement_index = 0
 
-        for operation in extraction_graph._find_total_ordering():
+        for operation in self.circuit_operations():
             circuit.append(operation.name, operation.targets)
             if operation.name in self.MEASUREMENT_OPS:
                 if operation.measurement_id is not None:
