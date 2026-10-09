@@ -12,7 +12,10 @@ import pyzx as zx
 import stim
 import stimcirq
 from cirq.contrib.qasm_import import circuit_from_qasm
-from mqt.qecc.circuit_synthesis import LutDecoder
+try:
+    from mqt.qecc.circuit_synthesis import LutDecoder
+except ImportError:
+    pass
 
 from spiderwarp.utils import get_project_root
 from spiderwarp.stim_utils import explode_circuit

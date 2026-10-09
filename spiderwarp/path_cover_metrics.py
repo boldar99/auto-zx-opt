@@ -52,6 +52,30 @@ def metric_hardware_qubits_exact(ReuseStrategy):
     return metric_hardware_qubits_exact_with_qubit_reuse
 
 
+def metric_hardware_qubits_resource_scheduled(
+    heuristic: str,
+) -> PathCostFunction:
+    """Return a hardware-qubit metric using a resource-scheduling heuristic."""
+
+    def metric(graph: "CoveredZXGraph", paths: dict[int, tuple[int, ...]]) -> float:
+        from spiderwarp.resource_scheduling import (
+            ReuseTarget,
+            plan_resource_aware_reuse,
+        )
+
+        candidate = graph.shallow_copy()
+        candidate.paths = paths
+        plan = plan_resource_aware_reuse(
+            candidate.extract_circuit(),
+            candidate._num_qubits,
+            heuristic=heuristic,
+            target=ReuseTarget.QUBITS,
+        )
+        return float(plan.peak_qubits)
+
+    return metric
+
+
 def metric_depth(graph: "CoveredZXGraph", paths: dict[int, tuple[int, ...]]) -> float:
     """Calculates depth by finding the longest path in the causal dependency DAG."""
     flow_dag = graph._construct_flow_graph(paths)
