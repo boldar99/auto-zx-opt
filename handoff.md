@@ -249,5 +249,5 @@ The repository is currently a work in progress, not a clean commit. In particula
 
 - `tests/test_fault_tolerance_verification.py`, `tests/test_path_cover_hadamard.py`, and `tests/test_qubit_reuse.py` are currently untracked and must be added before committing.
 - Notebook output has been cleared, and the generated `notebooks/circ.svg` is removed and ignored.
-- The renamed `t1_zero_32_20_4.stim` input and regenerated SE asset are modified.
+- The renamed `32_20_4_zero_t1.stim` input and regenerated SE asset are modified.
 - `.DS_Store` and `__pycache__` are now ignored.
