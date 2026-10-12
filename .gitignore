@@ -3,3 +3,7 @@
 __pycache__/
 *.py[cod]
 /notebooks/circ.svg
+*.egg-info/
+build/
+dist/
+.venv/

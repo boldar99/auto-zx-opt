@@ -33,20 +33,45 @@ By mapping the gadget to a ZX-diagram, SpiderWarp applies the **Outer Commutatio
 
 ---
 
+## Installation
+
+Use Python 3.10 or newer. In the environment you use to run the notebooks,
+install SpiderWarp from the repository root:
+
+```sh
+python -m pip install -e .
+```
+
+The editable install keeps imports connected to this checkout as you change the
+code, regardless of the notebook's working directory. The circuit and code
+assets are also included in regular installations.
+
+For a notebook that already has a running kernel, run this once in a separate
+cell, replacing the path with your checkout's absolute path:
+
+```python
+%pip install -e "/absolute/path/to/AutomatedSteane"
+```
+
+Restart the kernel after installation, then run the notebook from the beginning.
+`%pip` installs into the notebook's own Python environment. If imports still fail,
+check `import sys; print(sys.executable)` in the notebook and select the environment
+where you installed SpiderWarp. No `sys.path` changes are needed.
+
+Optional dependencies can be installed with `python -m pip install -e ".[notebooks]"`
+for Jupyter, `".[test]"` for tests, or `".[mqt]"` for the MQT synthesis notebooks.
+
 ## 💻 Usage
 
 ```python
-import spiderwarp as sw
+from spiderwarp.csscode import CSSCode
+from spiderwarp.utils import load_state_prep_circuit
+from spiderwarp.stim_utils import steane_se_from_stim_state_prep
 
-# Load a Stim or OpenQASM 3.0 circuit
-gadget = sw.load_circuit("syndrome_extraction.qasm")
-
-# SpiderWarp automatically infers roles
-print(gadget.ancillas)   # [4, 5, 6]
-print(gadget.syndromes)  # [M0, M1]
-
-# Perform Fault-Invariant Optimization
-optimized_gadget = sw.warp(gadget)
-
-# Export back to Stim for verification
-optimized_gadget.to_stim("optimized.stim")
+code = CSSCode.load_code("misc", "32_20_4")
+state_prep = load_state_prep_circuit("misc", "opt_zero_32_20_4")
+syndrome_extraction = steane_se_from_stim_state_prep(
+    state_prep, se_basis="Z", n=code.n
+)
+print(syndrome_extraction.num_qubits)
+```

@@ -20,6 +20,7 @@ X_MEASUREMENTS = {"MX"}
 Z_INITIALIZATIONS = {"MR", "R"}
 X_INITIALIZATIONS = {"RX"}
 SPECIAL_GATES = {"DETECTOR", "OBSERVABLE_INCLUDE", "SHIFT_COORDS", "QUBIT_COORDS", "TICK"}
+NOISE_GATES = {"X_ERROR", "Z_ERROR", "DEPOLARIZE1", "DEPOLARIZE2"}
 
 
 def qasm_str_to_stim_circuit(qasm_str: str) -> stim.Circuit:
@@ -108,6 +109,63 @@ def explode_circuit(circuit: stim.Circuit) -> list[stim.CircuitInstruction]:
                 )
 
     return atomized_ops
+
+
+def make_stim_circ_single_type_noisy(
+    circ: stim.Circuit, p: float, error_type: str
+) -> stim.Circuit:
+    """Insert independent Pauli faults without changing measurement records.
+
+    Each atomic unitary or reset gets a fault on each physical target after
+    the operation. Measurements (including measure-and-reset) and annotations
+    retain the existing verifier model's exclusion from this fault set.
+    Keeping operation order preserves detector, observable, and feedback
+    references, including across qubit reuse and repeat blocks.
+    """
+    if error_type not in {"X", "Z"}:
+        raise ValueError('error_type must be "X" or "Z"')
+    if not 0 <= p <= 1:
+        raise ValueError("p must be between 0 and 1")
+
+    noisy_circuit = stim.Circuit()
+    for operation in circ:
+        if isinstance(operation, stim.CircuitRepeatBlock):
+            noisy_circuit.append(stim.CircuitRepeatBlock(
+                operation.repeat_count,
+                make_stim_circ_single_type_noisy(
+                    operation.body_copy(), p, error_type
+                ),
+                tag=operation.tag,
+            ))
+            continue
+
+        gate = stim.gate_data(operation.name)
+        if gate.produces_measurements or not (gate.is_unitary or gate.is_reset):
+            noisy_circuit.append(operation)
+            continue
+
+        for group in operation.target_groups():
+            targets = group
+            if gate.takes_pauli_targets:
+                # target_groups separates Pauli products and omits combiners.
+                targets = []
+                for target in group:
+                    if targets:
+                        targets.append(stim.target_combiner())
+                    targets.append(target)
+            noisy_circuit.append(stim.CircuitInstruction(
+                operation.name, targets, operation.gate_args_copy(),
+                tag=operation.tag,
+            ))
+            qubits = list(dict.fromkeys(
+                target.value for target in group
+                if target.is_qubit_target or target.is_x_target
+                or target.is_y_target or target.is_z_target
+            ))
+            if qubits:
+                noisy_circuit.append(f"{error_type}_ERROR", qubits, p)
+
+    return noisy_circuit
 
 
 def steane_se_from_stim_state_prep(

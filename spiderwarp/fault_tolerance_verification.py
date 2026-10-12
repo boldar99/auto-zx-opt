@@ -5,7 +5,7 @@ from enum import Enum
 import numpy as np
 import stim
 
-from spidercss.utils import NOISE_GATES, make_stim_circ_single_type_noisy
+from spiderwarp.stim_utils import NOISE_GATES, make_stim_circ_single_type_noisy
 
 
 FaultMechanism = frozenset[tuple[str, int]]
