@@ -379,3 +379,47 @@ successfully on 0.21.6 / Stim 1.15.0: 100,000 logical-0 shots, 76,197 accepted,
 qubits and left verification disabled, as requested. Resource choices can vary
 between optimization runs/environments; these results are not the same gadget
 schedule as the earlier 68-qubit demonstration.
+
+## Readable Guppy export (2026-10-15)
+
+The exporter now uses Guppy `ExtractionResult`, `Correction`, and `RecoveryRoute`
+structs, compile-time circuit batches over target tuples, and immutable lookup
+arrays. One masked-decision interpreter replaces the generated decision-helper
+functions and recovery-selection Boolean expressions. Corrections use two loops
+over the data array, retaining the original X-before-Z order. Circuit batches
+combine adjacent identical gates only; preparations and destructive measurements
+retain every ancilla lifetime and operation ordering.
+
+`spiderwarp/_se_guppy_template.py.in` contains the readable standalone program;
+`_se_guppy.py` supplies metadata, circuit definitions, and shared numeric tables.
+The template is included in package data. The saved source and HUGR still need
+no SpiderWarp installation or decoder sidecar at runtime. Public entry points
+remain `se_cycle`, `postselected_se_cycle`, and `compile_se_cycle`; extraction
+and decoder helpers now return the named structs instead of tuples.
+
+Both existing exports were refreshed using their original emitted gate schedules
+and decoder decisions, without rerunning the stochastic ZX optimization:
+
+- `build/32_20_4_protocol_demo/steane_se_protocol.py`: 27,771 -> 4,329 lines.
+- `build/32_20_4_protocol/steane_se_protocol.py`: 23,216 -> 3,599 lines.
+
+The demo HUGR is saved with Guppy 0.21.6 / HUGR 0.14.1 for the user's
+`error-correction` environment; the earlier verified export uses Guppy 1.1.3 /
+HUGR 0.18.8. Recompile the standalone source when moving a binary package between
+incompatible HUGR format versions.
+
+The bulk of each file is now bounded-width numeric lookup data after the circuit
+definitions and adaptive control flow. Original recovery routes, correction
+values, explicit rejections, and ordered quantum operations were compared with
+the refreshed exports: 447,738 decoder cases for the demo and 492,816 for the
+earlier verified export (including invalid-input probes), plus all 8,844 recovery
+routes and all six gadget schedules in each export.
+
+Validation: 34 protocol/simulation tests pass; the full 32-qubit demo source
+compiles and its HUGR reloads on Guppy 0.21.6 as well as 1.1.3. Native Selene/Stim
+execution passes eight small corrected-Bell shots and eleven full-size
+decoder/routing cases, including accepted and rejected inputs. An isolated wheel
+check confirms the template ships and can build/reload standalone Guppy without
+the repository on the import path. New regressions check exact circuit expansion,
+measurement parities, compact decision tables, every real decoder entry, and
+recovery routing, including unknown prefixes.

@@ -118,6 +118,14 @@ fault responses. Standard decoding uses `spiderwarp.lut_decoder.LutDecoder` at
 construction time. The exported source and HUGR contain the decoder/control-flow
 decisions, without a separate LUT or JSON control-flow file.
 
+The standalone Guppy program uses named `ExtractionResult`, `Correction`, and
+`RecoveryRoute` structs. Circuit instructions are batched over target tuples
+inside `@guppy.comptime` functions, preserving gate order and ancilla lifetimes.
+Shared decoder and recovery decisions are stored as immutable arrays and read
+by one masked-lookup loop, rather than thousands of generated helper functions.
+The adaptive cycle and circuit definitions precede the generated lookup data.
+The same source supports Guppy 0.21.6 and 1.1.x.
+
 Verification is disabled by default. Pass `verify=True` to the builder, or call
 `verify_se_protocol(protocol)` (also available as `protocol.verify()`) separately.
 The callable checks the existing gadgets, recovery choices and corrections; it

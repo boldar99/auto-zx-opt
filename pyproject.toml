@@ -31,4 +31,4 @@ include = ["spiderwarp", "spiderwarp.*"]
 namespaces = false
 
 [tool.setuptools.package-data]
-spiderwarp = ["assets/**/*.json", "assets/**/*.stim", "assets/**/*.qasm", "assets/**/*.md"]
+spiderwarp = ["assets/**/*.json", "assets/**/*.stim", "assets/**/*.qasm", "assets/**/*.md", "_se_guppy_template.py.in"]

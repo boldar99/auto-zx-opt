@@ -6,8 +6,9 @@ import hashlib
 import importlib.util
 import sys
 import tempfile
-from collections import Counter
+from itertools import groupby
 from pathlib import Path
+from pprint import pformat
 
 
 class IntegerDecisions:
@@ -16,7 +17,6 @@ class IntegerDecisions:
     def __init__(self):
         self.nodes = []
         self._ids = {}
-        self.roots = set()
 
     def build(self, table, width):
         entries = tuple(sorted((k, v) for k, v in table.items() if v))
@@ -38,15 +38,13 @@ class IntegerDecisions:
                 self.nodes.append(key)
             return True, self._ids[key]
 
-        root = visit(entries, width - 1)
-        if root[0]:
-            self.roots.add(root[1])
-        return root
+        return visit(entries, width - 1)
 
     @staticmethod
-    def expression(ref):
+    def reference(ref):
+        """Nonnegative node indices; negative values encode terminal integers."""
         node, value = ref
-        return f'decision_{value}(syndrome)' if node else str(value)
+        return value if node else -value - 1
 
     def evaluate(self, ref, syndrome):
         while ref[0]:
@@ -54,21 +52,53 @@ class IntegerDecisions:
             ref = high if (syndrome >> bit) & 1 else low
         return ref[1]
 
-    def functions(self):
-        """Inline private nodes; emit functions only for roots/shared nodes."""
-        uses = Counter(ref[1] for _, low, high in self.nodes
-                       for ref in (low, high) if ref[0])
-        retained = self.roots | {i for i, count in uses.items() if count > 1}
+    def compact(self, roots):
+        """Fold consecutive tests with a common fallback into one masked test.
 
-        def body(ref, root, indent=''):
-            node, value = ref
-            if not node or (value in retained and value != root):
-                return [indent + 'return ' + self.expression(ref)]
-            bit, low, high = self.nodes[value]
-            return ([indent + f'if (syndrome & {1 << bit}) == 0:']
-                    + body(low, root, indent + '    ') + body(high, root, indent))
+        Sparse tables have long runs of bits that simply reject. A single
+        ``key & mask == pattern`` test represents that entire run. Prune nodes
+        made private/unreachable by folding, while retaining sharing at roots.
+        """
+        nodes, ids, cache = [], {}, {}
 
-        return [(i, body((True, i), i)) for i in sorted(retained)]
+        def visit(ref):
+            if not ref[0]:
+                return self.reference(ref)
+            if ref[1] in cache:
+                return cache[ref[1]]
+            bit, low, high = self.nodes[ref[1]]
+            low, high = visit(low), visit(high)
+            mask = 1 << bit
+            pattern, matched, other = mask, high, low
+            if low >= 0 and high < 0:
+                pattern, matched, other = 0, low, high
+            while matched >= 0 and nodes[matched][3] == other:
+                child_mask, child_pattern, matched, _ = nodes[matched]
+                mask |= child_mask
+                pattern |= child_pattern
+            row = mask, pattern, matched, other
+            if row not in ids:
+                ids[row] = len(nodes)
+                nodes.append(row)
+            cache[ref[1]] = ids[row]
+            return ids[row]
+
+        references = [visit(root) for root in roots]
+        reachable = set()
+        pending = references.copy()
+        while pending:
+            index = pending.pop()
+            if index >= 0 and index not in reachable:
+                reachable.add(index)
+                pending.extend(nodes[index][2:])
+        mapping = {old: new for new, old in enumerate(sorted(reachable))}
+
+        def remap(ref):
+            return mapping[ref] if ref >= 0 else ref
+
+        return ([(mask, pattern, remap(matched), remap(other))
+                 for i in sorted(reachable) for mask, pattern, matched, other in [nodes[i]]],
+                [remap(ref) for ref in references])
 
 
 def share_recovery_decoders(recoveries):
@@ -103,19 +133,11 @@ def generate_source(code, gadgets, policy) -> str:
         raise NotImplementedError("Guppy measurement masks currently support at most 63 flags/checks")
     if any(p.cleanup_distance is not None for p in policy.recoveries.values()) and code.H_x.shape[0] * 2 > 63:
         raise NotImplementedError("Two-stage recovery requires at most 31 checks per extraction")
-    lines = [
-        '"""Generated adaptive SE: Z primary, then X primary; recovery ends the cycle.',
-        '',
-        'Import se_cycle(data) -> bool, or postselected_se_cycle(data) -> None.',
-        'All integer measurement masks use bit i for check/flag i.',
-        'Use compile_se_cycle() for compatibility with supported Guppy versions.',
-        '"""',
-        'from guppylang import guppy',
-        'from guppylang.std.builtins import array, exit, owned',
-        'from guppylang.std import quantum as _quantum',
-        'from guppylang.std.quantum import qubit, h, cx, cz, x, y, z, measure',
-        '',
+    metadata = [
         f'N_DATA = {code.n}',
+        f'N_CHECKS = {code.H_x.shape[0]}',
+        f'N_X_FLAGS = {gadgets["X", code.d].num_flags}',
+        f'N_Z_FLAGS = {gadgets["Z", code.d].num_flags}',
         f'CODE_DISTANCE = {code.d}',
         f'CORRECTABLE_FAULTS = {policy.correctable}',
         f'DETECTABLE_FAULTS = {policy.detectable}',
@@ -127,171 +149,119 @@ def generate_source(code, gadgets, policy) -> str:
         'CIRCUIT_HASHES = {',
     ]
     for key, gadget in sorted(gadgets.items()):
-        lines.append(f'    {key!r}: {hashlib.sha256(str(gadget.circuit).encode()).hexdigest()!r},')
-    lines.extend([
-        '}', '',
-        'if hasattr(_quantum, "Measurement"):',
-        '    @guppy',
-        '    def measure_bit(q: qubit @ owned) -> bool:',
-        '        return measure(q).read()',
-        'else:',
-        '    @guppy',
-        '    def measure_bit(q: qubit @ owned) -> bool:',
-        '        return measure(q)',
-        '',
-    ])
+        metadata.append(f'    {key!r}: {hashlib.sha256(str(gadget.circuit).encode()).hexdigest()!r},')
+    metadata.append('}')
 
-    def function(name, args, returns, body):
-        lines.extend(['@guppy', f'def {name}({args}) -> {returns}:'])
-        lines.extend('    ' + line if line else '' for line in body)
-        lines.append('')
+    circuits = []
 
-    data_arg = f'data: array[qubit, {code.n}]'
+    def call(prefix, values):
+        """Wrap circuit operands without hiding the schedule in long lines."""
+        operands = pformat(values, width=max(40, 96 - len(prefix)), compact=True)
+        first, *rest = operands.splitlines()
+        statement = prefix + first
+        statement += ''.join('\n' + ' ' * len(prefix) + line for line in rest)
+        circuits.extend('    ' + line for line in (statement + ')').splitlines())
+
+    data_arg = 'data: array[qubit, comptime(N_DATA)]'
     for (basis, distance), gadget in sorted(gadgets.items()):
-        body = []
-        record = 0
-
-        def qref(q):
-            return f'data[{q}]' if q < code.n else f'a{q}'
-
-        for name, qs in gadget.operations:
-            a = qref(qs[0])
-            if name in {'R', 'RX'}:
-                body.append(f'{a} = qubit()')
-                if name == 'RX':
-                    body.append(f'h({a})')
-            elif name in {'M', 'MX'}:
-                if name == 'MX':
-                    body.append(f'h({a})')
-                body.append(f'm{record} = measure_bit({a})')
-                record += 1
-            elif name == 'XCX':
-                b = qref(qs[1])
-                body.extend([f'h({a})', f'h({b})', f'cz({a}, {b})', f'h({a})', f'h({b})'])
-            elif name in {'CX', 'CZ'}:
-                body.append(f'{name.lower()}({a}, {qref(qs[1])})')
+        circuits.extend([
+            '@guppy.comptime',
+            f'def run_{basis.lower()}_d{distance}({data_arg}) -> ExtractionResult:',
+            '    register = dict(enumerate(data))',
+            '    measurements = []',
+        ])
+        # Batch adjacent operations only: neither their order nor the lifetime
+        # of any ancilla may change, because those define the fault locations.
+        for name, operations in groupby(gadget.operations, key=lambda op: op[0]):
+            targets = [qs if len(qs) == 2 else qs[0] for _, qs in operations]
+            if name == 'R':
+                call('prepare(register, ', tuple(targets))
+            elif name == 'M':
+                call('read(register, measurements, ', tuple(targets))
+            elif name in {'H', 'X', 'Y', 'Z', 'CX', 'CZ'}:
+                call(f'apply({name.lower()}, register, ', tuple(targets))
             else:
-                body.append(f'{name.lower()}({a})')
-        body.extend(['flags = 0', 'syndrome = 0'])
-        for label, group in [('flags', gadget.readout.flags), ('syndrome', gadget.readout.syndromes)]:
-            for bit, parity in enumerate(group):
-                if parity:
-                    expression = ' ^ '.join(f'm{i}' for i in parity)
-                    body.extend([f'if {expression}:', f'    {label} ^= {1 << bit}'])
-        body.append('return flags, syndrome')
-        function(f'run_{basis.lower()}_d{distance}', data_arg, 'tuple[int, int]', body)
-
-    body = []
-    for q in range(code.n):
-        body.extend([f'if (x_mask & {1 << q}) != 0:', f'    x(data[{q}])'])
-    for q in range(code.n):
-        body.extend([f'if (z_mask & {1 << q}) != 0:', f'    z(data[{q}])'])
-    function('apply_correction', data_arg + ', x_mask: int, z_mask: int', 'None', body)
+                raise ValueError(f'Guppy export requires basis-lowered operations, got {name}')
+        call('flags = pack_parities(measurements, ', gadget.readout.flags)
+        call('syndrome = pack_parities(measurements, ', gadget.readout.syndromes)
+        circuits.extend([
+            '    return ExtractionResult(flags, syndrome)', '', '',
+        ])
+    for basis in ('x', 'z'):
+        circuits.extend(['@guppy', f'def extract_{basis}({data_arg}, distance: int) -> ExtractionResult:'])
+        for distance in sorted(d for b, d in gadgets if b.lower() == basis):
+            circuits.extend([f'    if distance == {distance}:', f'        return run_{basis}_d{distance}(data)'])
+        circuits.extend(['    return ExtractionResult(-1, 0)', '', ''])
 
     decisions = IntegerDecisions()
-
-    def correction_decoder(name, table):
-        if not table:
-            function(name, 'syndrome: int', 'tuple[bool, int, int]', ['return False, 0, 0'])
-            return
-        width = max(1, max(table).bit_length())
-        accept = decisions.build({s: 1 for s in table}, width)
-        xs = decisions.build({s: p & ((1 << code.n) - 1) for s, p in table.items()}, width)
-        zs = decisions.build({s: p >> code.n for s, p in table.items()}, width)
-        body = ['if syndrome < 0:', '    return False, 0, 0']
-        if width < 63:
-            body.extend([f'if syndrome >= {1 << width}:', '    return False, 0, 0'])
-        if accept != (False, 1):
-            body.extend([f'if {decisions.expression(accept)} == 0:', '    return False, 0, 0'])
-        body.append(f'return True, {decisions.expression(xs)}, {decisions.expression(zs)}')
-        function(name, 'syndrome: int', 'tuple[bool, int, int]', body)
-
-    for basis in ('Z', 'X'):
-        correction_decoder(f'decode_{basis.lower()}_standard', policy.standard[basis])
-
+    decoders = []
     tables, decoder_ids = share_recovery_decoders(policy.recoveries)
-    routing = {'Z': {}, 'X': {}}
+    for table in [policy.standard['Z'], policy.standard['X']] + [
+            {s: p for s, p in table.items() if p is not None} for table in tables]:
+        width = max(1, max(table, default=0).bit_length())
+        refs = [decisions.build(values, width) for values in (
+            {s: 1 for s in table},
+            {s: p & ((1 << code.n) - 1) for s, p in table.items()},
+            {s: p >> code.n for s, p in table.items()},
+        )]
+        decoders.append((width, *refs))
+
+    routes = []
+    route_ids = {}
+    z_routes, x_routes = {}, {}
     for key, plan in sorted(policy.recoveries.items()):
         basis, flags, previous = key
-        routing[basis][flags, previous] = plan.distance, plan.cleanup_distance or 0, decoder_ids[key]
-    for table_id, table in enumerate(tables):
-        correction_decoder(f'decode_recovery_{table_id}', {s: p for s, p in table.items() if p is not None})
-    for node_id, body in decisions.functions():
-        function(f'decision_{node_id}', 'syndrome: int', 'int', body)
-    body = []
-    for table_id in range(len(tables)):
-        body.extend([f'if decoder_id == {table_id}:', f'    return decode_recovery_{table_id}(syndrome)'])
-    body.append('return False, 0, 0')
-    function('decode_recovery', 'decoder_id: int, syndrome: int', 'tuple[bool, int, int]', body)
-
-    for basis in ('Z', 'X'):
-        grouped = {}
-        for (flags, previous), value in sorted(routing[basis].items()):
-            condition = f'flags == {flags}'
-            if basis == 'X':
-                condition = f'({condition} and previous == {previous})'
-            grouped.setdefault(value, []).append(condition)
-        body = []
-        for (distance, cleanup_distance, table_id), conditions in grouped.items():
-            # Keep generated Boolean expressions and parser recursion bounded.
-            for start in range(0, len(conditions), 16):
-                body.extend([f'if {" or ".join(conditions[start:start + 16])}:',
-                             f'    return {distance}, {cleanup_distance}, {table_id}'])
-        body.append('return -1, 0, -1')
-        args = 'flags: int' + (', previous: int' if basis == 'X' else '')
-        function(f'select_{basis.lower()}_recovery', args, 'tuple[int, int, int]', body)
-
-        dual = 'x' if basis == 'Z' else 'z'
-        distances = sorted(d for b, d in gadgets if b == dual.upper())
-        body = [f'distance, cleanup_distance, decoder_id = select_{basis.lower()}_recovery(flags'
-                + (', previous)' if basis == 'X' else ')')]
-        for i, distance in enumerate(distances):
-            body.extend([f'{"if" if i == 0 else "elif"} distance == {distance}:',
-                         f'    recovery_flags, syndrome = run_{dual}_d{distance}(data)'])
-        body.extend(['else:', '    return False', 'if recovery_flags != 0:',
-                     '    return False', 'if cleanup_distance != 0:'])
-        for i, distance in enumerate(sorted(d for b, d in gadgets if b == basis)):
-            body.extend([f'    {"if" if i == 0 else "elif"} cleanup_distance == {distance}:',
-                         f'        cleanup_flags, cleanup_syndrome = run_{basis.lower()}_d{distance}(data)'])
-        body.extend(['    else:', '        return False', '    if cleanup_flags != 0:',
-                     '        return False', f'    syndrome |= cleanup_syndrome << {code.H_x.shape[0]}',
-                     'ok, x_mask, z_mask = decode_recovery(decoder_id, syndrome)',
-                     'if not ok:', '    return False', 'apply_correction(data, x_mask, z_mask)',
-                     'return True'])
-        function(f'recover_after_{basis.lower()}', data_arg + ', ' + args, 'bool', body)
-
-    function('se_cycle', data_arg, 'bool', [
-        f'flags, z_syndrome = run_z_d{code.d}(data)',
-        'if flags != 0:',
-        '    return recover_after_z(data, flags)',
-        'ok, x_mask, z_mask = decode_z_standard(z_syndrome)',
-        'if not ok:',
-        '    return False',
-        'apply_correction(data, x_mask, z_mask)',
-        f'flags, x_syndrome = run_x_d{code.d}(data)',
-        'if flags != 0:',
-        '    return recover_after_x(data, flags, z_syndrome)',
-        'ok, x_mask, z_mask = decode_x_standard(x_syndrome)',
-        'if not ok:',
-        '    return False',
-        'apply_correction(data, x_mask, z_mask)',
-        'return True',
+        route = plan.distance, plan.cleanup_distance or 0, decoder_ids[key]
+        if route not in route_ids:
+            route_ids[route] = len(routes) + 1  # zero means unknown/reject
+            routes.append(route)
+        if basis == 'Z':
+            z_routes[flags] = route_ids[route]
+        else:
+            x_routes.setdefault(previous, {})[flags] = route_ids[route]
+    z_root = decisions.build(z_routes, gadgets['Z', code.d].num_flags)
+    x_roots = [decisions.build(table, gadgets['X', code.d].num_flags)
+               for _, table in sorted(x_routes.items())]
+    previous_width = max(1, max(x_routes, default=0).bit_length())
+    previous_root = decisions.build({s: i + 1 for i, s in enumerate(sorted(x_routes))}, previous_width)
+    nodes, roots = decisions.compact([ref for _, *refs in decoders for ref in refs]
+                                    + [z_root, previous_root] + x_roots)
+    decoder_roots = iter(roots[:3 * len(decoders)])
+    decoders = [(width, next(decoder_roots), next(decoder_roots), next(decoder_roots))
+                for width, *_ in decoders]
+    z_root, previous_root, *x_roots = roots[3 * len(decoders):]
+    metadata.extend([
+        f'PREVIOUS_WIDTH = {previous_width}',
+        f'Z_RECOVERY_ROOT = {z_root}',
+        f'X_PREVIOUS_ROOT = {previous_root}',
     ])
-    function('postselected_se_cycle', data_arg, 'None', [
-        'if not se_cycle(data):',
-        '    exit("SE protocol rejected", 1)',
-    ])
-    lines.extend([
-        'def compile_se_cycle():',
-        '    """Compile with minimal optimization on Guppy versions offering it."""',
-        '    target = se_cycle',
-        '    minimal_opt = getattr(target, "with_minimal_opt", None)',
-        '    if minimal_opt is not None:',
-        '        target = minimal_opt()',
-        '    return target.compile_function()',
-        '',
-    ])
-    return '\n'.join(lines)
+
+    data = [
+        '# Decoder data: (syndrome width, acceptance root, X root, Z root).',
+        '# Decoder 0 is standard Z; decoder 1 is standard X; the rest are recovery.',
+    ]
+    for name, rows in [('DECODERS', decoders),
+                       ('RECOVERY_ROUTES', routes or [(-1, 0, -1)]),
+                       ('X_RECOVERY_ROOTS', x_roots or [-1]),
+                       ('DECISION_NODES', nodes or [(0, 0, -1, -1)])]:
+        if name == 'RECOVERY_ROUTES':
+            data.append('# Routes: (recovery distance, cleanup distance or zero, decoder id).')
+        elif name == 'DECISION_NODES':
+            data.extend(['# Shared decision nodes: (mask, pattern, matching branch, other branch).',
+                         '# A nonnegative reference is a node index; -(value + 1) is a leaf.'])
+        data.append(f'{name} = [')
+        if name == 'DECISION_NODES':
+            # Compact numeric data, with a bounded line width. The human-facing
+            # circuit and control-flow definitions remain separate above it.
+            formatted = pformat(rows, width=92, compact=True)[1:-1]
+            data.extend('    ' + line.lstrip() for line in formatted.splitlines())
+        else:
+            data.extend(f'    {row!r},' for row in rows)
+        data.extend([']', ''])
+    template = Path(__file__).with_name('_se_guppy_template.py.in').read_text()
+    return (template.replace('# GENERATED_METADATA', '\n'.join(metadata))
+            .replace('# GENERATED_GADGETS', '\n'.join(circuits).rstrip())
+            .replace('# GENERATED_TABLES', '\n'.join(data)))
 
 
 def compile_protocol(code, gadgets, policy):

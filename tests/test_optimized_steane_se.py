@@ -1,5 +1,6 @@
 from pathlib import Path
-from dataclasses import replace
+from dataclasses import dataclass, replace
+import ast
 import subprocess
 import sys
 
@@ -482,6 +483,110 @@ def test_shared_integer_decisions_preserve_sparse_and_product_decoders():
     before = len(decisions.nodes)
     assert decisions.build(sparse, 12) == a
     assert len(decisions.nodes) == before
+    rows, roots = decisions.compact([a, b])
+    assert len(rows) < len(decisions.nodes)
+    for root, table in zip(roots, (sparse, product)):
+        for key in range(4096):
+            node = root
+            while node >= 0:
+                mask, pattern, matched, other = rows[node]
+                node = matched if key & mask == pattern else other
+            assert -(node + 1) == table.get(key, 0)
+
+
+def generated_python(source):
+    """Execute generated bodies with Python values to exhaustively check tables.
+
+    Compilation/reload is checked separately. Removing only Guppy annotations
+    lets these tests cover the actual exported lookup/control-flow bodies.
+    """
+    tree = ast.parse(source)
+    definitions = []
+    for node in tree.body:
+        if isinstance(node, ast.FunctionDef):
+            node.decorator_list = []
+            node.returns = None
+            for arg in node.args.args:
+                arg.annotation = None
+            definitions.append(node)
+        elif isinstance(node, ast.ClassDef):
+            node.decorator_list = [ast.Name(id='dataclass', ctx=ast.Load())]
+            definitions.append(node)
+        elif isinstance(node, ast.Assign):
+            definitions.append(node)
+    namespace = {'comptime': lambda value: value, 'dataclass': dataclass}
+    exec(compile(ast.fix_missing_locations(ast.Module(body=definitions, type_ignores=[])),
+                 '<generated SE>', 'exec'), namespace)
+    return namespace
+
+
+def test_export_expands_the_exact_gate_schedule_and_measurement_parities(compiled_bell_protocol):
+    protocol = compiled_bell_protocol
+    exported = generated_python(protocol.source)
+    assert 'decision_0(' not in protocol.source
+    for (basis, distance), gadget in protocol.gadgets.items():
+        # Include all-zero, single-bit, and all-one readouts to exercise every
+        # parity column, even outcomes that this noiseless circuit cannot reach.
+        count = gadget.circuit.num_measurements
+        for mask in [0, (1 << count) - 1] + [1 << i for i in range(count)]:
+            operations = iter(gadget.operations)
+            measured = []
+
+            def gate(name, *targets):
+                actual_name, actual_targets = next(operations)
+                assert (name, targets) == (actual_name, actual_targets)
+
+            def allocate():
+                name, targets = next(operations)
+                assert name == 'R'
+                return targets[0]
+
+            def measure(q):
+                gate('M', q)
+                measured.append(bool((mask >> len(measured)) & 1))
+                return measured[-1]
+
+            exported.update(qubit=allocate, measure_bit=measure)
+            for name in ('h', 'x', 'y', 'z', 'cx', 'cz'):
+                exported[name] = lambda *qs, name=name: gate(name.upper(), *qs)
+            result = exported[f'run_{basis.lower()}_d{distance}'](list(range(protocol.code.n)))
+            assert next(operations, None) is None
+            assert (result.flags, result.syndrome) == gadget.readout.decode(measured)
+
+
+def test_exported_tables_preserve_all_real_decoder_cases_and_recovery_routes(verified_raw_32_policy):
+    from spiderwarp._se_guppy import generate_source, share_recovery_decoders
+    code, _, gadgets, policy = verified_raw_32_policy
+    source = generate_source(code, gadgets, policy)
+    exported = generated_python(source)
+    # Keep source growth tied to compact circuit/data descriptions, rather than
+    # generating a function for every branch of every decoder.
+    assert len(source.splitlines()) < 6000
+    tables, decoder_ids = share_recovery_decoders(policy.recoveries)
+    for decoder_id, table in enumerate([policy.standard['Z'], policy.standard['X']] + tables):
+        width = max(1, max((s for s, p in table.items() if p is not None), default=0).bit_length())
+        for syndrome in [-1, *range(1 << width), 1 << width]:
+            result = exported['decode'](decoder_id, syndrome)
+            pauli = table.get(syndrome)
+            assert result.accepted == (pauli is not None)
+            assert result.x_mask | (result.z_mask << code.n) == (pauli or 0)
+    for key, plan in policy.recoveries.items():
+        basis, flags, previous = key
+        route = (exported['select_z_recovery'](flags) if basis == 'Z'
+                 else exported['select_x_recovery'](flags, previous))
+        assert (route.distance, route.cleanup_distance, route.decoder_id) == (
+            plan.distance, plan.cleanup_distance or 0, decoder_ids[key])
+    assert exported['select_z_recovery'](0).decoder_id == -1
+    assert exported['select_z_recovery'](1 << gadgets['Z', code.d].num_flags).decoder_id == -1
+    assert exported['select_x_recovery'](1, -1).decoder_id == -1
+    assert exported['select_x_recovery'](1, 1 << exported['PREVIOUS_WIDTH']).decoder_id == -1
+    for previous in range(1 << exported['PREVIOUS_WIDTH']):
+        for flags in range(1 << gadgets['X', code.d].num_flags):
+            route = exported['select_x_recovery'](flags, previous)
+            assert (route.decoder_id >= 0) == (('X', flags, previous) in policy.recoveries)
+    for flags in range(1 << gadgets['Z', code.d].num_flags):
+        route = exported['select_z_recovery'](flags)
+        assert (route.decoder_id >= 0) == (('Z', flags, -1) in policy.recoveries)
 
 
 @pytest.fixture(scope="module")
