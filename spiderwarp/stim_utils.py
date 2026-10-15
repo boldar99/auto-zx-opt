@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections import defaultdict
 from typing import Literal, TYPE_CHECKING
 
+import numpy as np
 import pyzx as zx
 import stim
 import stimcirq
@@ -21,6 +22,50 @@ Z_INITIALIZATIONS = {"MR", "R"}
 X_INITIALIZATIONS = {"RX"}
 SPECIAL_GATES = {"DETECTOR", "OBSERVABLE_INCLUDE", "SHIFT_COORDS", "QUBIT_COORDS", "TICK"}
 NOISE_GATES = {"X_ERROR", "Z_ERROR", "DEPOLARIZE1", "DEPOLARIZE2"}
+
+
+def circuit_for_inspection(circuit: stim.Circuit) -> stim.Circuit:
+    """Return a display-only circuit without MPPs, detectors, or observables.
+
+    Repeat blocks are flattened so measurement-record references can be
+    updated across iterations. Feedback using a removed MPP result is also
+    removed; references to retained measurements are remapped. All other
+    operations, including injected faults, are retained. The input is not
+    mutated. This view is not an equivalent circuit for execution/verification.
+    """
+    result = stim.Circuit()
+    record_map: list[int | None] = []
+    for operation in circuit.flattened():
+        if operation.name in {"MPP", "DETECTOR", "OBSERVABLE_INCLUDE"}:
+            record_map.extend([None] * operation.num_measurements)
+            continue
+
+        next_record = result.num_measurements
+        if not any(target.is_measurement_record_target
+                   for target in operation.targets_copy()):
+            result.append(operation)
+        else:
+            for group in operation.target_groups():
+                targets = []
+                for target in group:
+                    if not target.is_measurement_record_target:
+                        targets.append(target)
+                        continue
+                    original_record = len(record_map) + target.value
+                    if original_record < 0:
+                        raise ValueError("measurement reference precedes the input circuit")
+                    retained_record = record_map[original_record]
+                    if retained_record is None:
+                        break
+                    targets.append(stim.target_rec(retained_record - next_record))
+                else:
+                    result.append(stim.CircuitInstruction(
+                        operation.name, targets, operation.gate_args_copy(),
+                        tag=operation.tag,
+                    ))
+
+        record_map.extend(range(next_record, next_record + operation.num_measurements))
+    return result
 
 
 def qasm_str_to_stim_circuit(qasm_str: str) -> stim.Circuit:
@@ -349,11 +394,59 @@ def make_stim_circ_noisy(circ: stim.Circuit, p: float, one_cnot_per_layer: bool=
     return noisy_circ, mm
 
 
-def perfect_state_from_code(code: CSSCode, basis: Literal["X"] | Literal["Z"]):
+def _projection_feedback_supports(check_rows: np.ndarray) -> list[tuple[int, ...]]:
+    """Map measured syndrome bits to Pauli supports that clear their signs.
+
+    Row reduction gives R = E H. Set the pivot correction bits to E s,
+    with free bits zero. This solves H correction = s for every physical
+    syndrome, including dependent checks whose outcomes satisfy the same
+    linear relations as their rows.
+    """
+    num_checks, num_qubits = check_rows.shape
+    augmented = np.hstack([
+        check_rows.astype(np.uint8) % 2,
+        np.eye(num_checks, dtype=np.uint8),
+    ])
+    pivot_columns = []
+    for column in range(num_qubits):
+        pivot_row = len(pivot_columns)
+        candidates = np.flatnonzero(augmented[pivot_row:, column])
+        if not len(candidates):
+            continue
+        selected = pivot_row + int(candidates[0])
+        augmented[[pivot_row, selected]] = augmented[[selected, pivot_row]]
+        for row in range(num_checks):
+            if row != pivot_row and augmented[row, column]:
+                augmented[row] ^= augmented[pivot_row]
+        pivot_columns.append(column)
+        if len(pivot_columns) == num_checks:
+            break
+    return [
+        tuple(column for row, column in enumerate(pivot_columns)
+              if augmented[row, num_qubits + measurement])
+        for measurement in range(num_checks)
+    ]
+
+
+def perfect_state_from_code(code: CSSCode, basis: Literal["X", "Z"]) -> stim.Circuit:
+    """Prepare ideal logical plus (X) or zero (Z) using corrected projections.
+
+    Reset in the requested physical basis, project the opposite-basis code
+    stabilizers with MPP, and correct their random signs using measurement-
+    controlled Paulis. The resulting code stabilizers and requested logical
+    operators all have eigenvalue +1. Raw MPP outcomes can still be random;
+    callers skip these preparation records with ``circuit.num_measurements``.
+    This is noiseless verification input, not an FT preparation gadget.
+    """
+    if basis not in {"X", "Z"}:
+        raise ValueError('basis must be "X" or "Z"')
+
     perfect_state = stim.Circuit()
-    perfect_state.append("RX" if basis == "X" else "R", range(len(code.H_x[0])))
+    perfect_state.append("RX" if basis == "X" else "R", range(code.n))
+    check_rows = np.asarray(code.H_z if basis == "X" else code.H_x).reshape(-1, code.n)
+    check_rows = check_rows[np.any(check_rows, axis=1)]
     target_function = stim.target_z if basis == "X" else stim.target_x
-    for row in code.H_z:  # Note: H_x, not H_z
+    for row in check_rows:
         targets = []
         support = [i for i, r in enumerate(row) if r == 1]
         for q in support:
@@ -362,6 +455,15 @@ def perfect_state_from_code(code: CSSCode, basis: Literal["X"] | Literal["Z"]):
         if targets:
             targets.pop()
             perfect_state.append("MPP", targets)
+
+    correction_gate = "CX" if basis == "X" else "CZ"
+    for measurement, support in enumerate(_projection_feedback_supports(check_rows)):
+        if support:
+            record = stim.target_rec(measurement - perfect_state.num_measurements)
+            perfect_state.append(
+                correction_gate,
+                [target for qubit in support for target in (record, qubit)],
+            )
     return perfect_state
 
 

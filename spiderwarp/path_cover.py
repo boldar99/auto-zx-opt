@@ -703,6 +703,12 @@ class CoveredZXGraph:
                 merged_path_options = []
 
         for merged_path in merged_path_options:
+            # A labelled measurement is a classical output, not an endpoint
+            # that can become a reset or an internal spider. Extraction only
+            # emits measurements at path terminals, so such a bend would
+            # silently delete the original measurement record.
+            if any(self.measurement_id(v) is not None for v in merged_path[:-1]):
+                continue
             new_paths = copy.copy(paths)
             del new_paths[i]
             new_paths[j] = merged_path
@@ -713,6 +719,7 @@ class CoveredZXGraph:
         self,
         paths: Optional[dict[int, tuple[int, ...]]] = None,
     ) -> Iterator[dict[int, tuple[int, ...]]]:
+        """Yield causal bends that retain every labelled measurement terminal."""
         current_paths = self.paths if paths is None else paths
         for bend_data in self._boundary_bends(current_paths):
             yield from self._causal_path_bends(current_paths, *bend_data)
@@ -1533,6 +1540,13 @@ class CoveredZXGraph:
         return extraction_graph._find_total_ordering()
 
     def extract_circuit_with_measurement_map(self) -> tuple[stim.Circuit, dict[int, int]]:
+        """Extract a circuit while retaining every labelled measurement output."""
+        original_ids = [
+            self.measurement_id(v) for v in self.G
+            if self.measurement_id(v) is not None
+        ]
+        if len(original_ids) != len(set(original_ids)):
+            raise ValueError("measurement IDs must be unique before extraction")
         circuit = stim.Circuit()
         measurement_map: dict[int, int] = {}
         next_measurement_index = 0
@@ -1545,6 +1559,12 @@ class CoveredZXGraph:
                         measurement_map[next_measurement_index + offset] = operation.measurement_id + offset
                 next_measurement_index += len(operation.targets)
 
+        missing = set(original_ids) - set(measurement_map.values())
+        if missing:
+            raise ValueError(
+                "path cover does not preserve measurements: missing original "
+                f"measurement IDs {sorted(missing)}"
+            )
         return circuit, measurement_map
 
     # ---------------------------------------------------------------------

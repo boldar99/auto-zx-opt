@@ -249,5 +249,133 @@ The repository is currently a work in progress, not a clean commit. In particula
 
 - `tests/test_fault_tolerance_verification.py`, `tests/test_path_cover_hadamard.py`, and `tests/test_qubit_reuse.py` are currently untracked and must be added before committing.
 - Notebook output has been cleared, and the generated `notebooks/circ.svg` is removed and ignored.
-- The renamed `32_20_4_zero_t1.stim` input and regenerated SE asset are modified.
+- The renamed `32_20_4_zero_d2.stim` input and regenerated SE asset are modified.
 - `.DS_Store` and `__pycache__` are now ignored.
+
+## Adaptive SE builder implementation (2026-10-15)
+
+`spiderwarp.optimized_steane_se.optimized_steane_SE_orchestrator(code, circuits,
+*, output_dir=None)` now optimizes distance-labelled canonical X-SE gadgets,
+constructs dual gadgets, synthesizes recovery decisions, verifies a complete
+cycle, and exports standalone Guppy source plus a composable HUGR package.
+The last notebook cell invokes this interface. The public module also provides
+the reference Stim interpreter, results, and verification exceptions.
+
+The agreed cycle is Z primary at code distance, then (if unflagged) standard
+decoding/correction and X primary at code distance. A flagged primary discards
+its own syndrome, runs dual-basis recovery, rejects raised recovery flags, and
+returns immediately after recovery decoding. Recovery after the first primary
+does not proceed to the second primary. One fault budget covers the whole cycle.
+
+Recovery synthesis now adds an extraction of the discarded primary component
+if no single dual recovery can satisfy CSS EC A/B. It still ends the cycle after
+that recovery branch and retains the clean-path primary ordering. Both fresh
+syndromes are combined before correction; raised flags at either stage reject.
+RecoveryPlan.cleanup_distance records this optional second recovery stage.
+
+New internals are `_se_circuit.py` (measurement provenance, ZX/reuse optimization,
+encoded-Bell validation, exact mixed-Pauli response propagation), `_se_policy.py`
+(shared-budget synthesis/checking), and `_se_guppy.py` (source/HUGR export).
+Standard decoding uses the repository's `lut_decoder.LutDecoder` at build time.
+The current exact implementation supports identical H_x/H_z, code distances
+2–5, and at most 63 data qubits/flags/checks in Guppy's integer-mask emitter.
+Basis rotations introduced by Guppy lowering are included before fault analysis.
+
+The user explicitly clarified that the metric is CSS weight max(w_X, w_Z),
+since the components decouple. X1 Z17 and X7 Z23 therefore have CSS weight one,
+and the earlier total-Pauli-weight failure claims are withdrawn. EC A bounds
+accepted residuals by r errors in each component for r <= t regardless of
+incoming errors. EC B requires acceptance and preservation of the ideal-decoded
+logical state when incoming CSS weight plus internal order <= t. Higher bounded
+histories through floor(d/2) use the internal-fault r-filter as well, without a
+correction-radius cap. Incoming CSS-weight-one states include split X/Z support.
+
+EC A is checked on every incoming syndrome sector (4,096 for [[32,20,4]]),
+using one representative per normalizer class and allowing r <= t new internal
+faults independently of incoming weight. Logical Paulis do not affect branch
+observations or output syndrome; this follows from the validated linear gadget
+response. Logical classes remain intact in the separate EC B histories.
+Enumeration currently supports up to 65,536 incoming syndrome sectors.
+
+The complete optimized policy now passes CSS EC A/B: 17,893,758 checked
+transitions, 1,831,353 accepted and 1,281,618 discarded contexts. All 8,844
+reachable recovery prefixes use d1; 324 additionally need d1 extraction in the
+primary basis (162 per primary basis). This is necessary even with CSS weight:
+four Z-only histories leave I, Z18, Z0, Z0 Z18 with the same retained recovery
+observations; there is no common one-error Z correction. The new extraction
+resolves this ambiguity. Four physical prefixes and the proof are saved in
+`analysis/32_20_4_protocol/why_css_recovery_cleanup.txt`.
+The current source/HUGR are restored in `build/32_20_4_protocol/`, using 136
+shared decoders and reduced shared integer decision graphs. The export uses
+conditional Guppy functions, with no external LUT or JSON sidecar. Earlier
+exports remain in the superseded subdirectory for comparison.
+
+Use raw measurement parities when checking deterministic witnesses or flag
+signs: Stim's detector sampler subtracts its own reference, hiding constant
+Paulis/raised flags. `_se_circuit.sample_annotation_parities` handles this.
+
+Validation includes unit regressions for the r-filter/logical distinction,
+physical fault-response cross-checks, shared-budget recovery synthesis on all
+three real inputs, standalone Guppy compilation and HUGR reload. The existing
+installation test needs an installed checkout for its isolated interpreter.
+The current environment has Guppy 1.1.3 and HUGR 0.18.8.
+
+Current physical checks pass for all 1,089 incoming CSS-weight-at-most-one
+classes, 1,001 distinct single-fault responses in each primary, 160 total-order-
+two cases, 64 faults in cleanup stages, and 128 arbitrary-input EC A cases.
+All 3,443 runs match full code/logical-Bell signatures. The installation test
+still needs an installed checkout for its isolated interpreter.
+
+Latest CSS validation: 25 protocol tests pass; full suite 78 passed and one
+existing isolated-installation failure. Fresh standalone source/HUGR reload
+passes, as do all 492,544 generated decoder cases and 8,844 recovery routes.
+
+Native execution also passes: eight Selene/Stim shots each exercise the clean
+path with split X1/Z17 incoming errors, the first-primary recovery plus cleanup,
+and the second-primary recovery plus cleanup with an incoming Z0 and an internal
+fault. All acceptance bits and independently predicted code/logical-Bell states
+match in all three cases. Current compiled decision helpers: 1,255.
+
+## Optional verification and noisy protocol demo
+
+`optimized_steane_SE_orchestrator` now defaults to `verify=False`. Construction
+still analyzes faults to select recovery stages and corrections, but independent
+gadget/terminal checks are optional. Use `verify=True`, or call
+`verify_se_protocol(protocol)` / `protocol.verify()` later. The callable checks
+the supplied policy without replacing it and clears a previous successful report
+on failure. Exported source records `VERIFIED_AT_BUILD`.
+
+`notebooks/32_20_4_protocol_demo.ipynb` exports/reloads Guppy/HUGR and estimates
+basis-specific block LER with ideal logical `0` or `+` input and ideal final
+`LutDecoder` correction. It uses the adaptive Stim interpreter.
+`estimate_protocol_ler` accepts unverified protocols and defaults to the hardware
+model in `noise_model.py`; `apply_noise` handles each executed extraction and
+physical correction block, including scheduled memory noise. Classical branch
+latency is not included. `default_noise_model()` centralizes the default rates;
+pass `noise_model=CustomErrorModel(...)` to override them.
+
+Validation: all 32 protocol/simulation tests pass. The updated notebook executed
+with verification disabled and the default noise model. For 2,000 logical-0
+shots it accepted 1,925, discarded 75, and found 63 logical failures: conditional
+block LER 3.273% (95% Wilson interval 2.566–4.165%).
+
+## Guppy version compatibility
+
+The user's `error-correction` environment has Guppy 0.21.6 / HUGR 0.14.1,
+whereas `zxlive` has Guppy 1.1.3 / HUGR 0.18.8. The older Guppy has no
+`with_minimal_opt()` and `measure` returns bool directly. Generated source now
+contains a version-compatible `measure_bit` helper and `compile_se_cycle()`;
+the latter uses minimal optimization when available and otherwise calls
+`compile_function()` directly. Standalone source remains independent of
+SpiderWarp. The optional dependency now accepts Guppy >=0.21.6,<1.2.
+Restart notebook kernels after changing repository/dependency versions. The demo
+prints Python/Guppy information and preserves the user's 100,000-shot setting.
+
+Compatibility validation: 30 targeted tests pass on Guppy 1.1.3. A small
+protocol compiles, reloads and samples on 0.21.6. The complete demo also ran
+successfully on 0.21.6 / Stim 1.15.0: 100,000 logical-0 shots, 76,197 accepted,
+1,086 logical failures, conditional block LER 1.425% (95% interval
+1.344–1.512%), discard rate 23.803%. This fresh optimization used 60 peak SE
+qubits and left verification disabled, as requested. Resource choices can vary
+between optimization runs/environments; these results are not the same gadget
+schedule as the earlier 68-qubit demonstration.

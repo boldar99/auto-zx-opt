@@ -37,6 +37,7 @@ class NoiseModel:
     p_init: float = 0.0
     p_meas: float = 0.0
     p_mem: float = 0.0
+    p_linear_mem: float = 0.0
 
     @classmethod
     def from_p(cls, p: float) -> NoiseModel:
@@ -48,11 +49,12 @@ class NoiseModel:
 
     @classmethod
     def Quantinuum_Helios(cls):
-        return cls(p_1=3e-5, p_2=8e-4, p_init=5e-4, p_meas=5e-4, p_mem=5e-4)
+        return cls(p_1=2.5e-5, p_2=8e-4, p_init=8e-4, p_meas=1e-6, p_linear_mem=6.3e-3 * 0.03)
 
     @classmethod
     def Quantinuum_Sol(cls):
         return cls(p_1=1e-5, p_2=1e-4, p_init=2e-4, p_meas=2e-4, p_mem=5e-5)
+
 
 
 @dataclass

@@ -17,12 +17,14 @@ dependencies = [
     "stimcirq",
     "cirq-core",
     "ply",
+    "tqdm",
 ]
 
 [project.optional-dependencies]
 notebooks = ["ipykernel", "jupyterlab"]
 test = ["pytest"]
 mqt = ["mqt.qecc"]
+guppy = ["guppylang>=0.21.6,<1.2"]
 
 [tool.setuptools.packages.find]
 include = ["spiderwarp", "spiderwarp.*"]
