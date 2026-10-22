@@ -1,0 +1,41 @@
+\begin{tikzpicture}
+	\begin{pgfonlayer}{nodelayer}
+		\node [style=none] (0) at (0, 0) {};
+		\node [style=none] (1) at (35, 0) {};
+		\node [style=none] (2) at (1, 0.25) {};
+		\node [style=none] (3) at (0.75, -0.25) {};
+		\node [style=none] (4) at (0.5, 0.5) {$n$};
+		\node [style=none] (7) at (3, 0.75) {$X(u)Z(v)$};
+		\node [style=none] (11) at (18, -3) {};
+		\node [style=meter] (12) at (31, -3) {};
+		\node [style=not] (13) at (23, 0) {};
+		\node [style=black dot] (14) at (23, -3) {};
+		\node [style=hadamard] (15) at (30, -3) {};
+		\node [style=none] (23) at (20.5, -3.75) {$X(x_2)Z(z_2)$};
+		\node [style=none] (25) at (31, -1.5) {$v + z_1 + z_2$};
+		\node [style=none] (26) at (31, -2) {};
+		\node [style=none] (27) at (3, -3) {};
+		\node [style=meter] (28) at (14, -3) {};
+		\node [style=black dot] (29) at (8, 0) {};
+		\node [style=not] (30) at (8, -3) {};
+		\node [style=none] (31) at (3, -2.875) {$\ket{\overline 0}^{f_1^x f_1^z}$};
+		\node [style=none] (32) at (5.5, -3.75) {$X(x_1)Z(z_1)$};
+		\node [style=none] (33) at (14, -2) {};
+		\node [style=none] (34) at (14, -1.5) {$u + x_1$};
+		\node [style=none] (39) at (11, -3.75) {$X(u + x_1)Z(z_1)$};
+		\node [style=none] (40) at (11, 0.75) {$X(u)Z(v + z_1)$};
+		\node [style=none] (41) at (18, -2.875) {$\ket{\overline +}^{f_2^x f_2^z}$};
+		\node [style=none] (42) at (26.75, -3.75) {$X(x_2)Z(v + z_1 + z_2)$};
+		\node [style=none] (43) at (27, 0.75) {$X(u + x_2)Z(v + z_1)$};
+	\end{pgfonlayer}
+	\begin{pgfonlayer}{edgelayer}
+		\draw (0.center) to (1.center);
+		\draw (2.center) to (3.center);
+		\draw (11.center) to (12);
+		\draw [in=-90, out=90] (14) to (13);
+		\draw [style=arrow] (12) to (26.center);
+		\draw (27.center) to (28);
+		\draw (30) to (29);
+		\draw [style=arrow] (28) to (33.center);
+	\end{pgfonlayer}
+\end{tikzpicture}

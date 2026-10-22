@@ -9,8 +9,9 @@ noisy SE cycle. Each choice tests the corresponding logical Pauli component.
 from __future__ import annotations
 
 import math
+from collections import Counter
 from copy import copy
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Literal
 
 import numpy as np
@@ -22,6 +23,42 @@ from spiderwarp.noise_model import CustomErrorModel, apply_noise, default_noise_
 
 if TYPE_CHECKING:
     from spiderwarp.optimized_steane_se import CompiledSEProtocol
+
+
+Stage = tuple[str, str, int]  # role, basis, circuit distance
+
+
+@dataclass(frozen=True)
+class ProtocolDiagnostics:
+    """Aggregate executed paths and rejection causes; no shot records retained.
+
+    Stage denominators count executions, whereas rejections count shots. The
+    stage attached to a rejection is the last extraction that actually ran.
+    Primary flags can lead to accepted recovery and are not themselves rejects.
+    """
+
+    stage_counts: dict[Stage, int] = field(default_factory=dict)
+    flagged_stage_counts: dict[Stage, int] = field(default_factory=dict)
+    rejections: dict[tuple[str, str, int, str], int] = field(default_factory=dict)
+    paths: dict[tuple[Stage, ...], int] = field(default_factory=dict)
+
+    @property
+    def rejection_counts(self) -> dict[str, int]:
+        counts = Counter()
+        for (*_, reason), count in self.rejections.items():
+            counts[reason] += count
+        return dict(counts)
+
+
+def _wilson_interval(successes: int, trials: int) -> tuple[float, float]:
+    if not trials:
+        return 0.0, 1.0
+    z = 1.959963984540054
+    p = successes / trials
+    denominator = 1 + z * z / trials
+    center = (p + z * z / (2 * trials)) / denominator
+    radius = z * math.sqrt(p * (1 - p) / trials + z * z / (4 * trials * trials)) / denominator
+    return max(0.0, center - radius), min(1.0, center + radius)
 
 
 @dataclass(frozen=True)
@@ -38,6 +75,7 @@ class LogicalErrorRateEstimate:
     noise_model: CustomErrorModel
     seed: int
     prepared_state: Literal["0", "+"] = "0"
+    diagnostics: ProtocolDiagnostics | None = None
 
     @property
     def discarded(self) -> int:
@@ -48,20 +86,21 @@ class LogicalErrorRateEstimate:
         return self.accepted / self.shots
 
     @property
+    def discard_rate(self) -> float:
+        return self.discarded / self.shots
+
+    @property
+    def discard_interval_95(self) -> tuple[float, float]:
+        return _wilson_interval(self.discarded, self.shots)
+
+    @property
     def ler(self) -> float:
         return self.logical_errors / self.accepted if self.accepted else math.nan
 
     @property
     def ler_interval_95(self) -> tuple[float, float]:
         """Two-sided 95% Wilson interval, including zero observed failures."""
-        if not self.accepted:
-            return 0.0, 1.0
-        z = 1.959963984540054
-        n, p = self.accepted, self.ler
-        denominator = 1 + z * z / n
-        center = (p + z * z / (2 * n)) / denominator
-        radius = z * math.sqrt(p * (1 - p) / n + z * z / (4 * n * n)) / denominator
-        return max(0.0, center - radius), min(1.0, center + radius)
+        return _wilson_interval(self.logical_errors, self.accepted)
 
 
 def _noisy_gadget(ideal: stim.Circuit, noise: CustomErrorModel) -> stim.Circuit:
@@ -180,12 +219,21 @@ def estimate_protocol_ler(
     experiment = _StateExperiment(protocol.code, protocol.required_qubits, prepared_state)
     rng = np.random.default_rng(seed)
     accepted = failures = 0
+    stages, flagged, rejections, paths = Counter(), Counter(), Counter(), Counter()
     corrections = {}
     for _ in range(shots):
         simulator = experiment.initial.copy(seed=int(rng.integers(0, 2**63)))
         result = protocol.run(_NoisySimulator(simulator, circuits, noise_model, corrections))
+        path = tuple((role, basis, distance) for role, basis, distance, _, _ in result.measurements)
+        stages.update(path)
+        flagged.update((role, basis, distance) for role, basis, distance, flags, _
+                       in result.measurements if flags)
+        paths[path] += 1
         if result.accepted:
             accepted += 1
             failures += experiment.logical_failure(simulator)
+        else:
+            rejections[(*path[-1], result.discard_reason)] += 1
     return LogicalErrorRateEstimate(
-        shots, accepted, failures, copy(noise_model), seed, prepared_state)
+        shots, accepted, failures, copy(noise_model), seed, prepared_state,
+        ProtocolDiagnostics(dict(stages), dict(flagged), dict(rejections), dict(paths)))

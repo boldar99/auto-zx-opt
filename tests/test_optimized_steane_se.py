@@ -183,6 +183,19 @@ def test_ler_runs_adaptive_policy_with_noise_and_reproducible_seeds(
         protocol, noise_model=CustomErrorModel(p_meas=1), prepared_state=prepared_state, shots=8)
     assert recovered.accepted == 8 and recovered.logical_errors == 0
     assert all(any(m[0] == "recovery" for m in r.measurements) for r in traces[-8:])
+    assert recovered.diagnostics.stage_counts['recovery', 'X', 1] == 8
+    assert recovered.diagnostics.flagged_stage_counts['primary', 'Z', 3] == 8
+    assert not recovered.diagnostics.rejections
+    # Forced readout flips are counted as terminal rejects when the recovery
+    # stage itself has a flag; a primary flag alone remains recoverable.
+    rejecting = replace(protocol, recoveries={
+        key: replace(plan, distance=3) for key, plan in protocol.recoveries.items()
+    })
+    rejected = estimate_protocol_ler(rejecting, noise_model=CustomErrorModel(p_meas=1), shots=8)
+    assert rejected.discarded == 8
+    assert rejected.diagnostics.rejection_counts == {'raised recovery flags': 8}
+    assert rejected.diagnostics.rejections['recovery', 'X', 3, 'raised recovery flags'] == 8
+    assert sum(rejected.diagnostics.paths.values()) == rejected.shots
     noise = CustomErrorModel(p_1q=0.03, p_2q=0.03, p_init=0.03, p_meas=0.03)
     first = estimate_protocol_ler(protocol, noise_model=noise, prepared_state=prepared_state, shots=100, seed=17)
     second = estimate_protocol_ler(protocol, noise_model=noise, prepared_state=prepared_state, shots=100, seed=17)
@@ -218,6 +231,44 @@ def test_source_and_hugr_reload_without_spiderwarp(compiled_bell_protocol, tmp_p
         ])], capture_output=True, text=True, timeout=60,
     )
     assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_recovery_objective_rebuild_reuses_circuits_and_exports_the_new_policy(
+    compiled_bell_protocol, monkeypatch, tmp_path,
+):
+    import spiderwarp.optimized_steane_se as module
+
+    def unexpected(*args, **kwargs):
+        raise AssertionError('A policy comparison must keep the quantum circuits fixed')
+
+    monkeypatch.setattr(module, 'optimize_gadget', unexpected)
+    updated = compiled_bell_protocol.with_recovery_objective('gates', verify=True, output_dir=tmp_path)
+    assert updated.gadgets is compiled_bell_protocol.gadgets
+    assert updated.verification.verified
+    assert updated.recovery_objective == 'gates'
+    assert "RECOVERY_OBJECTIVE = 'gates'" in updated.source
+    assert compiled_bell_protocol.recovery_objective == 'qubits'
+    assert updated.package_path.exists()
+    with pytest.raises(ValueError, match='recovery_objective'):
+        updated.with_recovery_objective('typo')
+
+
+@pytest.mark.parametrize('cleanup_required', [False, True])
+def test_recovery_cost_ranks_both_single_and_paired_extractions(monkeypatch, cleanup_required):
+    # d1 has one extra ancilla; d2 has many more gates on a narrower circuit.
+    # Both are valid Bell extractions. Isolate cleanup eligibility to check
+    # that the objective also governs the common two-extraction branch.
+    one = stim.Circuit('R 3\nM 3\nRX 2\nCX 2 0 2 1\nMX 2\nDETECTOR(1, 0) rec[-1]')
+    two = stim.Circuit('RX 2\n' + 'H 2\n' * 20 + 'CX 2 0 2 1\nMX 2\nDETECTOR(1, 0) rec[-1]')
+    space, gadgets = raw_gadgets(bell_code(), {1: one, 2: two, 3: bell_gadget()})
+    for objective, expected in [('qubits', 2), ('gates', 1)]:
+        builder = PolicyBuilder(space, gadgets, recovery_objective=objective)
+        if cleanup_required:
+            monkeypatch.setattr(builder, '_recovery_outcomes',
+                lambda gadget, cleanup, contexts: {(int(cleanup is None), 0): {(0, 0, 0)}})
+        plan = builder._recovery(('Z', 1, -1), {(0, 1, 0)})
+        assert plan.distance == expected
+        assert plan.cleanup_distance == (expected if cleanup_required else None)
 
 
 def test_verification_is_off_by_default_and_sampling_uses_default_noise(monkeypatch, tmp_path):

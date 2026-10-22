@@ -98,7 +98,11 @@ class VerificationReport:
 
 
 class PolicyBuilder:
-    def __init__(self, space: PauliSpace, gadgets: dict[tuple[str, int], SEGadget]):
+    def __init__(self, space: PauliSpace, gadgets: dict[tuple[str, int], SEGadget],
+                 *, recovery_objective: str = 'qubits'):
+        if recovery_objective not in {'qubits', 'gates'}:
+            raise ValueError("recovery_objective must be 'qubits' or 'gates'")
+        self.recovery_objective = recovery_objective
         self.space = space
         self.gadgets = gadgets
         self.correctable = (space.code.d - 1) // 2
@@ -418,13 +422,17 @@ class PolicyBuilder:
     def _recovery(self, key: RecoveryKey, contexts):
         basis, flags, previous = key
         dual = "Z" if basis == "X" else "X"
+        def cost(*gadgets):
+            width = max(g.circuit.num_qubits for g in gadgets)
+            gates = sum(len(g.operations) for g in gadgets)
+            resources = (gates, width) if self.recovery_objective == 'gates' else (width, gates)
+            return (*resources, tuple(g.distance for g in gadgets))
+
         candidates = sorted((g for (b, _), g in self.gadgets.items() if b == dual),
-                            key=lambda g: (g.circuit.num_qubits, len(g.operations), g.distance))
+                            key=cost)
         cleanup_candidates = [g for (b, _), g in self.gadgets.items() if b == basis]
         pairs = sorted(((g, c) for g in candidates for c in cleanup_candidates),
-                       key=lambda pair: (max(g.circuit.num_qubits for g in pair),
-                                         sum(len(g.operations) for g in pair),
-                                         tuple(g.distance for g in pair)))
+                       key=lambda pair: cost(*pair))
         schedules = [(g, None) for g in candidates] + pairs
         first_failure = None
         for gadget, cleanup in schedules:

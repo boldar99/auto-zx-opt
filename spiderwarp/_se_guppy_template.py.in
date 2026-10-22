@@ -1,0 +1,241 @@
+"""Standalone adaptive SE: Z primary, then X primary; recovery ends the cycle.
+
+Call se_cycle(data) for an acceptance bit, or postselected_se_cycle(data).
+Circuit loops run at compile time, preserving the ordered gate schedule and
+ancilla lifetimes. Decoder tables become immutable arrays in the HUGR package.
+Bit i in a measurement/correction mask denotes check/flag/data qubit i.
+"""
+from guppylang import guppy
+from guppylang.std.builtins import array, comptime, exit, owned
+from guppylang.std import quantum as _quantum
+from guppylang.std.quantum import qubit, h, cx, cz, x, y, z, measure
+
+# GENERATED_METADATA
+
+
+@guppy.struct
+class ExtractionResult:
+    flags: int
+    syndrome: int
+
+
+@guppy.struct
+class Correction:
+    accepted: bool
+    x_mask: int
+    z_mask: int
+
+
+@guppy.struct
+class RecoveryRoute:
+    distance: int
+    cleanup_distance: int
+    decoder_id: int
+
+
+if hasattr(_quantum, "Measurement"):
+    @guppy
+    def measure_bit(q: qubit @ owned) -> bool:
+        return measure(q).read()
+else:
+    @guppy
+    def measure_bit(q: qubit @ owned) -> bool:
+        return measure(q)
+
+
+@guppy
+def append_bit(mask: int, bit: bool, index: int) -> int:
+    if bit:
+        return mask | (1 << index)
+    return mask
+
+
+# These Python helpers are used only inside @guppy.comptime circuits.
+# The register maps physical indices to live qubits; measurement removes an
+# ancilla, so a later preparation starts a fresh lifetime at the same index.
+def prepare(register, targets):
+    for q in targets:
+        register[q] = qubit()
+
+
+def apply(gate, register, targets):
+    for target in targets:
+        if isinstance(target, tuple):
+            gate(*(register[q] for q in target))
+        else:
+            gate(register[target])
+
+
+def read(register, measurements, targets):
+    measurements.extend(measure_bit(register.pop(q)) for q in targets)
+
+
+def pack_parities(measurements, groups):
+    mask = 0
+    for index, group in enumerate(groups):
+        parity = False
+        for record in group:
+            parity ^= measurements[record]
+        mask = append_bit(mask, parity, index)
+    return mask
+
+
+# GENERATED_GADGETS
+
+
+@guppy
+def apply_correction(data: array[qubit, comptime(N_DATA)], correction: Correction) -> None:
+    # Keep all X operations before all Z operations, as in the fault model.
+    for q in range(comptime(N_DATA)):
+        if (correction.x_mask & (1 << q)) != 0:
+            x(data[q])
+    for q in range(comptime(N_DATA)):
+        if (correction.z_mask & (1 << q)) != 0:
+            z(data[q])
+
+
+@guppy
+def lookup(node: int, key: int) -> int:
+    """Traverse a shared decision table. Negative references encode leaves."""
+    nodes = comptime(DECISION_NODES)
+    while node >= 0:
+        mask, pattern, matched, other = nodes[node]
+        if (key & mask) == pattern:
+            node = matched
+        else:
+            node = other
+    return -(node + 1)
+
+
+@guppy
+def decode(decoder_id: int, syndrome: int) -> Correction:
+    if decoder_id < 0 or decoder_id >= comptime(len(DECODERS)):
+        return Correction(False, 0, 0)
+    decoders = comptime(DECODERS)
+    width, accepted, xs, zs = decoders[decoder_id]
+    if syndrome < 0 or (syndrome >> width) != 0:
+        return Correction(False, 0, 0)
+    if lookup(accepted, syndrome) == 0:
+        return Correction(False, 0, 0)
+    return Correction(True, lookup(xs, syndrome), lookup(zs, syndrome))
+
+
+@guppy
+def decode_z_standard(syndrome: int) -> Correction:
+    return decode(0, syndrome)
+
+
+@guppy
+def decode_x_standard(syndrome: int) -> Correction:
+    return decode(1, syndrome)
+
+
+@guppy
+def decode_recovery(decoder_id: int, syndrome: int) -> Correction:
+    if decoder_id < 0 or decoder_id >= comptime(len(DECODERS) - 2):
+        return Correction(False, 0, 0)
+    return decode(decoder_id + 2, syndrome)
+
+
+@guppy
+def recovery_route(index: int) -> RecoveryRoute:
+    if index == 0:
+        return RecoveryRoute(-1, 0, -1)
+    routes = comptime(RECOVERY_ROUTES)
+    distance, cleanup, decoder = routes[index - 1]
+    return RecoveryRoute(distance, cleanup, decoder)
+
+
+@guppy
+def select_z_recovery(flags: int) -> RecoveryRoute:
+    if flags <= 0 or (flags >> comptime(N_Z_FLAGS)) != 0:
+        return RecoveryRoute(-1, 0, -1)
+    return recovery_route(lookup(comptime(Z_RECOVERY_ROOT), flags))
+
+
+@guppy
+def select_x_recovery(flags: int, previous: int) -> RecoveryRoute:
+    if flags <= 0 or (flags >> comptime(N_X_FLAGS)) != 0:
+        return RecoveryRoute(-1, 0, -1)
+    if previous < 0 or (previous >> comptime(PREVIOUS_WIDTH)) != 0:
+        return RecoveryRoute(-1, 0, -1)
+    group = lookup(comptime(X_PREVIOUS_ROOT), previous)
+    if group == 0:
+        return RecoveryRoute(-1, 0, -1)
+    roots = comptime(X_RECOVERY_ROOTS)
+    return recovery_route(lookup(roots[group - 1], flags))
+
+
+@guppy
+def recover_after_z(data: array[qubit, comptime(N_DATA)], flags: int) -> bool:
+    route = select_z_recovery(flags)
+    result = extract_x(data, route.distance)
+    if result.flags != 0:
+        return False
+    syndrome = result.syndrome
+    if route.cleanup_distance != 0:
+        cleanup = extract_z(data, route.cleanup_distance)
+        if cleanup.flags != 0:
+            return False
+        syndrome |= cleanup.syndrome << comptime(N_CHECKS)
+    correction = decode_recovery(route.decoder_id, syndrome)
+    if not correction.accepted:
+        return False
+    apply_correction(data, correction)
+    return True
+
+
+@guppy
+def recover_after_x(data: array[qubit, comptime(N_DATA)], flags: int, previous: int) -> bool:
+    route = select_x_recovery(flags, previous)
+    result = extract_z(data, route.distance)
+    if result.flags != 0:
+        return False
+    syndrome = result.syndrome
+    if route.cleanup_distance != 0:
+        cleanup = extract_x(data, route.cleanup_distance)
+        if cleanup.flags != 0:
+            return False
+        syndrome |= cleanup.syndrome << comptime(N_CHECKS)
+    correction = decode_recovery(route.decoder_id, syndrome)
+    if not correction.accepted:
+        return False
+    apply_correction(data, correction)
+    return True
+
+
+@guppy
+def se_cycle(data: array[qubit, comptime(N_DATA)]) -> bool:
+    primary_z = extract_z(data, comptime(CODE_DISTANCE))
+    if primary_z.flags != 0:
+        return recover_after_z(data, primary_z.flags)
+    correction = decode_z_standard(primary_z.syndrome)
+    if not correction.accepted:
+        return False
+    apply_correction(data, correction)
+    primary_x = extract_x(data, comptime(CODE_DISTANCE))
+    if primary_x.flags != 0:
+        return recover_after_x(data, primary_x.flags, primary_z.syndrome)
+    correction = decode_x_standard(primary_x.syndrome)
+    if not correction.accepted:
+        return False
+    apply_correction(data, correction)
+    return True
+
+
+@guppy
+def postselected_se_cycle(data: array[qubit, comptime(N_DATA)]) -> None:
+    if not se_cycle(data):
+        exit("SE protocol rejected", 1)
+
+
+def compile_se_cycle():
+    """Use minimal optimization where available to retain the gate schedule."""
+    target = se_cycle
+    minimal_opt = getattr(target, "with_minimal_opt", None)
+    if minimal_opt is not None:
+        target = minimal_opt()
+    return target.compile_function()
+
+
+# GENERATED_TABLES

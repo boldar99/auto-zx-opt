@@ -102,6 +102,10 @@ protocol = optimized_steane_SE_orchestrator(
 
 The short [protocol demo notebook](notebooks/32_20_4_protocol_demo.ipynb) shows
 distance-labelled inputs, Guppy/HUGR export and reload, and noisy LER estimation.
+It includes expandable diagrams and annotated Stim instructions for every input
+and optimized gadget, a table of selected circuit roles and resource counts,
+rejection reasons by executed stage, and comparisons that isolate noise sources
+on the same fixed protocol. Circuit files are saved beside the Guppy export.
 `spiderwarp.se_protocol_simulation.estimate_protocol_ler` runs the adaptive Stim
 reference policy with `prepared_state="0"` or `"+"`. It reports the corresponding
 basis-specific block LER after ideal final decoding, conditional on acceptance,
@@ -110,6 +114,19 @@ along with the discard rate and a 95% interval. By default it uses
 executed extraction and correction block. Input preparation and final decoding
 are ideal; classical branch latency is not modeled. Pass a `CustomErrorModel`
 through `noise_model=` to override the default.
+Its result also provides `discard_rate`, `discard_interval_95`, and `diagnostics`:
+aggregate execution/flag counts, terminal rejection reasons, and executed paths.
+Primary flags that recover successfully are counted separately from discards.
+
+Recovery selection defaults to `recovery_objective="qubits"`, which prioritizes
+local recovery width. The optional `"gates"` preference ranks physical operation
+count first, including paired recovery/cleanup stages. To compare on fixed
+circuits without rerunning ZX optimization, use
+`alternative = protocol.with_recovery_objective("gates")`; pass `verify=True`
+for the independent fault checks. This returns a separate compiled protocol and
+leaves the original intact. Fewer discards can come with a higher conditional
+logical error rate, so the notebook compares both metrics and includes a
+complementary-basis check.
 
 The builder expands reused ancilla lifetimes, applies ZX/path-cover optimization,
 reuses ancillas, remaps measurement parities, and constructs dual-basis gadgets.

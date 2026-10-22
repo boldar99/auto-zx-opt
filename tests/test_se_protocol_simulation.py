@@ -5,7 +5,7 @@ import pytest
 
 from spiderwarp.csscode import CSSCode
 from spiderwarp.noise_model import CustomErrorModel
-from spiderwarp.se_protocol_simulation import _StateExperiment, LogicalErrorRateEstimate
+from spiderwarp.se_protocol_simulation import _StateExperiment, LogicalErrorRateEstimate, ProtocolDiagnostics
 
 
 @pytest.mark.parametrize("prepared_state", ["0", "+"])
@@ -35,6 +35,8 @@ def test_ler_denominator_and_zero_failure_uncertainty():
     estimate = LogicalErrorRateEstimate(100, 80, 4, CustomErrorModel(), 1)
     assert estimate.discarded == 20
     assert estimate.acceptance_rate == 0.8
+    assert estimate.discard_rate == 0.2
+    assert estimate.discard_interval_95[0] < 0.2 < estimate.discard_interval_95[1]
     assert estimate.ler == 4 / 80
     low, high = estimate.ler_interval_95
     assert low < estimate.ler < high
@@ -44,3 +46,14 @@ def test_ler_denominator_and_zero_failure_uncertainty():
     rejected = LogicalErrorRateEstimate(100, 0, 0, CustomErrorModel(), 1)
     assert math.isnan(rejected.ler)
     assert rejected.ler_interval_95 == (0, 1)
+
+
+def test_rejection_reasons_aggregate_across_stages():
+    diagnostics = ProtocolDiagnostics(rejections={
+        ('recovery', 'X', 2, 'raised recovery flags'): 7,
+        ('recovery', 'Z', 2, 'raised recovery flags'): 3,
+        ('primary', 'X', 4, 'uncorrectable primary syndrome'): 2,
+    })
+    assert diagnostics.rejection_counts == {
+        'raised recovery flags': 10, 'uncorrectable primary syndrome': 2,
+    }

@@ -51,6 +51,7 @@ class CompiledSEProtocol:
     package: Package
     package_path: Path | None = None
     _module: object = field(default=None, repr=False)
+    recovery_objective: str = 'qubits'
 
     @property
     def required_qubits(self) -> int:
@@ -70,6 +71,22 @@ class CompiledSEProtocol:
     def verify(self) -> VerificationReport:
         """Optionally verify the current gadgets and policy without rebuilding."""
         return verify_se_protocol(self)
+
+    def with_recovery_objective(
+        self, objective: str, *, verify: bool = False, output_dir: str | Path | None = None,
+    ) -> CompiledSEProtocol:
+        """Rebuild the policy/export on these exact circuits, without ZX changes.
+
+        'qubits' minimizes recovery width; 'gates' prioritizes operation count.
+        Both use the same fault contract, but can trade discard rate against
+        logical error rate outside that contract's bounded fault orders.
+        """
+        space = next(iter(self.gadgets.values())).space
+        builder = PolicyBuilder(space, self.gadgets, recovery_objective=objective)
+        if verify:
+            for gadget in self.gadgets.values():
+                validate_gadget(gadget)
+        return _compile_policy(self.code, self.gadgets, builder.build(verify=verify), output_dir)
 
     def run(self, simulator: stim.TableauSimulator) -> ProtocolResult:
         """Execute the same policy directly on a live Stim data block.
@@ -147,6 +164,7 @@ def optimized_steane_SE_orchestrator(
     *,
     output_dir: str | Path | None = None,
     verify: bool = False,
+    recovery_objective: str = 'qubits',
 ) -> CompiledSEProtocol:
     """Optimize supplied gadgets and synthesize a Z-then-X cycle.
 
@@ -171,9 +189,14 @@ def optimized_steane_SE_orchestrator(
 
     Guppy is an optional dependency: install ``spiderwarp[guppy]`` to export.
     Generated source is kept in a temporary directory when output_dir is None.
+    recovery_objective='qubits' prioritizes local recovery width (the default).
+    Use 'gates' to prioritize shorter recovery circuits. Compare both discard
+    and logical-error rates: their behavior can differ beyond the fault bound.
     """
     if importlib.util.find_spec("guppylang") is None:
         raise ImportError("Guppy export requires guppylang; install spiderwarp[guppy]")
+    if recovery_objective not in {'qubits', 'gates'}:
+        raise ValueError("recovery_objective must be 'qubits' or 'gates'")
     items = list(circuits.items() if isinstance(circuits, Mapping) else circuits)
     if not items or len({d for d, _ in items}) != len(items):
         raise ValueError("Supply unique circuit distances")
@@ -194,11 +217,16 @@ def optimized_steane_SE_orchestrator(
         if verify:
             validate_gadget(z)
         gadgets["X", distance], gadgets["Z", distance] = x, z
-    policy = PolicyBuilder(space, gadgets).build(verify=verify)
+    policy = PolicyBuilder(space, gadgets, recovery_objective=recovery_objective).build(verify=verify)
+    return _compile_policy(code, gadgets, policy, output_dir)
+
+
+def _compile_policy(code, gadgets, policy, output_dir):
     from spiderwarp._se_guppy import compile_protocol
     source, path, module, function, package = compile_protocol(code, gadgets, policy)
     result = CompiledSEProtocol(code, gadgets, policy.standard, policy.recoveries,
-                               policy.report, source, path, function, package, _module=module)
+                               policy.report, source, path, function, package, _module=module,
+                               recovery_objective=policy.recovery_objective)
     if output_dir is not None:
         result.save(output_dir)
     return result

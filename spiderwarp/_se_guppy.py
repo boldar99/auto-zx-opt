@@ -141,6 +141,7 @@ def generate_source(code, gadgets, policy) -> str:
         f'CODE_DISTANCE = {code.d}',
         f'CORRECTABLE_FAULTS = {policy.correctable}',
         f'DETECTABLE_FAULTS = {policy.detectable}',
+        f'RECOVERY_OBJECTIVE = {getattr(policy, "recovery_objective", "qubits")!r}',
         f'VERIFIED_AT_BUILD = {policy.report.verified!r}',
         f'EC_A_INPUT_SYNDROMES = {policy.report.ec_a_input_syndromes}',
         f'VERIFICATION_MODEL = {policy.report.noise_model!r}',

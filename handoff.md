@@ -423,3 +423,71 @@ check confirms the template ships and can build/reload standalone Guppy without
 the repository on the import path. New regressions check exact circuit expansion,
 measurement parities, compact decision tables, every real decoder entry, and
 recovery routing, including unknown prefixes.
+
+## Circuit inspection and postselection investigation (2026-10-15)
+
+The user asked to inspect every protocol circuit in the demo notebook and
+investigate its 23.80% discard rate. The notebook now embeds three input and six
+optimized circuit views (expandable, native-size, scrollable SVGs plus full
+annotated Stim source). It saves circuit files under the export's `circuits/`
+directory and shows selected primary/recovery/cleanup roles, gate counts, inferred
+depth, and live idle units. Helpers are in `se_protocol_inspection.py`.
+
+`estimate_protocol_ler` now returns aggregate `ProtocolDiagnostics` (stage
+executions and flags, terminal rejection causes, and executed paths), plus
+`discard_rate` and `discard_interval_95`. Primary flags are counted independently
+of rejected shots. The notebook shows rejection/flag tables, noise-source
+ablations on fixed circuits, a complementary logical-basis check, and saves
+`simulation_diagnostics.json`. The user's 100,000-shot setting is preserved.
+
+Recovery selection retains its original `recovery_objective="qubits"` default.
+It tries single dual-basis extractions before any recovery/cleanup pairs; within
+each group it ranks local peak qubits, operation count, and distance labels.
+It does not optimize a hardware-noise discard/LER estimate. The optional
+`recovery_objective="gates"` preference swaps the first two cost terms for BOTH
+single and paired candidates. `protocol.with_recovery_objective("gates")`
+resynthesizes decisions and compiles a separate export on the exact same circuits,
+without rerunning ZX optimization. Its independent verification is optional.
+
+The updated notebook executed end to end in `error-correction` (Guppy 0.21.6,
+Stim 1.15.0) and EXACTLY reproduced the original result: 76,197/100,000 accepted,
+23.803% discards, 1,086 logical-0 failures, conditional block LER 1.4253%.
+Recovery/cleanup flags account for 18,993 rejected shots (79.79% of discards).
+The 10,000-shot noise ablations give: default 23.97% discards, no memory 4.20%,
+memory only 14.37%, two-qubit only 2.05%, quarter linear-memory rate 8.09%.
+The last case changes the noise model for sensitivity analysis; it is not a
+physical optimization or a changed hardware default.
+
+The shorter-recovery preference gives 5.43% discards but increases conditional
+logical-0 LER to 3.590% (20,000 shots on the same notebook circuits). A separate
+100,000-shot check gives 5.408% discards / 3.593% conditional logical-0 LER.
+It passes independent EC A/B checks on all 4,096 input syndrome sectors
+(21,698,682 checked transitions) and all six circuit instruments pass encoded-Bell
+validation. This bounded-fault result does NOT guarantee correct decoding of
+every accepted two-fault history or better all-orders noisy performance.
+The current default is deliberately unchanged. The user asked what "verified
+recovery variant" and "current policy" meant; both were explained, and no
+preference for changing the default was provided.
+
+Memory noise also makes the logical-+ block LER much larger: the notebook's
+10,000-shot complementary check gives 21.465% conditional LER. Separate
+fixed-circuit 100,000-shot checks give roughly 22.49% (current exported-table
+reference) and 27.57% (gates-preference reference). Always show both bases when
+assessing an improvement; logical 0 is insensitive to much of the Z-biased noise.
+
+The investigation is saved in `analysis/32_20_4_postselection/results.json` with
+sampling settings, circuit fingerprints/resources, rejection counts, and proof
+scope. Six baseline `.stim` snapshots are beside it. The original source/HUGR
+are archived under the demo export's `baseline_before_postselection_analysis/`.
+There is a relevant existing abstraction limit: shared Guppy decoder tables may
+fill syndromes absent from an individual RecoveryPlan. These completions are
+equivalent within the verified fault budget but can differ from `protocol.run`
+on higher-order noisy histories. A reconstructed emitted-program reference
+therefore gave 22.338% discards, whereas the authoritative notebook Stim-policy
+rerun reproduces 23.803%. This is recorded separately in
+`export_reference_checks.json`; do not confuse those baselines or claim that
+decoder sharing preserves all-orders stochastic behavior.
+
+Validation: 47 focused protocol, simulation, circuit-inspection, and existing
+inspection tests pass. All notebook code cells execute; nine circuit views are
+embedded. No hardware noise defaults or default acceptance policy were changed.
