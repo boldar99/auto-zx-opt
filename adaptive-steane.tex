@@ -1,0 +1,61 @@
+%! Author = boldizsar.poor
+%! Date = 26/10/2026
+
+% Preamble
+\documentclass[11pt]{article}
+
+% Packages
+\usepackage{amsmath}
+\usepackage{stmaryrd}
+\usepackage{csquotes}
+\usepackage{bookmark}
+\usepackage{xcolor}
+
+\usepackage{amsthm,thmtools}
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{example}[theorem]{Example}
+\newtheorem{remark}[theorem]{Remark}
+
+\usepackage[noabbrev,nameinlink]{cleveref}
+\usepackage{todonotes}
+
+\usepackage{macros/tikzfig}
+\input{macros/floquet.tikzstyles}
+\input{macros/floquet.tikzdefs}
+
+\usepackage[backend=biber]{biblatex}
+\addbibresource{macros/AdaptiveSteane.bib}
+
+% Document
+\begin{document}
+
+\title{Adaptive Steane-QEC from Non-deterministic Fault-tolerant State-preparation Gadgets}
+\author{Boldizsár Poór}
+
+\maketitle
+
+\section{Fault-tolerance}
+
+Here we use the definition of \textcite{gottesmanIntroductionQuantumError2009,gottesmanSurvivingQuantumComputer2026}:
+\begin{definition}[FT Error Correction Recovery Property]
+    Suppose we have an error correction gadget associated with a QECC with distance $2t + 1$.
+    The gadget satisfies the \emph{FT Error Correction Recovery Property}, abbreviated \emph{ECRP}, if, whenever $s \leq t$,
+    \[
+        \tikzfig{figures/EC-A.tikz}
+    \]
+\end{definition}
+\begin{definition}[FT Error Correction Correctness Property]
+    Suppose we have an error correction gadget associated with a QECC with distance $2t + 1$.
+    The gadget satisfies the \emph{FT Error Correction Correctness Property}, abbreviated \emph{ECCP}, if, whenever $r + s \leq t$,
+    \[
+        \tikzfig{figures/EC-B.tikz}
+    \]
+\end{definition}
+
+\printbibliography
+
+\end{document}
