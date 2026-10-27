@@ -1,0 +1,17 @@
+\begin{tikzpicture}
+	\begin{pgfonlayer}{nodelayer}
+		\node [style=none] (8) at (-1.5, 0) {};
+		\node [style=sLabel] (9) at (-2.75, 0.5) {$s$};
+		\node [style=none] (10) at (0, 0) {$=$};
+		\node [style=sLabel] (25) at (3.5, 0.5) {$s$};
+		\node [style=statePrep] (28) at (2, 0) {};
+		\node [style=none] (29) at (4.25, 0) {};
+		\node [style=sLabel] (30) at (2.25, 0.5) {$s$};
+		\node [style=filter] (48) at (3, 0) {};
+		\node [style=statePrep] (49) at (-3, 0) {};
+	\end{pgfonlayer}
+	\begin{pgfonlayer}{edgelayer}
+		\draw [style=quantumWire] (8.center) to (49);
+		\draw [style=quantumWire] (29.center) to (28);
+	\end{pgfonlayer}
+\end{tikzpicture}

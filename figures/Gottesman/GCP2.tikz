@@ -1,0 +1,38 @@
+\begin{tikzpicture}
+	\begin{pgfonlayer}{nodelayer}
+		\node [style=none] (0) at (-7.25, 1) {};
+		\node [style=filter] (1) at (-6.25, 1) {};
+		\node [style=fLabel] (2) at (-5.75, 1.5) {$r_1$};
+		\node [style=fLabel] (4) at (-3.875, 1.5) {$s$};
+		\node [style=decoder] (5) at (-2.75, 1) {};
+		\node [style=none] (6) at (-1.5, 1) {};
+		\node [style=none] (7) at (-7.25, -1) {};
+		\node [style=filter] (8) at (-6.25, -1) {};
+		\node [style=fLabel] (9) at (-5.75, -0.5) {$r_2$};
+		\node [style=decoder] (12) at (-2.75, -1) {};
+		\node [style=none] (13) at (-1.5, -1) {};
+		\node [style=twoQubitGate] (14) at (-4.5, 0) {};
+		\node [style=none] (15) at (0, 0) {$=$};
+		\node [style=none] (16) at (1.5, 1) {};
+		\node [style=filter] (17) at (2.5, 1) {};
+		\node [style=fLabel] (18) at (3, 1.5) {$r_1$};
+		\node [style=decoder] (20) at (4.25, 1) {};
+		\node [style=none] (21) at (7.25, 1) {};
+		\node [style=none] (22) at (1.5, -1) {};
+		\node [style=filter] (23) at (2.5, -1) {};
+		\node [style=fLabel] (24) at (3, -0.5) {$r_2$};
+		\node [style=decoder] (25) at (4.25, -1) {};
+		\node [style=none] (26) at (7.25, -1) {};
+		\node [style=idealTwoQubitGate] (27) at (6, 0) {};
+	\end{pgfonlayer}
+	\begin{pgfonlayer}{edgelayer}
+		\draw [style=quantumWire] (5) to (0.center);
+		\draw (6.center) to (5);
+		\draw [style=quantumWire] (12) to (7.center);
+		\draw (13.center) to (12);
+		\draw [style=quantumWire] (20) to (16.center);
+		\draw (21.center) to (20);
+		\draw [style=quantumWire] (25) to (22.center);
+		\draw (26.center) to (25);
+	\end{pgfonlayer}
+\end{tikzpicture}

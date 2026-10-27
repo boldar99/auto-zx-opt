@@ -1,0 +1,28 @@
+\begin{tikzpicture}
+	\begin{pgfonlayer}{nodelayer}
+		\node [style=none] (5) at (-8.75, 0) {};
+		\node [style=sLabel] (9) at (-3.5, 0.5) {$s$};
+		\node [style=none] (10) at (0, 0) {$=$};
+		\node [style=sLabel] (30) at (-7.375, 0.5) {$r$};
+		\node [style=none] (33) at (-1.5, 0) {};
+		\node [style=ECBox] (56) at (-4.5, 0) {};
+		\node [style=decoder] (57) at (-2.5, 0) {};
+		\node [style=xFilter] (58) at (-7.75, 0) {};
+		\node [style=none] (59) at (1.5, 0) {};
+		\node [style=none] (62) at (6.25, 0) {};
+		\node [style=decoder] (64) at (5.25, 0) {};
+		\node [style=ZFilter] (66) at (-6.5, 0) {};
+		\node [style=sLabel] (67) at (-6.125, 0.5) {$r$};
+		\node [style=sLabel] (68) at (2.875, 0.5) {$r$};
+		\node [style=xFilter] (69) at (2.5, 0) {};
+		\node [style=ZFilter] (70) at (3.75, 0) {};
+		\node [style=sLabel] (71) at (4.125, 0.5) {$r$};
+	\end{pgfonlayer}
+	\begin{pgfonlayer}{edgelayer}
+		\draw (57) to (33.center);
+		\draw [style=quantumWire] (57) to (56);
+		\draw [style=quantumWire] (56) to (5.center);
+		\draw (64) to (62.center);
+		\draw [style=quantumWire] (64) to (59.center);
+	\end{pgfonlayer}
+\end{tikzpicture}

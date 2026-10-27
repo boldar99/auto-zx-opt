@@ -1,0 +1,244 @@
+%! Author = boldizsar.poor
+%! Date = 26/10/2026
+
+% Preamble
+\documentclass[11pt]{article}
+
+% Packages
+\usepackage{amsmath}
+\usepackage{stmaryrd}
+\usepackage{csquotes}
+\usepackage{bookmark}
+\usepackage{xcolor}
+
+\usepackage{amsthm,thmtools}
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{example}[theorem]{Example}
+\newtheorem{remark}[theorem]{Remark}
+
+\usepackage[noabbrev,nameinlink]{cleveref}
+\usepackage{todonotes}
+
+\usepackage{macros/tikzfig}
+\input{macros/floquet.tikzstyles}
+\input{macros/floquet.tikzdefs}
+
+\usepackage[backend=biber]{biblatex}
+\addbibresource{macros/AdaptiveSteane.bib}
+
+% Document
+\begin{document}
+
+\title{CSS Fault Tolerance}
+
+\maketitle
+
+\tableofcontents
+
+\section{Gottesman's Definition of Fault-tolerance\texorpdfstring{~\cite{gottesmanIntroductionQuantumError2009,gottesmanSurvivingQuantumComputer2026}}{}}
+
+\begin{definition}
+    The \emph{$r$-filter} for the QECC $Q$ is the projector on the subspace spanned by states of the form $E \ket{\psi}$, where $\ket{\psi} \in Q$ and $E$ is an error of weight at most $r$.
+    Pictorially, I will draw an $r$-filter as:
+    \[
+        \tikzfig{figures/Gottesman/r-filter.tikz}
+    \]
+    The doubled horizontal lines in this picture represent a block of the QECC $Q$ rather than single physical qubits.
+\end{definition}
+\begin{definition}
+    The \emph{ideal decoder} for the QECC $Q$ is the quantum channel that takes a state (possibly with errors) encoded in $Q$, corrects the errors, and then decodes the logical state, discarding all ancilla qubits.
+    I will draw an ideal decoder as follows:
+    \[
+        \tikzfig{figures/Gottesman/ideal-decoder.tikz}
+    \]
+    The doubled horizontal line on the left of the picture represents a block of $Q$.
+    The single horizontal line on the right of the picture is the logical qubit after decoding.
+\end{definition}
+
+\subsection{Fault-tolerant Gate Properties}
+
+\begin{definition}
+    The picture to represent a noisy gate gadget with exactly $s$ faults is
+    \[
+        \tikzfig{figures/Gottesman/noisy-1-gate.tikz}
+        \qquad
+        \text{or}
+        \qquad
+        \tikzfig{figures/Gottesman/noisy-2-gate.tikz}
+    \]
+    for one- and two-qubit gates, respectively.
+    Each doubled horizontal line represents a single block of the QECC\@.
+
+    The picture to represent an ideal gate performed on unencoded qubits without noise is
+    \[
+        \tikzfig{figures/Gottesman/ideal-1-gate.tikz}
+        \qquad
+        \text{or}
+        \qquad
+        \tikzfig{figures/Gottesman/ideal-2-gate.tikz}
+    \]
+    for one- and two-qubit gates, respectively. Each single horizontal line represents a single unencoded qubit.
+\end{definition}
+
+\begin{definition}[FT Gate Error Propagation Property]
+    Suppose we have a gate gadget associated with a QECC with distance $2t + 1$ (i.e., it corrects $t$-errors).
+    If it is a single-qubit gate gadget, it satisfies the \emph{FT Gate Error Propagation Property}, abbreviated \emph{GPP}, if, whenever $r + s \leq t$,
+    \[
+        \tikzfig{figures/Gottesman/GPP1.tikz}
+    \]
+    A two-qubit gate gadget satisfies the GPP if, whenever $r_1 + r_2 + s \leq t$,
+    \[
+        \tikzfig{figures/Gottesman/GPP2.tikz}
+    \]
+    For both equations, the faulty locations on both sides of the equation have the same fault path and error maps substituted in.
+\end{definition}
+\begin{definition}[FT Gate Correctness Property]
+    Suppose we have a gate gadget associated with a QECC with distance $2t + 1$.
+    If it is a single-qubit gate gadget, it satisfies the FT Gate Correctness Property, abbreviated GCP, if, whenever $r + s \leq t$,
+    \[
+        \tikzfig{figures/Gottesman/GCP1.tikz}
+    \]
+    A two-qubit gate gadget satisfies the GCP if, whenever $r_1 + r_2 + s \leq t$,
+    \[
+        \tikzfig{figures/Gottesman/GCP2.tikz}
+    \]
+    These equations must hold for any choice of CP maps substituted in for the faulty locations on the left-hand side.
+\end{definition}
+
+\subsection{Fault-tolerant State Preparation}
+
+\begin{definition}
+    The picture for a single-qubit state preparation gadget with exactly $s$ faults is
+    \[
+        \tikzfig{figures/Gottesman/noisy-state-prep.tikz}
+    \]
+    The picture for a single-qubit measurement gadget with exactly $s$ faults is
+    \[
+        \tikzfig{figures/Gottesman/noisy-measurement.tikz}
+    \]
+    In both cases, the doubled horizontal lines represent encoded blocks of the QECC\@.
+    The measurement gadget outputs classical information, generally a single bit.
+
+    The pictures for ideal preparation of a single-qubit state and ideal single-qubit measurement are
+    \[
+        \tikzfig{figures/Gottesman/ideal-state-prep.tikz}
+        \qquad
+        \text{and}
+        \qquad
+        \tikzfig{figures/Gottesman/ideal-measurement.tikz}
+    \]
+    The horizontal lines represent single unencoded qubits, and the ideal measurement outputs a classical bit.
+\end{definition}
+
+\begin{definition}[FT Preparation Error Propagation Property]
+    Suppose we have a preparation gadget associated with a QECC with distance $2t + 1$.
+    The gadget satisfies the \emph{FT Preparation Error Propagation Property}, abbreviated \emph{PPP}, if, whenever $s \leq t$,
+    \[
+        \tikzfig{figures/Gottesman/PPP.tikz}
+    \]
+\end{definition}
+
+\begin{definition}[Preparation Correctness Property]
+    Suppose we have a preparation gadget associated with a QECC with distance $2t + 1$.
+    The gadget satisfies the \emph{FT Preparation Correctness Property}, abbreviated \emph{PCP}, if, whenever $s \leq t$,
+    \[
+        \tikzfig{figures/Gottesman/PCP.tikz}
+    \]
+\end{definition}
+
+\begin{definition}[FT Measurement Correctness Property]
+    Suppose we have a preparation gadget associated with a QECC with distance $2t + 1$.
+    The gadget satisfies the \emph{FT Measurement Correctness Property}, abbreviated \emph{MCP}, if, whenever $r + s \leq t$,
+    \[
+        \tikzfig{figures/Gottesman/MCP.tikz}
+    \]
+\end{definition}
+
+\subsection{Fault-tolerant Quantum Error Correction}
+
+\begin{definition}
+    A fault-tolerant error correction gadget (which I will usually abbreviate FTEC in the future) is represented by the following picture:
+    \[
+        \tikzfig{figures/Gottesman/QEC-Box.tikz}
+    \]
+    The horizontal lines represent blocks of the QECC.
+\end{definition}
+
+\begin{definition}[FT Error Correction Recovery Property]
+    Suppose we have an error correction gadget associated with a QECC with distance $2t + 1$.
+    The gadget satisfies the \emph{FT Error Correction Recovery Property}, abbreviated \emph{ECRP}, if, whenever $s \leq t$,
+    \[
+        \tikzfig{figures/Gottesman/ECRP.tikz}
+    \]
+\end{definition}
+\begin{definition}[FT Error Correction Correctness Property]
+    Suppose we have an error correction gadget associated with a QECC with distance $2t + 1$.
+    The gadget satisfies the \emph{FT Error Correction Correctness Property}, abbreviated \emph{ECCP}, if, whenever $r + s \leq t$,
+    \[
+        \tikzfig{figures/Gottesman/ECCP.tikz}
+    \]
+\end{definition}
+
+\section{Defining CSS Fault Tolerance}
+
+\subsection{Fault-tolerant State Preparation}
+
+\begin{definition}[CSS-FT Preparation Error Propagation Property]
+    Suppose we have a preparation gadget associated with a CSS QECC with distance $2t + 1$.
+    The gadget satisfies the \emph{CSS-FT Preparation Error Propagation Property}, abbreviated \emph{CSS-PPP}, if, whenever $s \leq t$,
+    \[
+        \tikzfig{figures/CSS/PPP.tikz}
+    \]
+\end{definition}
+
+\begin{definition}[Preparation Correctness Property]
+    Suppose we have a preparation gadget associated with a CSS QECC with distance $2t + 1$.
+    The gadget satisfies the \emph{CSS-FT Preparation Correctness Property}, abbreviated \emph{CSS-PCP}, if, whenever $s \leq t$,
+    \[
+        \tikzfig{figures/CSS/PCP.tikz}
+    \]
+\end{definition}
+
+\begin{definition}[CSS-FT Measurement Correctness Property]
+    Suppose we have a preparation gadget associated with a CSS QECC with distance $2t + 1$.
+    The gadget satisfies the \emph{CSS-FT Measurement Correctness Property}, abbreviated \emph{CSS-MCP}, if, whenever $r + s \leq t$,
+    \[
+        \tikzfig{figures/CSS/MCP.tikz}
+    \]
+\end{definition}
+
+\subsection{Fault-tolerant Quantum Error Correction}
+
+\begin{definition}[CSS-FT Error Correction Recovery Property]
+    Suppose we have an error correction gadget associated with a CSS QECC with distance $2t + 1$.
+    The gadget satisfies the \emph{CSS-FT Error Correction Recovery Property}, abbreviated \emph{CSS-ECRP}, if, whenever $s \leq t$,
+    \[
+        \tikzfig{figures/CSS/ECRP.tikz}
+    \]
+\end{definition}
+\begin{definition}[CSS-FT Error Correction Correctness Property]
+    Suppose we have an error correction gadget associated with a CSS QECC with distance $2t + 1$.
+    The gadget satisfies the \emph{CSS-FT Error Correction Correctness Property}, abbreviated \emph{CSS-ECCP}, if, whenever $r + s \leq t$,
+    \[
+        \tikzfig{figures/CSS/ECCP.tikz}
+    \]
+\end{definition}
+\begin{definition}[CSS-FT Frame Reset Correctness Property]
+    Suppose we have an error correction gadget associated with a CSS QECC with distance $2t + 1$.
+    The gadget satisfies the \emph{CSS-FT Frame Reset Correctness Property}, abbreviated \emph{CSS-FRCP}, if, whenever $r + s \leq t$,
+    \[
+        \tikzfig{figures/CSS/FRCP-XY.tikz}
+    \]
+    and
+    \[
+        \tikzfig{figures/CSS/FRCP-YZ.tikz}
+    \]
+\end{definition}
+
+\printbibliography
+
+\end{document}
