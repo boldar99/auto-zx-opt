@@ -183,62 +183,6 @@
     \]
 \end{definition}
 
-\section{Defining CSS Fault Tolerance}
-
-\subsection{Fault-tolerant State Preparation}
-
-\begin{definition}[CSS-FT Preparation Error Propagation Property]
-    Suppose we have a preparation gadget associated with a CSS QECC with distance $2t + 1$.
-    The gadget satisfies the \emph{CSS-FT Preparation Error Propagation Property}, abbreviated \emph{CSS-PPP}, if, whenever $s \leq t$,
-    \[
-        \tikzfig{figures/CSS/PPP.tikz}
-    \]
-\end{definition}
-
-\begin{definition}[Preparation Correctness Property]
-    Suppose we have a preparation gadget associated with a CSS QECC with distance $2t + 1$.
-    The gadget satisfies the \emph{CSS-FT Preparation Correctness Property}, abbreviated \emph{CSS-PCP}, if, whenever $s \leq t$,
-    \[
-        \tikzfig{figures/CSS/PCP.tikz}
-    \]
-\end{definition}
-
-\begin{definition}[CSS-FT Measurement Correctness Property]
-    Suppose we have a preparation gadget associated with a CSS QECC with distance $2t + 1$.
-    The gadget satisfies the \emph{CSS-FT Measurement Correctness Property}, abbreviated \emph{CSS-MCP}, if, whenever $r + s \leq t$,
-    \[
-        \tikzfig{figures/CSS/MCP.tikz}
-    \]
-\end{definition}
-
-\subsection{Fault-tolerant Quantum Error Correction}
-
-\begin{definition}[CSS-FT Error Correction Recovery Property]
-    Suppose we have an error correction gadget associated with a CSS QECC with distance $2t + 1$.
-    The gadget satisfies the \emph{CSS-FT Error Correction Recovery Property}, abbreviated \emph{CSS-ECRP}, if, whenever $s \leq t$,
-    \[
-        \tikzfig{figures/CSS/ECRP.tikz}
-    \]
-\end{definition}
-\begin{definition}[CSS-FT Error Correction Correctness Property]
-    Suppose we have an error correction gadget associated with a CSS QECC with distance $2t + 1$.
-    The gadget satisfies the \emph{CSS-FT Error Correction Correctness Property}, abbreviated \emph{CSS-ECCP}, if, whenever $r + s \leq t$,
-    \[
-        \tikzfig{figures/CSS/ECCP.tikz}
-    \]
-\end{definition}
-\begin{definition}[CSS-FT Frame Reset Correctness Property]
-    Suppose we have an error correction gadget associated with a CSS QECC with distance $2t + 1$.
-    The gadget satisfies the \emph{CSS-FT Frame Reset Correctness Property}, abbreviated \emph{CSS-FRCP}, if, whenever $r + s \leq t$,
-    \[
-        \tikzfig{figures/CSS/FRCP-XY.tikz}
-    \]
-    and
-    \[
-        \tikzfig{figures/CSS/FRCP-YZ.tikz}
-    \]
-\end{definition}
-
 \printbibliography
 
 \end{document}
