@@ -428,8 +428,12 @@ def decross_exact_resource_order(
         return nodes, "OPTIMAL", 0.0
 
     # Build the dependencies between measurements and resets
-    m_nodes = [lt.death_node for lt in lifetimes if lt.death_node is not None]
-    r_nodes = [lt.birth_node for lt in lifetimes]
+    # Data wires are live throughout the gadget and have fixed hardware IDs.
+    # Their first gate is not a reset that can receive a reused ancilla. Such
+    # links improve the model's objective but cannot be realized by allocation.
+    m_nodes = [lt.death_node for lt in lifetimes
+               if not lt.is_data and lt.death_node is not None]
+    r_nodes = [lt.birth_node for lt in lifetimes if not lt.is_data]
     
     nodes_of_interest = set(m_nodes + r_nodes)
     
@@ -482,23 +486,28 @@ def decross_exact_resource_order(
     # Inject greedy heuristic as a hint to dramatically speed up the solver
     hint_order = decross_greedy_resource_order(dag, lifetimes)
     node_to_pos = {node: i for i, node in enumerate(hint_order)}
-    for v in nodes_of_interest:
-        model.AddHint(pos[v], node_to_pos[v])
+    # Positions are ranks among reset/measurement events, not all gate events.
+    # Full-DAG positions can exceed the IntVar domains and invalidate the hint.
+    hint_events = [node for node in hint_order if node in nodes_of_interest]
+    for rank, v in enumerate(hint_events):
+        model.AddHint(pos[v], rank)
         
     B = nx.Graph()
-    m_set = [f"m_{m}" for m in m_nodes]
-    r_set = [f"r_{r}" for r in r_nodes]
+    # Integer-tuple labels keep matching tie breaks independent of Python's
+    # randomized string hashes, so the same seed also gives the same hint.
+    m_set = [(0, m) for m in m_nodes]
+    r_set = [(1, r) for r in r_nodes]
     B.add_nodes_from(m_set, bipartite=0)
     B.add_nodes_from(r_set, bipartite=1)
     for m in m_nodes:
         for r in r_nodes:
             if m != r and (r, m) not in tc_edges:
                 if node_to_pos[m] < node_to_pos[r]:
-                    B.add_edge(f"m_{m}", f"r_{r}")
+                    B.add_edge((0, m), (1, r))
                     
     matching = nx.bipartite.maximum_matching(B, top_nodes=m_set)
     for (m, r), e in reuse_vars.items():
-        if matching.get(f"m_{m}") == f"r_{r}":
+        if matching.get((0, m)) == (1, r):
             model.AddHint(e, 1)
         else:
             model.AddHint(e, 0)

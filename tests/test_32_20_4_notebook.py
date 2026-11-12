@@ -35,6 +35,13 @@ def test_notebook_applies_bends_and_reduces_hardware(optimized_notebook):
     assert absorbed <= set(range(ns["num_flags"], ns["se"].num_measurements))
 
 
+def test_notebook_refines_reuse_without_losing_the_greedy_incumbent(optimized_notebook):
+    ns = optimized_notebook
+    assert ns["reuse_plan"].peak_qubits <= ns["greedy_reuse_plan"].peak_qubits
+    if ns["refined_reuse_plan"].solver_status in {"FEASIBLE", "OPTIMAL"}:
+        assert ns["final_circ"].num_qubits - ns["code"].n <= 29
+
+
 def test_notebook_rejects_lost_flags_and_ambiguous_provenance(optimized_notebook):
     ns = optimized_notebook
     mapping = ns["final_meas_map"].copy()
