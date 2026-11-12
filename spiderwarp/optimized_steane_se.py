@@ -26,6 +26,7 @@ from spiderwarp._se_policy import (
 )
 
 if TYPE_CHECKING:
+    from spiderwarp.adaptive_steane_se import AdaptiveSEProtocol
     from guppylang.defs import GuppyFunctionDefinition
     from hugr.package import Package
 
@@ -36,6 +37,8 @@ class ProtocolResult:
     measurements: tuple[tuple[str, str, int, int, int], ...]
     corrections: tuple[tuple[tuple[str, int], ...], ...]
     discard_reason: str | None = None
+    frame_x: int = 0
+    frame_z: int = 0
 
 
 @dataclass
@@ -164,35 +167,59 @@ def optimized_steane_SE_orchestrator(
     *,
     output_dir: str | Path | None = None,
     verify: bool = False,
-    recovery_objective: str = 'qubits',
-) -> CompiledSEProtocol:
-    """Optimize supplied gadgets and synthesize a Z-then-X cycle.
+    recovery_objective: str | None = None,
+    policy_mode: str = "adaptive",
+    optimize: bool = False,
+    contract=None,
+    peak_qubits: int | None = None,
+    max_cnot_cost: int | None = None,
+    minimize: bool = True,
+    max_search_states: int = 100000,
+    export: bool = True,
+    progress=None,
+) -> CompiledSEProtocol | AdaptiveSEProtocol:
+    """Build a certified minimax adaptive cycle on finalized SE circuits.
 
-    The primary distance and fault budgets are derived from ``code.d``. Any
-    flagged primary discards its syndrome, runs dual-basis recovery, and ends
-    the cycle. If needed for EC A, recovery additionally measures the discarded
-    component before decoding. Any flagged recovery rejects the shot. Fault
-    analysis needed to select recovery circuits and corrections always runs.
-    Independent verification is optional and is disabled by default.
+    The adaptive mode retains every flag/syndrome, returns a terminal Pauli
+    frame, and minimizes worst-case CNOT count under peak_qubits. It always
+    independently verifies the policy. Set optimize=True to run ZX optimization
+    before synthesis; set export=False to use Stim without installing Guppy.
 
-    Verification enforces Gottesman's EC A on all incoming syndrome sectors
-    with up to t internal faults, and EC B for incoming plus internal fault
-    CSS error order <= t. Residual X and Z weights are bounded separately. Additional
-    bounded histories through floor(d/2) use the internal-fault-count filter,
-    without capping it at t. Rejection is allowed outside correctable-order
-    histories. Exact EC A currently supports up to 65,536 syndrome sectors.
+    policy_mode="legacy" selects the old fixed, physically corrected cycle
+    below. Its verification remains optional and controlled by verify.
 
-    Use verify=True for checks during construction, or subsequently call
-    verify_se_protocol(protocol) / protocol.verify(). Unverified protocols can
-    be exported, run and sampled. Synthesis still raises if it cannot find
-    compatible recovery decisions.
+    Every adaptive accepted history obeys the internal-fault-count CSS filter.
+    EC A covers arbitrary incoming syndrome sectors through t internal faults;
+    EC B preserves the ideal-decoded logical state through incoming plus
+    internal order t. Clean inputs must also accept through floor(d/2), without
+    a logical guarantee beyond t. The exact model includes joint physical
+    Pauli alternatives, including all 15 alternatives per two-qubit gate.
 
-    Guppy is an optional dependency: install ``spiderwarp[guppy]`` to export.
-    Generated source is kept in a temporary directory when output_dir is None.
-    recovery_objective='qubits' prioritizes local recovery width (the default).
-    Use 'gates' to prioritize shorter recovery circuits. Compare both discard
-    and logical-error rates: their behavior can differ beyond the fault bound.
+    The legacy controller discards flagged syndromes, applies physical
+    corrections, and chooses local recovery circuits by recovery_objective
+    ('qubits' or 'gates'). Only that mode permits unverified export.
+
+    Guppy is optional: install spiderwarp[guppy] for export. Without an
+    output_dir, generated source is kept in a temporary directory.
     """
+    if policy_mode not in {"adaptive", "legacy"}:
+        raise ValueError("policy_mode must be 'adaptive' or 'legacy'")
+    if policy_mode == "adaptive":
+        if recovery_objective not in {None, "cnots"}:
+            raise ValueError("Adaptive synthesis minimizes CNOTs; use peak_qubits for its width limit")
+        from spiderwarp.adaptive_steane_se import build_adaptive_se_protocol
+        items = list(circuits.items() if isinstance(circuits, Mapping) else circuits)
+        if not items or len({d for d, _ in items}) != len(items):
+            raise ValueError("Supply unique circuit distances")
+        if any(type(d) is not int or d < 1 or not isinstance(c, stim.Circuit) for d, c in items):
+            raise ValueError("circuits must contain positive integer distances and Stim circuits")
+        if code.d not in dict(items):
+            raise ValueError(f"Missing primary circuit at code distance {code.d}")
+        return build_adaptive_se_protocol(
+            code, dict(items), contract=contract, optimize=optimize, peak_qubits=peak_qubits,
+            max_cnot_cost=max_cnot_cost, minimize=minimize, max_search_states=max_search_states,
+            export=export, output_dir=output_dir, progress=progress)
+    recovery_objective = recovery_objective or "qubits"
     if importlib.util.find_spec("guppylang") is None:
         raise ImportError("Guppy export requires guppylang; install spiderwarp[guppy]")
     if recovery_objective not in {'qubits', 'gates'}:
@@ -240,6 +267,9 @@ def verify_se_protocol(protocol: CompiledSEProtocol) -> VerificationReport:
     report covers the circuit-level Pauli model described in the report; it
     does not certify a stochastic hardware/idle noise model used for sampling.
     """
+    from spiderwarp.adaptive_steane_se import AdaptiveSEProtocol
+    if isinstance(protocol, AdaptiveSEProtocol):
+        return protocol.verify()
     protocol.verification = VerificationReport(
         (protocol.code.d - 1) // 2, protocol.code.d // 2)
     space = PauliSpace(protocol.code)

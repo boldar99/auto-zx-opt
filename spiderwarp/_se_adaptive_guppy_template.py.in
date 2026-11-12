@@ -1,0 +1,197 @@
+"""Certified adaptive CSS SE. Corrections are returned as Pauli-frame masks.
+
+se_cycle borrows the data and returns (accepted, frame_x, frame_z). It does not
+apply physical correction gates. Callers must compose the returned frame.
+Bit i in a frame mask refers to data qubit i.
+"""
+from guppylang import guppy
+from guppylang.std.builtins import array, comptime, exit, owned
+from guppylang.std import quantum as _quantum
+from guppylang.std.quantum import qubit, h, cx, cz, x, y, z, measure
+
+# GENERATED_METADATA
+
+
+@guppy.struct
+class ExtractionResult:
+    flags: int
+    syndrome: int
+
+
+@guppy.struct
+class CycleResult:
+    accepted: bool
+    frame_x: int
+    frame_z: int
+
+
+if hasattr(_quantum, "Measurement"):
+    @guppy
+    def measure_bit(q: qubit @ owned) -> bool:
+        return measure(q).read()
+else:
+    @guppy
+    def measure_bit(q: qubit @ owned) -> bool:
+        return measure(q)
+
+
+@guppy
+def append_bit(mask: int, bit: bool, index: int) -> int:
+    if bit:
+        return mask | (1 << index)
+    return mask
+
+
+def prepare(register, targets):
+    for q in targets:
+        register[q] = qubit()
+
+
+def apply(gate, register, targets):
+    for target in targets:
+        if isinstance(target, tuple):
+            gate(*(register[q] for q in target))
+        else:
+            gate(register[target])
+
+
+def read(register, measurements, targets):
+    measurements.extend(measure_bit(register.pop(q)) for q in targets)
+
+
+def pack_parities(measurements, groups):
+    mask = 0
+    for index, group in enumerate(groups):
+        parity = False
+        for record in group:
+            parity ^= measurements[record]
+        mask = append_bit(mask, parity, index)
+    return mask
+
+
+# GENERATED_GADGETS
+
+
+@guppy
+def lookup(node: int, key: int) -> int:
+# GENERATED_LOOKUP
+
+
+@guppy
+def lookup_control(spec_id: int, key: int) -> int:
+    specs = comptime(CONTROL_SPECS)
+    bits = comptime(CONTROL_BITS)
+    accepted, offset, start, count = specs[spec_id]
+    if lookup(accepted, key) == 0:
+        return 0
+    value = offset
+    for i in range(start, start + count):
+        bit, root = bits[i]
+        if lookup(root, key) != 0:
+            value ^= 1 << bit
+    return value
+
+
+@guppy
+def expand_frame(coefficient: int, basis_id: int) -> int:
+    bases = comptime(FRAME_BASIS_SPECS)
+    vectors = comptime(FRAME_BASIS_VECTORS)
+    start, count = bases[basis_id]
+    mask = 0
+    for bit in range(count):
+        if (coefficient & (1 << bit)) != 0:
+            mask ^= vectors[start + bit]
+    return mask
+
+
+@guppy
+def frame_x_syndrome(mask: int) -> int:
+    rows = comptime(FRAME_X_CHECK_ROWS)
+    result = 0
+    for i in range(comptime(len(FRAME_X_CHECK_ROWS))):
+        parity = False
+        for q in range(comptime(N_DATA)):
+            if (mask & rows[i] & (1 << q)) != 0:
+                parity = not parity
+        if parity:
+            result |= 1 << i
+    return result
+
+
+@guppy
+def frame_z_syndrome(mask: int) -> int:
+    rows = comptime(FRAME_Z_CHECK_ROWS)
+    result = 0
+    for i in range(comptime(len(FRAME_Z_CHECK_ROWS))):
+        parity = False
+        for q in range(comptime(N_DATA)):
+            if (mask & rows[i] & (1 << q)) != 0:
+                parity = not parity
+        if parity:
+            result |= 1 << i
+    return result
+
+
+@guppy
+def se_cycle_with_frame(data: array[qubit, comptime(N_DATA)], initial_x: int, initial_z: int) -> CycleResult:
+    nodes = comptime(POLICY_NODES)
+    flag_widths = comptime(ACTION_FLAG_WIDTHS)
+    is_z = comptime(ACTION_IS_Z)
+    decoders = comptime(TERMINAL_DECODERS)
+    control_frames = comptime(CONTROL_FRAMES)
+    node = comptime(ROOT_NODE)
+    pending_x = initial_x ^ comptime(ROOT_FRAME_X)
+    pending_z = initial_z ^ comptime(ROOT_FRAME_Z)
+    syndrome_x = frame_x_syndrome(pending_x)
+    syndrome_z = frame_z_syndrome(pending_z)
+    while True:
+        kind, action, transition, frame_x, frame_z, basis_x, basis_z = nodes[node]
+        if kind == 0:
+            return CycleResult(False, 0, 0)
+        if kind == 1:
+            return CycleResult(True, frame_x ^ pending_x, frame_z ^ pending_z)
+        result = execute_action(data, action)
+        syndrome = result.syndrome
+        if is_z[action] != 0:
+            syndrome ^= syndrome_x
+        else:
+            syndrome ^= syndrome_z
+        key = result.flags | (syndrome << flag_widths[action])
+        if kind == 3:
+            accepted, xs, zs = decoders[transition]
+            if lookup(accepted, key) == 0:
+                return CycleResult(False, 0, 0)
+            return CycleResult(True, expand_frame(lookup(xs, key), basis_x) ^ frame_x ^ pending_x,
+                               expand_frame(lookup(zs, key), basis_z) ^ frame_z ^ pending_z)
+        xs, zs = control_frames[transition]
+        update_x = expand_frame(lookup(xs, key), basis_x) ^ frame_x
+        update_z = expand_frame(lookup(zs, key), basis_z) ^ frame_z
+        pending_x ^= update_x
+        pending_z ^= update_z
+        syndrome_x ^= frame_x_syndrome(update_x)
+        syndrome_z ^= frame_z_syndrome(update_z)
+        node = lookup_control(transition, key)
+
+
+@guppy
+def se_cycle(data: array[qubit, comptime(N_DATA)]) -> CycleResult:
+    return se_cycle_with_frame(data, 0, 0)
+
+
+@guppy
+def postselected_se_cycle(data: array[qubit, comptime(N_DATA)]) -> CycleResult:
+    result = se_cycle(data)
+    if not result.accepted:
+        exit("SE protocol rejected", 1)
+    return result
+
+
+def compile_se_cycle():
+    target = se_cycle
+    minimal_opt = getattr(target, "with_minimal_opt", None)
+    if minimal_opt is not None:
+        target = minimal_opt()
+    return target.compile_function()
+
+
+# GENERATED_TABLES

@@ -78,10 +78,9 @@ print(syndrome_extraction.num_qubits)
 
 ## Adaptive Steane syndrome-extraction programs
 
-Install `python -m pip install -e ".[guppy]"` in a Python version supported by
-Guppy (currently Python 3.12 or newer). The protocol builder accepts X-stabilizer
-SE gadgets keyed by circuit distance and derives the primary distance and fault
-budgets from the code:
+The default builder retains every flag and syndrome and synthesizes a verified
+adaptive decision graph. It starts with d4 Z-SE for `[[32,20,4]]`; the next basis
+and protection level depend on the complete compatible-history set.
 
 ```python
 import stim
@@ -96,123 +95,102 @@ circuits = {
     for d in (1, 2, 4)
 }
 protocol = optimized_steane_SE_orchestrator(
-    code, circuits, output_dir="build/32_20_4_protocol"
+    code, circuits,
+    peak_qubits=60,
+    output_dir="build/32_20_4_adaptive_protocol",
+    progress=print,
 )
+print(protocol.verification)
 ```
 
-The short [protocol demo notebook](notebooks/32_20_4_protocol_demo.ipynb) shows
-distance-labelled inputs, Guppy/HUGR export and reload, and noisy LER estimation.
-It includes expandable diagrams and annotated Stim instructions for every input
-and optimized gadget, a table of selected circuit roles and resource counts,
-rejection reasons by executed stage, and comparisons that isolate noise sources
-on the same fixed protocol. Circuit files are saved beside the Guppy export.
-`spiderwarp.se_protocol_simulation.estimate_protocol_ler` runs the adaptive Stim
-reference policy with `prepared_state="0"` or `"+"`. It reports the corresponding
-basis-specific block LER after ideal final decoding, conditional on acceptance,
-along with the discard rate and a 95% interval. By default it uses
-`noise_model.py`'s `apply_noise`, including the default memory noise, on each
-executed extraction and correction block. Input preparation and final decoding
-are ideal; classical branch latency is not modeled. Pass a `CustomErrorModel`
-through `noise_model=` to override the default.
-Its result also provides `discard_rate`, `discard_interval_95`, and `diagnostics`:
-aggregate execution/flag counts, terminal rejection reasons, and executed paths.
-Primary flags that recover successfully are counted separately from discards.
+Inputs are finalized X-SE circuits; integer keys are their protection labels.
+The builder derives Z duals for identical `H_x`/`H_z`. Set `optimize=True` to
+apply the existing ZX boundary-bend/reuse pipeline before policy synthesis.
+Alternatively, `build_adaptive_se_protocol` in `spiderwarp.adaptive_steane_se`
+accepts named `SEGadget` variants, including multiple circuits at the same label.
 
-Recovery selection defaults to `recovery_objective="qubits"`, which prioritizes
-local recovery width. The optional `"gates"` preference ranks physical operation
-count first, including paired recovery/cleanup stages. To compare on fixed
-circuits without rerunning ZX optimization, use
-`alternative = protocol.with_recovery_objective("gates")`; pass `verify=True`
-for the independent fault checks. This returns a separate compiled protocol and
-leaves the original intact. Fewer discards can come with a higher conditional
-logical error rate, so the notebook compares both metrics and includes a
-complementary-basis check.
+The minimum eligible protection follows the remaining internal-fault budget:
 
-The builder expands reused ancilla lifetimes, applies ZX/path-cover optimization,
-reuses ancillas, remaps measurement parities, and constructs dual-basis gadgets.
-It then synthesizes recovery choices and modified decoding from exact circuit
-fault responses. Standard decoding uses `spiderwarp.lut_decoder.LutDecoder` at
-construction time. The exported source and HUGR contain the decoder/control-flow
-decisions, without a separate LUT or JSON control-flow file.
+| Further faults possible in the compatible histories | Minimum circuit label |
+|---:|---:|
+| 2 | d4 |
+| 1 | d2 |
+| 0 | d1 |
 
-The standalone Guppy program uses named `ExtractionResult`, `Correction`, and
-`RecoveryRoute` structs. Circuit instructions are batched over target tuples
-inside `@guppy.comptime` functions, preserving gate order and ancilla lifetimes.
-Shared decoder and recovery decisions are stored as immutable arrays and read
-by one masked-lookup loop, rather than thousands of generated helper functions.
-The adaptive cycle and circuit definitions precede the generated lookup data.
-The same source supports Guppy 0.21.6 and 1.1.x.
+The data-code distance stays four. Raised flags certify expenditure through the
+histories, rather than by counting flag bits. d2 transitions include the possible
+new fault; d1 transitions are fault-free. Both bases remain available. A common
+safe correction ends the cycle immediately; a flag does not automatically reject
+the data or discard a syndrome.
 
-Verification is disabled by default. Pass `verify=True` to the builder, or call
-`verify_se_protocol(protocol)` (also available as `protocol.verify()`) separately.
-The callable checks the existing gadgets, recovery choices and corrections; it
-does not replace them with a newly synthesized policy. It returns a
-`VerificationReport` and raises on failure. Unverified protocols can be exported,
-executed and sampled. Fault analysis required to construct adaptive decisions
-still runs during synthesis. Exported source records `VERIFIED_AT_BUILD`.
+The fault model includes all 15 nonidentity Pauli alternatives at each two-qubit
+gate as **one event**, X/Y/Z after one-qubit gates, reset flips, and measurement
+flips. The X and Z boundary constraints share the same joint histories and fault
+count. Guppy basis rotations are lowered before enumeration. Implicit idle
+locations and backend-specific gate transformations are outside this exact model.
 
-A cycle runs a maximum-distance Z primary. With no flags it decodes, corrects,
-and runs the maximum-distance X primary. A flagged primary discards its syndrome,
-runs the selected dual-basis recovery, and ends the cycle. Any raised recovery
-flag rejects the block. The secondary recovery decision retains the first
-accepted syndrome, and the analysis uses one shared incoming/internal fault
-budget across the complete cycle, including physical corrections.
+For `r` incoming CSS error order and `s` internal faulty locations, the default
+`[[32,20,4]]` contract is:
 
-If a dual-basis recovery alone cannot satisfy the CSS conditions, the builder
-adds an extraction of the discarded primary component before decoding. It tries
-all single-recovery candidates first. This extra stage runs only on affected
-flagged branches, rejects raised flags, and combines the two fresh syndromes.
-The clean Z-then-X path is unchanged.
+| (r,s) | Requirement |
+|---|---|
+| (0,0), (1,0) | Accept, zero residual error, preserve logical state. |
+| (0,1) | Accept, preserve ideal-decoded logical state, at most one residual error per CSS component. |
+| (0,2) | Accept, at most two residual errors per component; no logical guarantee at this order. |
+| (1,1) | Reject, or accept with at most one residual error per component. |
+| (2,0) | Reject, or accept with zero residual error. |
 
-`protocol.run(tableau_simulator)` executes the reference policy on an existing
-Stim data block and returns a `ProtocolResult`; callers must honor `accepted`.
-Import `se_cycle(data) -> bool` from the generated Python file to compose it
-with Guppy, or use `postselected_se_cycle(data)` to terminate rejected shots.
-The `.hugr` file is a composable function package, not a state-preparation
-entrypoint. Reload it with `hugr.package.Package.from_bytes(path.read_bytes())`.
-Call the generated module's `compile_se_cycle()` to compile it across supported
-Guppy versions. It uses `with_minimal_opt()` when available (Guppy 1.1.3), and
-direct `compile_function()` on older Guppy (tested with 0.21.6). Backend gate
-transformations require their own fault analysis. The generated measurement
-helper also handles both the older boolean API and the newer `Measurement.read()`
-API. Restart the notebook kernel after updating SpiderWarp or Guppy, then run all
-cells from the beginning.
+The recovery condition additionally checks arbitrary incoming syndrome sectors
+through one internal fault. Its bound is the **internal** fault count. Bounds are
+modulo stabilizers where logical preservation is required and relative to some
+codeword otherwise. A fixed component decoder makes logical tests unambiguous.
+`FTContract` exposes these orders explicitly. The stronger
+`FTContract.correct_or_reject(code)` request can raise
+`FTContractInfeasibleError` with physical silent-terminal-fault witnesses; it is
+not the default contract.
 
-Verification preserves arbitrary logical information using an encoded Bell
-input and retains Pauli classes modulo stabilizers, including logical Paulis.
-The enumerator includes all 15 two-qubit Pauli faults, mixed X/Y/Z histories,
-preparation/measurement flips, and single-qubit/correction-gate faults. Implicit
-idle noise is not added. The current implementation supports identical
-`H_x`/`H_z`, code distances 2–5 (up to two faults), and up to 63 data qubits,
-flags, or checks in Guppy's integer-mask emitter.
+Synthesis first finds a certified ladder policy, then minimizes worst-case total
+CNOT-equivalent entangling gates under `peak_qubits`. Preparation, coupling, and
+all diagnostic extractions count. CX/CZ/XCX each cost one entangling unit.
+Optimality is relative to this library, ladder, fault model, and terminal-frame
+interface. The search report gives the cost and its lower bound. Use
+`minimize=False` for a feasible policy without a minimality claim, or configure
+`max_cnot_cost` and `max_search_states` to bound the search.
 
-Verification uses CSS weight `max(w_X, w_Z)` and checks Gottesman's EC A and
-EC B with separate X/Z filters. Thus X1 Z17 and X7 Z23 each have CSS weight one.
-For `s` incoming CSS errors, `r` internal faults, and
-`t = floor((d-1)/2)`:
+Adaptive construction always runs an independent policy check that recomputes
+transitions and tests the supplied leaves without resynthesizing them. Calling
+`protocol.verify()` checks the existing graph again, including the distance
+ladder and termination. The old `verify` keyword controls only legacy mode.
 
-- EC A: with `r <= t`, every accepted output is at most `r` errors from some
-  codeword in each CSS component, regardless of the incoming errors. Input errors do not enlarge
-  this residual allowance.
-- EC B: when `s+r <= t`, the cycle must accept and its ideal-decoded logical
-  state must be preserved.
+`protocol.run(tableau_simulator)` borrows the existing Stim data block and returns
+`ProtocolResult(accepted, ..., frame_x, frame_z)`. Corrections are **classical
+Pauli-frame masks**; physical correction gates are not applied. Retain the frame
+when composing further computation. Pass an existing frame back with
+`protocol.run(simulator, frame_x=x, frame_z=z)`; the returned frame includes it.
+The generated Guppy `se_cycle(data)` returns
+`CycleResult(accepted, frame_x, frame_z)` with the same semantics.
+Use `se_cycle_with_frame(data, x, z)` to compose an existing frame.
+`postselected_se_cycle(data)` exits on rejection and otherwise returns that result.
+The source and HUGR embed all decision tables; there is no runtime decoder sidecar.
+Reload the HUGR with `hugr.package.Package.from_bytes(path.read_bytes())`.
+Saving also writes `verification.json` and the exact lowered action circuits,
+including hashes that tie the report to the exported files.
 
-Postselection outside correctable-order histories is allowed. EC A covers all
-incoming syndrome sectors; logical equivalence of these representatives follows
-from the linear Pauli responses and encoded-Bell instrument validation. The
-current exact implementation supports up to 65,536 input syndrome sectors.
-Additional bounded histories through `floor(d/2)` also use the internal-fault
-`r`-filter, without capping `r` at the correction radius: two internal faults
-can leave two errors per component. Incoming CSS-weight-one states include an
-X and Z on different qubits, and are both corrected in a fault-free cycle.
-See Gottesman's [EC conditions](https://arxiv.org/pdf/0904.2557#page=21) and
-[separate CSS filter discussion](https://perimeterinstitute.ca/personal/dgottesman/QECC2007/Sols6.pdf).
+Guppy is optional for analysis: pass `export=False` to build and run the Stim
+reference without it. Install `python -m pip install -e ".[guppy]"` to export.
+`protocol.export(output_dir)` verifies and compiles later. The current exact
+implementation supports up to two faults, 65,536 input syndrome sectors, and
+63 data qubits or combined flag/check bits in the Guppy emitter.
 
-The optimized [[32,20,4]] policy verifies under these conditions. All recovery
-stages select d1. Of 8,844 reachable recovery prefixes, 324 need a second d1
-extraction to resolve the discarded component; 8,520 use only the dual recovery.
-The reason for the extra extraction is documented with four physical Z-only
-histories in `analysis/32_20_4_protocol/why_css_recovery_cleanup.txt`.
-The old X1 Z17 and X7 Z23 examples are allowed CSS-weight-one residuals; their
-earlier total-Pauli-weight failure claims are withdrawn. Current certified Guppy
-and HUGR files are in `build/32_20_4_protocol/`; older exports remain archived.
+`estimate_protocol_ler` in `spiderwarp.se_protocol_simulation` incorporates the
+returned frame in ideal final decoding. It reports conditional LER and discards
+separately for logical `0` or `+` inputs. Its default hardware noise includes
+scheduled memory noise, so sampling and the exact gate-fault certificate have
+different explicitly reported scopes. Classical branch latency is not modeled.
+The [demo notebook](notebooks/32_20_4_protocol_demo.ipynb) shows circuit inspection,
+export/reload, both logical bases, and noise-source diagnostics.
+
+The earlier fixed primary/recovery implementation remains available explicitly
+with `policy_mode="legacy"`. Its bool-returning Guppy interface and physical
+corrections are preserved for reproducibility. The current SE assets expose its
+previously documented correctable one-fault rejection; it is not the default.

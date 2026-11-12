@@ -1,6 +1,60 @@
 # SpiderWarp project handoff
 
-Last updated: 2026-09-27
+Last updated: 2026-11-12
+
+
+## Current adaptive implementation (2026-11-12)
+
+The sections below this update describe earlier implementations and experiments.
+The current default is the history-based distance ladder in
+`spiderwarp/adaptive_steane_se.py` and `_se_adaptive.py`; the old fixed recovery
+controller is available only as `policy_mode="legacy"`.
+
+- Start with d4 Z-SE, retaining every flag and syndrome.
+- Compute remaining faults from the joint compatible histories. Two possible
+  future faults require at least d4; one requires d2; zero permits fault-free d1.
+- Choose the next basis separately. No flag or syndrome is discarded, and fresh
+  recovery flags enter another update rather than automatically rejecting.
+- Stop with one common safe Pauli frame, or reject only when no compatible
+  history requires acceptance. Frames are returned, not applied physically.
+- Count every one of the 15 two-qubit Pauli alternatives as one physical fault.
+  CSS boundary filters share those joint histories and the same event budget.
+
+For [[32,20,4]], mandatory acceptance covers r+s<=1 and also clean-input s=2.
+Logical preservation is required through r+s<=1. Accepted order-two histories
+satisfy the internal-fault-count CSS filter without a two-fault logical guarantee.
+The arbitrary-input EC A check remains present through one internal fault; in
+particular accepted (r,s)=(2,0) outputs are codewords. See README for the full table.
+
+The planner minimizes worst-case CNOT-equivalent count within its library, peak
+qubit limit, and ladder. Independent verification recomputes transitions, checks
+terminal frames/rejections, and checks termination. Guppy/HUGR returns acceptance
+and two frame masks. `export=False` permits synthesis without Guppy.
+
+The earlier claim that current raw d4 inputs pass the legacy verifier is stale:
+the exact gate model finds an unflagged one-fault primary syndrome 32 that the
+legacy standard decoder rejects. A regression now requires that diagnostic,
+and the adaptive controller must recover the corresponding physical history.
+
+A stronger promise of logical correctness for every accepted two-fault history
+is impossible with these noisy output boundaries. The optional stronger contract
+has a concrete no-go diagnostic and is not used by the default protocol.
+
+### Verified result and remaining export work
+
+On the finalized 32_20_4 d1/d2/d4 assets, the default contract and 60-qubit
+limit give a verified minimum of 589 CNOT-equivalent gates, at most four
+extractions, and 60 peak qubits. Bound 588 is infeasible in this action library
+and distance ladder. The independent checker covers all 4,096 arbitrary-input
+syndrome sectors and over 14 million abstract history transitions.
+
+The generated standalone source and report are in
+`build/32_20_4_adaptive_protocol/`. Frame composition and a small Guppy/HUGR
+compile/reload pass. Full-size HUGR compilation remains unfinished: Guppy spends
+substantial time serializing its large constant decision arrays. Compilation
+was interrupted when the user asked to wrap up; do not claim that a real-size
+HUGR package has been produced. The full regression run was also interrupted;
+rerun it after further changes. The latest focused adaptive checks pass.
 
 ## Project goal
 

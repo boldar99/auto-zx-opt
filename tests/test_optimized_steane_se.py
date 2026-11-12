@@ -22,6 +22,7 @@ from spiderwarp.optimized_steane_se import (
 )
 from spiderwarp.fault_tolerance_verification import _make_encoded_bell_input
 from spiderwarp.utils import get_project_root
+from test_adaptive_se_policy import verified_32_adaptive_protocol
 
 
 def bell_code():
@@ -133,6 +134,7 @@ def compiled_bell_protocol(tmp_path_factory):
                       (3, bell_gadget())],
         output_dir=tmp_path_factory.mktemp("compiled_se"),
         verify=True,
+        policy_mode="legacy",
     )
 
 
@@ -286,7 +288,7 @@ def test_verification_is_off_by_default_and_sampling_uses_default_noise(monkeypa
         patch.setattr(protocol_module, "validate_gadget", unexpected)
         patch.setattr(PolicyBuilder, "_terminal", unexpected)
         protocol = optimized_steane_SE_orchestrator(
-            bell_code(), {3: bell_gadget()}, output_dir=tmp_path)
+            bell_code(), {3: bell_gadget()}, output_dir=tmp_path, policy_mode="legacy")
     assert not protocol.verification.verified
     assert "VERIFIED_AT_BUILD = False" in protocol.source
 
@@ -605,9 +607,13 @@ def test_export_expands_the_exact_gate_schedule_and_measurement_parities(compile
             assert (result.flags, result.syndrome) == gadget.readout.decode(measured)
 
 
-def test_exported_tables_preserve_all_real_decoder_cases_and_recovery_routes(verified_raw_32_policy):
+def test_legacy_exported_tables_preserve_decoder_cases_and_recovery_routes():
     from spiderwarp._se_guppy import generate_source, share_recovery_decoders
-    code, _, gadgets, policy = verified_raw_32_policy
+    from types import SimpleNamespace
+    protocol = control_flow_protocol()
+    code, gadgets = protocol.code, protocol.gadgets
+    policy = SimpleNamespace(standard=protocol.standard_corrections, recoveries=protocol.recoveries,
+                             correctable=1, detectable=1, report=protocol.verification)
     source = generate_source(code, gadgets, policy)
     exported = generated_python(source)
     # Keep source growth tied to compact circuit/data descriptions, rather than
@@ -640,25 +646,30 @@ def test_exported_tables_preserve_all_real_decoder_cases_and_recovery_routes(ver
         assert (route.decoder_id >= 0) == (('Z', flags, -1) in policy.recoveries)
 
 
-@pytest.fixture(scope="module")
-def verified_raw_32_policy():
+def test_legacy_real_32_policy_reports_its_correctable_one_fault_failure():
     code = CSSCode.load_code("misc", "32_20_4")
     assets = get_project_root() / "assets/circuits/SECircuits"
     space, gadgets = raw_gadgets(code, {
         d: stim.Circuit.from_file(assets / f"32_20_4_d{d}.stim") for d in (1, 2, 4)
     })
     assert [gadgets["X", d].num_flags for d in (1, 2, 4)] == [0, 6, 11]
-    return code, space, gadgets, PolicyBuilder(space, gadgets).build(verify=True)
+    with pytest.raises(ProtocolVerificationError, match="correctable-order history") as raised:
+        PolicyBuilder(space, gadgets).build(verify=True)
+    assert raised.value.witness.incoming_faults == 0
+    assert raised.value.witness.internal_faults == 1
+    assert raised.value.witness.flags == 0
+    assert raised.value.witness.syndrome == 32
 
 
-def test_real_32_code_verifies_css_ec_a_b_with_necessary_recovery_cleanup(verified_raw_32_policy):
-    code, space, gadgets, policy = verified_raw_32_policy
+def test_real_32_code_verifies_the_confirmed_adaptive_contract(verified_32_adaptive_protocol):
+    policy = verified_32_adaptive_protocol.policy
     assert policy.report.verified
     assert policy.report.correctable_faults == 1
     assert policy.report.detectable_faults == 2
     assert policy.report.ec_a_input_syndromes == 4096
-    assert any(plan.cleanup_distance is not None for plan in policy.recoveries.values())
-    assert {plan.primary_basis for plan in policy.recoveries.values()} == {"X", "Z"}
+    assert policy.contract.logical_order == 1
+    assert policy.contract.accept_clean_through == 2
+    assert policy.report.worst_case_cnots <= 1092
 
 
 def test_recovery_cleanup_uses_both_new_syndromes_and_returns():
@@ -677,10 +688,9 @@ def test_recovery_cleanup_uses_both_new_syndromes_and_returns():
     assert rejected.discard_reason == "raised recovery cleanup flags"
 
 
-def test_css_weight_one_incoming_x_and_z_on_distinct_qubits_are_both_corrected(verified_raw_32_policy):
-    code, space, gadgets, policy = verified_raw_32_policy
-    protocol = CompiledSEProtocol(code, gadgets, policy.standard, policy.recoveries,
-                                  policy.report, "", Path("unused"), None, None)
+def test_css_weight_one_incoming_x_and_z_on_distinct_qubits_are_both_corrected(verified_32_adaptive_protocol):
+    protocol = verified_32_adaptive_protocol
+    code = protocol.code
     bell, refs, pairing = _make_encoded_bell_input(
         code.H_x, code.H_z, code.L_x, code.L_z, protocol.required_qubits)
     sim = stim.TableauSimulator()
@@ -689,6 +699,11 @@ def test_css_weight_one_incoming_x_and_z_on_distinct_qubits_are_both_corrected(v
     sim.z(17)
     result = protocol.run(sim)
     assert result.accepted
+    for q in range(code.n):
+        if (result.frame_x >> q) & 1:
+            sim.x(q)
+        if (result.frame_z >> q) & 1:
+            sim.z(q)
     for basis, checks, logicals in [("X", code.H_x, code.L_x), ("Z", code.H_z, code.L_z)]:
         for i, row in enumerate(list(checks) + list(logicals)):
             observable = stim.PauliString(bell.num_qubits)

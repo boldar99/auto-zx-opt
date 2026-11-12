@@ -142,6 +142,7 @@ def _observable(size, row, basis):
 class _StateExperiment:
     def __init__(self, code: CSSCode, size: int, prepared_state: str):
         self.code = code
+        self.prepared_state = prepared_state
         if prepared_state not in {"0", "+"}:
             raise ValueError("prepared_state must be '0' or '+'")
         basis = "Z" if prepared_state == "0" else "X"
@@ -172,9 +173,12 @@ class _StateExperiment:
             raise ValueError("SE output lost a deterministic code/logical observable")
         return np.array([e == -1 for e in expectations], dtype=np.uint8)
 
-    def logical_failure(self, simulator) -> bool:
-        correction = self.decoder.get_mwr(self._bits(simulator, self.checks))
-        logical_bits = self._bits(simulator, self.logicals) ^ (self.logical_rows @ correction % 2)
+    def logical_failure(self, simulator, *, frame_x=0, frame_z=0) -> bool:
+        frame_mask = frame_x if self.prepared_state == "0" else frame_z
+        frame = np.array([(frame_mask >> q) & 1 for q in range(self.code.n)], dtype=np.uint8)
+        checks = self.code.H_z if self.prepared_state == "0" else self.code.H_x
+        correction = self.decoder.get_mwr(self._bits(simulator, self.checks) ^ (checks @ frame % 2))
+        logical_bits = self._bits(simulator, self.logicals) ^ (self.logical_rows @ (correction ^ frame) % 2)
         return bool(np.any(logical_bits))
 
 
@@ -231,7 +235,7 @@ def estimate_protocol_ler(
         paths[path] += 1
         if result.accepted:
             accepted += 1
-            failures += experiment.logical_failure(simulator)
+            failures += experiment.logical_failure(simulator, frame_x=result.frame_x, frame_z=result.frame_z)
         else:
             rejections[(*path[-1], result.discard_reason)] += 1
     return LogicalErrorRateEstimate(

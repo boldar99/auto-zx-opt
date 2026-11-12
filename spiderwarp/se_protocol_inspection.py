@@ -53,6 +53,12 @@ def circuit_resources(circuit: stim.Circuit, n_data: int) -> dict[str, int]:
 
 def protocol_circuit_roles(protocol) -> dict[tuple[str, int], tuple[str, ...]]:
     """Describe how each available gadget is selected by the current policy."""
+    if hasattr(protocol, "policy"):
+        roles = {name: set() for name in protocol.policy.actions}
+        for i, node in enumerate(protocol.policy.nodes):
+            if node.kind == "extract":
+                roles[node.action].add("initial" if i == protocol.policy.root else "continuation")
+        return {name: tuple(sorted(values)) for name, values in roles.items()}
     roles = {key: set() for key in protocol.gadgets}
     for basis in ('X', 'Z'):
         roles[basis, protocol.code.d].add('primary')
