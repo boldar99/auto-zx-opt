@@ -957,6 +957,10 @@ def verify_fault_order_detect_or_correct(
     history must then either produce a new symptom that can be discarded, or
     be compatible with the correction assigned to its zero/one-fault symptom.
 
+    Equal orders request just the correction check, with no additional
+    detection orders. In particular, ``0, 0`` checks a distance-one gadget's
+    zero-fault case.
+
     Like :func:`verify_ftsp`, this returns ``True`` on success and a
     deterministic Stim counterexample circuit on failure. The counterexample
     combines the two colliding histories, so their common flag-and-syndrome
@@ -969,7 +973,9 @@ def verify_fault_order_detect_or_correct(
         L_x=L_x,
         L_z=L_z,
         max_faults=correctable_faults,
-        detectable_faults=detectable_faults,
+        detectable_faults=(
+            None if detectable_faults == correctable_faults else detectable_faults
+        ),
         flag_detector_indices=flag_detector_indices,
         flag_measurement_indices=flag_measurement_indices,
         ideal_input_circuit=ideal_input_circuit,

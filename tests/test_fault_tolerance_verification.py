@@ -162,6 +162,23 @@ def test_fault_order_wrapper_returns_stim_counterexample_by_default(
     assert detailed_failure.combined_history.fault_count == 3
 
 
+@pytest.mark.parametrize("fault_order", [0, 1])
+def test_equal_correction_and_detection_orders_still_check_correction(fault_order):
+    empty_checks = np.zeros((0, 1), dtype=np.uint8)
+    logical = np.ones((1, 1), dtype=np.uint8)
+    result = ft_verification.verify_fault_order_detect_or_correct(
+        stim.Circuit("I 0"), empty_checks, empty_checks, logical, logical,
+        correctable_faults=fault_order, detectable_faults=fault_order,
+        flag_detector_indices=(),
+        ideal_input_circuit=stim.Circuit("R 0"), prepared_state="0",
+    )
+    # An unprotected logical qubit preserves zero faults but cannot correct
+    # a single fault. Equality must not bypass the low-order correction check.
+    assert (result is True) == (fault_order == 0)
+    if fault_order:
+        assert isinstance(result, stim.Circuit)
+
+
 def test_flag_patterns_are_classified_by_one_or_two_fault_reachability() -> None:
     empty_checks = np.zeros((0, 2), dtype=np.uint8)
 
