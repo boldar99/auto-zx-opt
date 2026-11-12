@@ -6,7 +6,7 @@ import math
 import random
 from collections import defaultdict
 from dataclasses import dataclass
-from typing import Optional, Iterator, TYPE_CHECKING
+from typing import Iterable, Optional, Iterator, TYPE_CHECKING
 
 import matplotlib.pyplot as plt
 import networkx as nx
@@ -88,9 +88,12 @@ class CoveredZXGraph:
         G: nx.Graph,
         paths: dict[int, tuple[int, ...]],
         num_data_qubits: Optional[int] = None,
+        *,
+        optional_measurement_ids: Iterable[int] = (),
     ) -> None:
         self.G = G
         self.paths = paths
+        self.optional_measurement_ids = frozenset(optional_measurement_ids)
         self._num_qubits = (
             num_data_qubits if num_data_qubits is not None else self._infer_num_data_qubits()
         )
@@ -102,7 +105,13 @@ class CoveredZXGraph:
     # ---------------------------------------------------------------------
 
     @classmethod
-    def from_stim(cls, circuit: stim.Circuit, num_data_qubits = None) -> "CoveredZXGraph":
+    def from_stim(
+        cls,
+        circuit: stim.Circuit,
+        num_data_qubits=None,
+        *,
+        optional_measurement_ids: Iterable[int] = (),
+    ) -> "CoveredZXGraph":
         """Build a CoveredZXGraph from Stim via PyZX.
 
         ``stim_to_pyzx`` needs the number of data qubits, which is inferred
@@ -117,10 +126,22 @@ class CoveredZXGraph:
         creating vertices in that same order. Therefore, for diagrams produced
         by this importer, terminal non-boundary vertices sorted by ZX vertex ID
         are in the original Stim measurement-sample order.
+
+        By default every measurement must remain a classical output. Explicit
+        ``optional_measurement_ids`` allow boundary bends to absorb those
+        readouts into preparations or internal spiders. The returned map then
+        contains only surviving records. This preserves the postselected ZX
+        diagram, not necessarily the measurement instrument: callers must
+        rebuild readout parities and verify the resulting gadget, including
+        its fault tolerance. In particular, flag records should be retained.
         """
         num_data_qubits = cls._infer_num_data_qubits_from_stim(circuit) if num_data_qubits is None else num_data_qubits
         diagram = stim_to_pyzx(circuit, num_data_qubits)
-        return cls.from_zx_diagram(diagram, num_data_qubits=num_data_qubits)
+        return cls.from_zx_diagram(
+            diagram,
+            num_data_qubits=num_data_qubits,
+            optional_measurement_ids=optional_measurement_ids,
+        )
 
     @classmethod
     def _infer_num_data_qubits_from_stim(cls, circuit: stim.Circuit) -> int:
@@ -186,6 +207,8 @@ class CoveredZXGraph:
         cls,
         diagram: zx.graph.graph.BaseGraph,
         num_data_qubits: Optional[int] = None,
+        *,
+        optional_measurement_ids: Iterable[int] = (),
     ) -> "CoveredZXGraph":
         """Build a CoveredZXGraph from a PyZX diagram.
 
@@ -223,7 +246,10 @@ class CoveredZXGraph:
             num_data_qubits if num_data_qubits is not None else cls._infer_num_data_qubits_from_graph(G)
         )
         cls._attach_measurement_ids_by_terminal_vertex_order(G, paths)
-        return cls(G, paths, num_data_qubits=inferred_num_data_qubits)
+        return cls(
+            G, paths, num_data_qubits=inferred_num_data_qubits,
+            optional_measurement_ids=optional_measurement_ids,
+        )
 
     @staticmethod
     def _normalise_hadamards(diagram: zx.graph.graph.BaseGraph) -> None:
@@ -417,6 +443,7 @@ class CoveredZXGraph:
             self.G.copy(),
             copy.deepcopy(self.paths),
             num_data_qubits=self._num_qubits,
+            optional_measurement_ids=self.optional_measurement_ids,
         )
 
     def shallow_copy(self) -> "CoveredZXGraph":
@@ -424,6 +451,7 @@ class CoveredZXGraph:
             self.G,
             self.paths,
             num_data_qubits=self._num_qubits,
+            optional_measurement_ids=self.optional_measurement_ids,
         )
 
     def visualize(
@@ -703,11 +731,13 @@ class CoveredZXGraph:
                 merged_path_options = []
 
         for merged_path in merged_path_options:
-            # A labelled measurement is a classical output, not an endpoint
-            # that can become a reset or an internal spider. Extraction only
-            # emits measurements at path terminals, so such a bend would
-            # silently delete the original measurement record.
-            if any(self.measurement_id(v) is not None for v in merged_path[:-1]):
+            # Only explicitly optional readouts may be absorbed. Required
+            # classical outputs (especially flags) must remain path terminals.
+            if any(
+                self.measurement_id(v) is not None
+                and self.measurement_id(v) not in self.optional_measurement_ids
+                for v in merged_path[:-1]
+            ):
                 continue
             new_paths = copy.copy(paths)
             del new_paths[i]
@@ -719,7 +749,7 @@ class CoveredZXGraph:
         self,
         paths: Optional[dict[int, tuple[int, ...]]] = None,
     ) -> Iterator[dict[int, tuple[int, ...]]]:
-        """Yield causal bends that retain every labelled measurement terminal."""
+        """Yield causal bends that retain every required measurement terminal."""
         current_paths = self.paths if paths is None else paths
         for bend_data in self._boundary_bends(current_paths):
             yield from self._causal_path_bends(current_paths, *bend_data)
@@ -1540,7 +1570,12 @@ class CoveredZXGraph:
         return extraction_graph._find_total_ordering()
 
     def extract_circuit_with_measurement_map(self) -> tuple[stim.Circuit, dict[int, int]]:
-        """Extract a circuit while retaining every labelled measurement output."""
+        """Extract surviving readouts, rejecting loss of any required record.
+
+        Map keys are extracted sample indices and values are original IDs.
+        Absorbed optional IDs are absent; they are not permutation entries or
+        measurement outcomes that can be reconstructed from this map alone.
+        """
         original_ids = [
             self.measurement_id(v) for v in self.G
             if self.measurement_id(v) is not None
@@ -1559,7 +1594,10 @@ class CoveredZXGraph:
                         measurement_map[next_measurement_index + offset] = operation.measurement_id + offset
                 next_measurement_index += len(operation.targets)
 
-        missing = set(original_ids) - set(measurement_map.values())
+        missing = (
+            set(original_ids) - set(measurement_map.values())
+            - self.optional_measurement_ids
+        )
         if missing:
             raise ValueError(
                 "path cover does not preserve measurements: missing original "

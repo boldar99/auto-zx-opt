@@ -34,6 +34,39 @@ def test_unlabelled_boundary_bends_are_still_available():
     assert len(list(graph.all_causal_single_boundary_bends())) == 2
 
 
+def test_explicitly_optional_readout_can_be_absorbed_but_required_one_survives():
+    graph = CoveredZXGraph.from_stim(
+        stim.Circuit('RX 0\nR 1\nCX 0 1\nM 1\nMX 0'),
+        optional_measurement_ids={0},
+    )
+    graph.basic_FE_rewrites()
+    assert len(list(graph.all_causal_single_boundary_bends())) == 1
+
+    optimised = graph.greedy_best_first_boundary_bends(
+        lambda g, paths: float(len(paths)), max_evaluations=20
+    )
+    circuit, mapping = optimised.extract_circuit_with_measurement_map()
+    assert len(optimised.paths) == 1
+    assert circuit.num_measurements == 1
+    assert mapping == {0: 1}
+    assert optimised.optional_measurement_ids == frozenset({0})
+    assert optimised.deepcopy().extract_circuit_with_measurement_map() == (circuit, mapping)
+    # Search and extraction must not relabel or mutate the original cover.
+    assert len(graph.paths) == 2
+    assert graph.extract_circuit_with_measurement_map()[0].num_measurements == 2
+
+
+def test_optional_readouts_do_not_allow_a_required_record_to_be_lost():
+    graph = measured_graph()
+    graph.optional_measurement_ids = frozenset({1})
+    first, second = (path[0] for path in graph.paths.values())
+    assert graph.measurement_id(first) == 1
+    assert graph.measurement_id(second) == 0
+    graph.paths = {0: (second, first)}
+    with pytest.raises(ValueError, match=r'missing original measurement IDs \[0\]'):
+        graph.extract_circuit_with_measurement_map()
+
+
 def test_extraction_rejects_a_manually_invalid_measurement_cover():
     graph = measured_graph()
     first, second = (path[0] for path in graph.paths.values())
