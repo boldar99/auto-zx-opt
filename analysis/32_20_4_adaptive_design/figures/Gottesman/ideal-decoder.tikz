@@ -1,0 +1,11 @@
+\begin{tikzpicture}
+	\begin{pgfonlayer}{nodelayer}
+		\node [style=none] (0) at (-1.75, 0) {};
+		\node [style=none] (1) at (1.75, 0) {};
+		\node [style=decoder] (2) at (0, 0) {};
+	\end{pgfonlayer}
+	\begin{pgfonlayer}{edgelayer}
+		\draw (1.center) to (2);
+		\draw [style=quantumWire] (2) to (0.center);
+	\end{pgfonlayer}
+\end{tikzpicture}

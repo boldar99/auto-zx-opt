@@ -1,0 +1,24 @@
+\begin{tikzpicture}
+	\begin{pgfonlayer}{nodelayer}
+		\node [style=none] (5) at (-7.5, 0) {};
+		\node [style=sLabel] (9) at (-3.5, 0.5) {$s$};
+		\node [style=none] (10) at (0, 0) {$=$};
+		\node [style=sLabel] (30) at (-5.875, 0.5) {$r$};
+		\node [style=none] (33) at (-1.5, 0) {};
+		\node [style=ECBox] (56) at (-4.5, 0) {};
+		\node [style=decoder] (57) at (-2.5, 0) {};
+		\node [style=filter] (58) at (-6.25, 0) {};
+		\node [style=none] (59) at (1.5, 0) {};
+		\node [style=sLabel] (61) at (3.125, 0.5) {$r$};
+		\node [style=none] (62) at (5, 0) {};
+		\node [style=decoder] (64) at (4, 0) {};
+		\node [style=filter] (65) at (2.75, 0) {};
+	\end{pgfonlayer}
+	\begin{pgfonlayer}{edgelayer}
+		\draw (57) to (33.center);
+		\draw [style=quantumWire] (57) to (56);
+		\draw [style=quantumWire] (56) to (5.center);
+		\draw (64) to (62.center);
+		\draw [style=quantumWire] (64) to (59.center);
+	\end{pgfonlayer}
+\end{tikzpicture}

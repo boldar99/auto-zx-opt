@@ -1,0 +1,23 @@
+\begin{tikzpicture}
+	\begin{pgfonlayer}{nodelayer}
+		\node [style=none] (0) at (0, 0) {$=$};
+		\node [style=sLabel] (1) at (-4.375, 0.5) {$r$};
+		\node [style=none] (2) at (-1.5, 0) {};
+		\node [style=none] (3) at (-6, 0) {};
+		\node [style=sLabel] (4) at (-2.375, 0.5) {$s$};
+		\node [style=filter] (5) at (-4.75, 0) {};
+		\node [style=singleQubitGate] (11) at (-3, 0) {};
+		\node [style=sLabel] (12) at (3.125, 0.5) {$r$};
+		\node [style=none] (13) at (8, 0) {};
+		\node [style=none] (14) at (1.5, 0) {};
+		\node [style=sLabel] (15) at (5.125, 0.5) {$s$};
+		\node [style=filter] (16) at (2.75, 0) {};
+		\node [style=singleQubitGate] (17) at (4.5, 0) {};
+		\node [style=sLabel] (18) at (7.125, 0.5) {$r + s$};
+		\node [style=filter] (19) at (6.25, 0) {};
+	\end{pgfonlayer}
+	\begin{pgfonlayer}{edgelayer}
+		\draw [style=quantumWire] (3.center) to (2.center);
+		\draw [style=quantumWire] (14.center) to (13.center);
+	\end{pgfonlayer}
+\end{tikzpicture}

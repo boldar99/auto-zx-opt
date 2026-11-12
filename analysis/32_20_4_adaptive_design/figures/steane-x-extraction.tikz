@@ -1,0 +1,27 @@
+\begin{tikzpicture}
+    \begin{pgfonlayer}{nodelayer}
+        \node [style=none] (din) at (0, 0) {};
+        \node [style=none] (dout) at (13.5, 0) {};
+        \node [style=none] at (-0.5, 0) {$D$};
+        \node [style=none] at (2.25, 0.85) {$E_D$};
+        \node [style=none] at (11.5, 0.85) {$E_D'$};
+        \node [style=none] at (6.75, 2) {$X\text{-SE}$};
+        \node [style=box, minimum width=13mm, minimum height=6mm]
+            (prep) at (2, -3) {$\mathrm{Prep}_{0}$};
+        \node [style=none] at (5.25, -2.15) {$E_A$};
+        \node [style=transversalNot] (target) at (8, 0) {};
+        \node [style=transversalControl] (ctrl) at (8, -3) {};
+        \node [style=box, minimum width=8mm, minimum height=6mm]
+            (measure) at (11.5, -3) {$M_X$};
+        \node [style=none] (syndrome) at (14, -3) {$\sigma_X$};
+        \node [style=none] (flags) at (2, -4.75) {$f$};
+    \end{pgfonlayer}
+    \begin{pgfonlayer}{edgelayer}
+        \draw [style=quantumWire] (din.center) to (dout.center);
+        \draw [style=quantumWire] (prep) to (ctrl);
+        \draw [style=quantumWire] (ctrl) to (measure);
+        \draw [style=quantumWire] (ctrl) to (target);
+        \draw [style=classical edge, ->] (measure) to (syndrome);
+        \draw [style=classical edge, ->] (prep.south) to (flags);
+    \end{pgfonlayer}
+\end{tikzpicture}

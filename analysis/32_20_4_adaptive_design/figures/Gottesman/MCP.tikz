@@ -1,0 +1,20 @@
+\begin{tikzpicture}
+	\begin{pgfonlayer}{nodelayer}
+		\node [style=none] (2) at (0, 0) {$=$};
+		\node [style=sLabel] (3) at (-2.875, 0.5) {$r$};
+		\node [style=measurement] (4) at (-2, 0) {};
+		\node [style=none] (5) at (-4.5, 0) {};
+		\node [style=sLabel] (6) at (-1.25, 0.5) {$s$};
+		\node [style=filter] (7) at (-3.25, 0) {};
+		\node [style=sLabel] (8) at (3.125, 0.5) {$r$};
+		\node [style=none] (9) at (1.5, 0) {};
+		\node [style=filter] (10) at (2.75, 0) {};
+		\node [style=decoder] (11) at (4, 0) {};
+		\node [style=idealMeasurement] (12) at (5.25, 0) {};
+	\end{pgfonlayer}
+	\begin{pgfonlayer}{edgelayer}
+		\draw [style=quantumWire] (5.center) to (4);
+		\draw [style=quantumWire] (9.center) to (11);
+		\draw (11) to (12);
+	\end{pgfonlayer}
+\end{tikzpicture}

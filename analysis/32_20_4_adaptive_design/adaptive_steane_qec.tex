@@ -1,0 +1,419 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[margin=25mm]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern,microtype}
+\usepackage{amsmath,amssymb}
+\usepackage{amsthm}
+\usepackage{needspace}
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}[section]
+\usepackage[hidelinks]{hyperref}
+\usepackage[backend=biber,style=numeric]{biblatex}
+\addbibresource{macros/AdaptiveSteane.bib}
+
+\usepackage{macros/tikzfig}
+\input{macros/floquet.tikzstyles}
+\input{macros/floquet.tikzdefs}
+
+\title{Adaptive Steane error correction without postselection}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+
+\noindent
+Steane error correction measures syndromes by applying transversal CNOTs
+between the data and encoded ancillas, then measuring the ancillas. In a
+postselected preparation scheme, an ancilla is discarded if any verification flag is
+nonzero, and preparation is repeated until all flags are zero. Here we use
+every prepared ancilla and adapt the subsequent extraction circuits and
+decoding to the observed flags and syndromes. Our goal is a QEC cycle
+satisfying Gottesman's fault-tolerance conditions
+(Appendix~\ref{sec:gottesman-ft}) without postselection.
+
+We consider Steane error correction for an $[[n,k,d]]$ CSS code, with
+\[
+  t=\left\lfloor\frac{d-1}{2}\right\rfloor.
+\]
+\section{One Steane extraction}
+\label{sec:extraction}
+
+Let $H_Z$ and $H_X$ be the binary check matrices of the Z and X
+stabilizers. Write $X(w)=\prod_i X_i^{w_i}$ and
+$Z(w)=\prod_i Z_i^{w_i}$, with all vector sums taken modulo two.
+The incoming data error and the ancilla error immediately before the
+transversal CNOTs are
+\[
+    E_D=X(u)Z(v),\qquad E_A=X(x)Z(z),
+    \qquad u,v,x,z\in\mathbb F_2^n.
+\]
+The following equations take the transversal CNOTs and final measurements
+to be ideal.
+
+Z-SE uses the encoded all-plus state $\ket{\overline{+^k}}$ as the CNOT
+target and measures the ancilla in the Z basis. X-SE uses the encoded all-zero state
+$\ket{\overline{0^k}}$ as the control and measures the ancilla in the X basis.
+
+\begin{figure}[htbp]
+    \centering
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \tikzfig{figures/steane-z-extraction}
+    \end{minipage}\hfill
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \tikzfig{figures/steane-x-extraction}
+    \end{minipage}
+    \caption{Alternative single-basis extractions. Doubled wires represent
+    $n$-qubit blocks, and each CNOT is transversal. Preparation returns
+    flags $f$ and an ancilla with error $E_A$. The final measurement is
+    processed into the syndrome $\sigma_Z$ or $\sigma_X$.}
+    \label{fig:steane-extractions}
+\end{figure}
+
+Before any correction, the measured syndrome and output data error are
+\begin{equation}
+    \begin{array}{c|c|c}
+        \text{Extraction} & \text{Syndrome} & E_D' \\
+        \hline
+        Z\text{-SE} & \sigma_Z=H_Z(u+x) & X(u)Z(v+z) \\
+        X\text{-SE} & \sigma_X=H_X(v+z) & X(u+x)Z(v).
+    \end{array}
+    \label{eq:extraction}
+\end{equation}
+In Z-SE, the ancilla X error changes the measurement outcome, while its Z error
+propagates to the data. In X-SE, these roles are exchanged. We retain
+both the preparation flags and the measured syndrome for the adaptive
+step.
+
+\paragraph{Transversal CNOT and measurement faults.}
+A bit flip in a Z-basis measurement is equivalent to an ancilla X error
+just before measurement; a bit flip in an X-basis measurement is
+equivalent to an ancilla Z error.
+These errors commute backwards through the respective CNOTs, so they can
+be placed at the preparation output without changing its flags.
+
+Model a faulty physical CNOT by a Pauli error after the ideal gate. On
+its data--ancilla pair, write
+\[
+    P=X_D^a Z_D^b X_A^c Z_A^e,
+    \qquad a,b,c,e\in\mathbb F_2.
+\]
+The following replacements give the same measurement outcomes and
+conditional data state. The effective ancilla error is placed before
+the CNOT and the residual data error after it:
+\begin{equation}
+    \begin{array}{c|c|c}
+        \text{Extraction} & \text{Effective ancilla error}
+                         & \text{Residual data error} \\
+        \hline
+        Z\text{-SE} & X_A^c Z_A^b & X_D^a \\
+        X\text{-SE} & X_A^a Z_A^e & Z_D^b.
+    \end{array}
+    \label{eq:coupling-faults}
+\end{equation}
+This follows from CNOT Pauli propagation, omitting a final ancilla Z in
+Z-SE or X in X-SE, which does not affect the measurement. The two entries
+in a row arise from one physical fault, even when both are nonidentity;
+their joint effects must be retained when checking ECRP and ECCP
+(Appendix~\ref{sec:gottesman-ft}).
+
+The residual data X from Z-SE passes through a subsequent ideal X-SE
+without changing its syndrome and remains a single data error. The dual
+statement holds for a residual data Z from X-SE followed by ideal Z-SE.
+
+\section{Adaptive Steane error correction}
+\label{sec:adaptive}
+
+\subsection{Preparation guarantees}
+\label{sec:preparation-guarantees}
+
+For each encoded ancilla state $\ket A$, we use a finite library of
+preparation circuits with different circuit distances $\delta$; the
+data-code distance remains $d$.
+A Pauli fault set $F$ produces flags $f(F)$ and ancilla error $E_F$.
+Flags have fault-free value zero.
+In the chosen physical fault model, assume
+\begin{equation}
+    \begin{gathered}
+        f(F)=f(F'),\qquad \sigma(E_F)=\sigma(E_{F'}),\qquad
+        |F|+|F'|<\delta \\
+        \Longrightarrow\qquad
+        E_F\ket A\propto E_{F'}\ket A.
+    \end{gathered}
+    \label{eq:preparation-distance}
+\end{equation}
+Here $\sigma(X(x)Z(z))=(H_Zx,H_Xz)$ is the ideal code syndrome, and
+$b_\delta=\lfloor(\delta-1)/2\rfloor$. Thus flags and a perfect
+ancilla syndrome determine a correction through $b_\delta$ preparation
+faults, including nonzero flags.
+
+We also require that zero flags imply no increase in error weight:
+\begin{equation}
+    \begin{gathered}
+        f(F)=0,\quad |F|\leq b_\delta
+        \quad\Longrightarrow\quad
+        E_F\ket A\propto\widetilde E_F\ket A,\\
+        \operatorname{wt}(\widetilde E_F)\leq |F|
+        \quad\text{for some Pauli }\widetilde E_F.
+    \end{gathered}
+    \label{eq:quiet-preparation}
+\end{equation}
+The weight is the ordinary Pauli weight used in the appendix. Zero flags
+therefore allow faults, but exclude error amplification within the
+preparation's protection order.
+The logical-completion proof of Eq.~\eqref{eq:quiet-preparation} requires
+that every violating zero-flag pattern $F$ admit $q_{\rm add}$ additional
+single-qubit data faults producing an undetectable logical change of
+$\ket A$, with $|F|+q_{\rm add}<\delta$. If
+Eq.~\eqref{eq:preparation-distance} includes these added faults, comparison
+with $F'=\varnothing$ gives a contradiction. This completion property
+must be established for the chosen family; otherwise verify the weight
+bound directly.
+
+\Needspace{13\baselineskip}
+\subsection{Adaptive decoding}
+\label{sec:adaptive-decoding}
+
+The measured Steane syndrome contains both data and ancilla errors
+(Eq.~\eqref{eq:extraction}). After $m$ extractions, use the complete record
+$R=((B_j,\delta_j,f_j,\sigma_j))_{j=1}^{m}$, where $B_j\in\{Z,X\}$.
+Write $r$ for the data-error weight at the cycle input and $s$ for the
+accumulated internal fault count. For logical correctness (ECCP), retain every
+possibility consistent with $R$ and $r+s\leq t$. The output-error
+condition (ECRP) must also be checked on arbitrary-input possibilities
+with $s\leq t$ (Appendix~\ref{sec:gottesman-ft}). Track $r$, $s$, and the
+current data error in each case.
+Data errors introduced by faulty transversal CNOTs are already counted
+in $s$: each faulty physical location counts once, with its joint X and
+Z effects retained.
+Final Pauli corrections are tracked classically in a Pauli frame, and
+the EC conditions are evaluated in that frame.
+
+\Needspace{10\baselineskip}
+Start with Z-SE using a distance-$d$ preparation. After each extraction:
+\begin{enumerate}
+    \item Update the possible errors and fault counts using the new
+    flags and syndrome. If no ECRP possibility remains, finish with the
+    identity frame update.
+    \item If one Pauli correction satisfies ECCP and ECRP for every
+    remaining possibility in their respective ranges, update the Pauli
+    frame and finish.
+    \item Otherwise choose another extraction basis and preparation
+    circuit, including new faults when evaluating its possible outcomes.
+\end{enumerate}
+
+Let $L(R)$ be the least internal fault count consistent with $R$ over the
+full ECRP range. Then
+\begin{equation}
+    b(R)=t-L(R)
+    \label{eq:remaining-faults}
+\end{equation}
+bounds further faults. An available preparation with $b_\delta\geq b(R)$,
+equivalently $\delta\geq2b(R)+1$, gives sufficient protection against new
+faults. The full-record test must also account for the remaining data errors:
+syndromes can distinguish them even when $L(R)$ is unchanged.
+
+\paragraph{Quiet rounds.}
+For a continuation policy using Z-SE followed by X-SE in each round,
+call a round quiet when neither preparation raises a flag. Check that
+every quiet-round record admits a common correction under the stopping
+test above, retaining the flags and syndromes from earlier rounds.
+When $b(R)=0$, no further faults are allowed in the bounded-fault model,
+so distance-one preparations suffice for the remaining extractions.
+
+\section{Correctness and resource cost}
+\label{sec:correctness-cost}
+
+\subsection{Correctness}
+
+Consider a Z-SE/X-SE round policy whose quiet-round stopping test is
+verified in the chosen Pauli fault model. When $s\leq t$, every update
+retains the actual input error
+and fault pattern. The terminal frame update therefore satisfies ECRP,
+and ECCP when $r+s\leq t$.
+
+A continuing round has a fresh nonzero preparation flag and certifies a
+new fault. If $J$ rounds are begun, $J-1\leq s$, hence $J\leq s+1\leq t+1$.
+Outside this fault range, $t+1$ nonquiet rounds leave no bounded-fault
+possibility, triggering the identity frame update.
+
+\Needspace{16\baselineskip}
+\subsection{Resource cost}
+
+Let $N$ count all individual extractions, including flagged ones. For
+the round policy,
+\begin{equation}
+    N\leq 2J\leq 2(s+1)\leq 2(t+1)
+    \qquad(s\leq t).
+    \label{eq:extraction-cost}
+\end{equation}
+The empty-set rule gives $N\leq2(t+1)$ for the other records too.
+Let $c(B,\delta)$ be an additive cost of a complete extraction and $c_{\max}$ its
+maximum over the available circuit library. A terminal record $R$ has cost
+\begin{equation}
+    C(R)=\sum_{j=1}^{N}c(B_j,\delta_j)
+    \leq 2(t+1)c_{\max},
+    \label{eq:circuit-cost}
+\end{equation}
+For CNOT cost, $c$ includes preparation and transversal CNOTs. Given noise
+and input-error models, $\mathbb E[C]=\sum_R p(R)C(R)$ over terminal records.
+
+Using the full record cannot increase the optimum cost with the same
+library and objective: flags-only adaptive choices remain available.
+Any strict saving must be verified for the chosen policy.
+
+\clearpage
+\appendix
+
+\section{Gottesman's Definition of Fault-tolerance\texorpdfstring{~\cite{gottesmanIntroductionQuantumError2009,gottesmanSurvivingQuantumComputer2026}}{}}
+\label{sec:gottesman-ft}
+
+\begin{definition}
+    \label{def:r-filter}
+    The \emph{strict $r$-filter} for the QECC $Q$ is the projector on the subspace spanned by states of the form $E \ket{\psi}$, where $\ket{\psi} \in Q$ and $E$ is an error of weight at most $r$.
+    Pictorially, I will draw an $r$-filter as:
+    \[
+        \tikzfig{figures/Gottesman/r-filter.tikz}
+    \]
+    The doubled horizontal lines in this picture represent a block of the QECC $Q$ rather than single physical qubits.
+\end{definition}
+\begin{definition}
+    The \emph{strict ideal decoder} for the QECC $Q$ is the quantum channel that takes a state (possibly with errors) encoded in $Q$, corrects the errors, and then decodes the logical state, discarding all ancilla qubits.
+    I will draw an ideal decoder as follows:
+    \[
+        \tikzfig{figures/Gottesman/ideal-decoder.tikz}
+    \]
+    The doubled horizontal line on the left of the picture represents a block of $Q$.
+    The single horizontal line on the right of the picture is the logical qubit after decoding.
+\end{definition}
+
+\subsection{Fault-tolerant Gate Properties}
+
+\begin{definition}
+    The picture to represent a noisy gate gadget with exactly $s$ faults is
+    \[
+        \tikzfig{figures/Gottesman/noisy-1-gate.tikz}
+        \qquad
+        \text{or}
+        \qquad
+        \tikzfig{figures/Gottesman/noisy-2-gate.tikz}
+    \]
+    for one- and two-qubit gates, respectively.
+    Each doubled horizontal line represents a single block of the QECC\@.
+
+    The picture to represent an ideal gate performed on unencoded qubits without noise is
+    \[
+        \tikzfig{figures/Gottesman/ideal-1-gate.tikz}
+        \qquad
+        \text{or}
+        \qquad
+        \tikzfig{figures/Gottesman/ideal-2-gate.tikz}
+    \]
+    for one- and two-qubit gates, respectively. Each single horizontal line represents a single unencoded qubit.
+\end{definition}
+
+\begin{definition}[FT Gate Error Propagation Property]
+    Suppose we have a gate gadget associated with a QECC with distance $2t + 1$ (i.e., it corrects $t$-errors).
+    If it is a single-qubit gate gadget, it satisfies the \emph{FT Gate Error Propagation Property}, abbreviated \emph{GPP}, if, whenever $r + s \leq t$,
+    \[
+        \tikzfig{figures/Gottesman/GPP1.tikz}
+    \]
+    A two-qubit gate gadget satisfies the GPP if, whenever $r_1 + r_2 + s \leq t$,
+    \[
+        \tikzfig{figures/Gottesman/GPP2.tikz}
+    \]
+    For both equations, the faulty locations on both sides of the equation have the same fault path and error maps substituted in.
+\end{definition}
+\begin{definition}[FT Gate Correctness Property]
+    Suppose we have a gate gadget associated with a QECC with distance $2t + 1$.
+    If it is a single-qubit gate gadget, it satisfies the FT Gate Correctness Property, abbreviated GCP, if, whenever $r + s \leq t$,
+    \[
+        \tikzfig{figures/Gottesman/GCP1.tikz}
+    \]
+    A two-qubit gate gadget satisfies the GCP if, whenever $r_1 + r_2 + s \leq t$,
+    \[
+        \tikzfig{figures/Gottesman/GCP2.tikz}
+    \]
+    These equations must hold for any choice of CP maps substituted in for the faulty locations on the left-hand side.
+\end{definition}
+
+\subsection{Fault-tolerant State Preparation}
+
+\begin{definition}
+    The picture for a single-qubit state preparation gadget with exactly $s$ faults is
+    \[
+        \tikzfig{figures/Gottesman/noisy-state-prep.tikz}
+    \]
+    The picture for a single-qubit measurement gadget with exactly $s$ faults is
+    \[
+        \tikzfig{figures/Gottesman/noisy-measurement.tikz}
+    \]
+    In both cases, the doubled horizontal lines represent encoded blocks of the QECC\@.
+    The measurement gadget outputs classical information, generally a single bit.
+
+    The pictures for ideal preparation of a single-qubit state and ideal single-qubit measurement are
+    \[
+        \tikzfig{figures/Gottesman/ideal-state-prep.tikz}
+        \qquad
+        \text{and}
+        \qquad
+        \tikzfig{figures/Gottesman/ideal-measurement.tikz}
+    \]
+    The horizontal lines represent single unencoded qubits, and the ideal measurement outputs a classical bit.
+\end{definition}
+
+\begin{definition}[FT Preparation Error Propagation Property]
+    Suppose we have a preparation gadget associated with a QECC with distance $2t + 1$.
+    The gadget satisfies the \emph{FT Preparation Error Propagation Property}, abbreviated \emph{PPP}, if, whenever $s \leq t$,
+    \[
+        \tikzfig{figures/Gottesman/PPP.tikz}
+    \]
+\end{definition}
+
+\begin{definition}[Preparation Correctness Property]
+    Suppose we have a preparation gadget associated with a QECC with distance $2t + 1$.
+    The gadget satisfies the \emph{FT Preparation Correctness Property}, abbreviated \emph{PCP}, if, whenever $s \leq t$,
+    \[
+        \tikzfig{figures/Gottesman/PCP.tikz}
+    \]
+\end{definition}
+
+\Needspace{9\baselineskip}
+\begin{definition}[FT Measurement Correctness Property]
+    Suppose we have a preparation gadget associated with a QECC with distance $2t + 1$.
+    The gadget satisfies the \emph{FT Measurement Correctness Property}, abbreviated \emph{MCP}, if, whenever $r + s \leq t$,
+    \[
+        \tikzfig{figures/Gottesman/MCP.tikz}
+    \]
+\end{definition}
+
+\subsection{Fault-tolerant Quantum Error Correction}
+
+\begin{definition}
+    A fault-tolerant error correction gadget (which I will usually abbreviate EC in the future) is represented by the following picture:
+    \[
+        \tikzfig{figures/Gottesman/QEC-Box.tikz}
+    \]
+    The horizontal lines represent blocks of the QECC.
+\end{definition}
+
+\begin{definition}[FT Error Correction Recovery Property]
+    Suppose we have an error correction gadget associated with a QECC with distance $2t + 1$.
+    The gadget satisfies the \emph{FT Error Correction Recovery Property}, abbreviated \emph{ECRP}, if, whenever $s \leq t$,
+    \[
+        \tikzfig{figures/Gottesman/ECRP.tikz}
+    \]
+\end{definition}
+\begin{definition}[FT Error Correction Correctness Property]
+    Suppose we have an error correction gadget associated with a QECC with distance $2t + 1$.
+    The gadget satisfies the \emph{FT Error Correction Correctness Property}, abbreviated \emph{ECCP}, if, whenever $r + s \leq t$,
+    \[
+        \tikzfig{figures/Gottesman/ECCP.tikz}
+    \]
+\end{definition}
+
+\printbibliography
+
+\end{document}
