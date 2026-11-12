@@ -56,6 +56,78 @@ was interrupted when the user asked to wrap up; do not claim that a real-size
 HUGR package has been produced. The full regression run was also interrupted;
 rerun it after further changes. The latest focused adaptive checks pass.
 
+### Running the current adaptive protocol with hardware noise
+
+The noisy experiment is in `notebooks/32_20_4_protocol_demo.ipynb`, beginning
+with **Estimate one-cycle block LER**. Its implementation is
+`spiderwarp/se_protocol_simulation.py::estimate_protocol_ler`. The later cells
+show rejection reasons, executed paths and mean CNOT cost, individual noise
+sources, the complementary logical basis, and JSON sampling diagnostics.
+
+Simulation runs the adaptive Stim interpreter and incorporates the returned
+Pauli frame in ideal final decoding. It does not require Guppy or a compiled
+HUGR package. Build with `export=False` and **omit `output_dir`**: supplying an
+output directory currently triggers export even when `export=False` is passed.
+When using the notebook for simulation only, make that change in its build cell
+and skip **Load the exported HUGR**. Keep its local `output_dir` variable for
+inspection files and sampling diagnostics.
+
+Runnable setup and sampling, using the finalized optimized SE assets:
+
+```python
+import stim
+from spiderwarp.csscode import CSSCode
+from spiderwarp.utils import get_project_root
+from spiderwarp.optimized_steane_se import optimized_steane_SE_orchestrator
+from spiderwarp.se_protocol_simulation import estimate_protocol_ler
+
+code = CSSCode.load_code("misc", "32_20_4")
+assets = get_project_root() / "assets/circuits/SECircuits"
+circuits = {
+    d: stim.Circuit.from_file(assets / f"32_20_4_d{d}.stim")
+    for d in (1, 2, 4)
+}
+protocol = optimized_steane_SE_orchestrator(
+    code, circuits, peak_qubits=60, export=False, progress=print,
+)
+
+for state in ("0", "+"):
+    result = estimate_protocol_ler(
+        protocol, prepared_state=state, shots=1_000, seed=20261015,
+    )
+    print(state, "LER:", result.ler,
+          "95% interval:", result.ler_interval_95,
+          "discard rate:", result.discard_rate)
+```
+
+If `protocol` already exists in the kernel, only the sampling loop is needed.
+Start with 1,000 shots; the notebook's main run uses 100,000, with 10,000-shot
+diagnostic comparisons. The environment used for the latest smoke check was
+`/opt/homebrew/Caskroom/miniforge/base/envs/qec/bin/python`.
+
+With no explicit `noise_model`, `default_noise_model()` supplies probabilities
+`p_1q=2.5e-5`, `p_2q=8e-4`, `p_meas=1e-6`, `p_init=8e-4`, and
+`p_linear_mem=1.26e-5`; coherent memory and leakage rates are zero. Pass
+`noise_model=CustomErrorModel(...)` to select another model, or
+`CustomErrorModel()` for a noiseless control (import it from
+`spiderwarp.noise_model`). Preparation of the input logical state and final
+decoding are ideal. Scheduled memory noise is included during the extractions;
+classical branch latency and subsequent HUGR backend transformations are not.
+This sampling model therefore differs from the exact gate-fault certificate.
+
+LER is the probability that any of the 20 logical readouts fails, conditional
+on acceptance. Discards are reported separately. Logical `0` tests X/Y errors;
+logical `+` tests Z/Y errors, so run both bases, especially with Z-biased memory
+noise. These are separate basis-specific rates, not an arbitrary-state LER.
+
+Latest smoke check (2026-11-12): the current verified 589-CNOT controller ran
+100 shots per basis and noise case, with seed 20261015. Both noiseless runs
+accepted all shots with zero logical failures. Under default noise, both runs
+accepted all 100 shots; logical failures were 1 for `0` and 6 for `+`. These are
+small execution checks, not precise performance estimates. The older large-shot
+numbers in the historical sections below describe the legacy controller and
+must not be attributed to the current adaptive policy.
+
 ## Project goal
 
 SpiderWarp optimizes fault-tolerant quantum gadgets using fault-equivalent ZX rewrites. The intended guarantee is stronger than ordinary unitary equivalence: rewrites must preserve the gadget's relevant behaviour under circuit faults, including flag, syndrome, and logical-error information.
