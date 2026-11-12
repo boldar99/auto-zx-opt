@@ -51,6 +51,25 @@ class AdaptiveSEProtocol:
     def verify(self):
         return verify_adaptive_policy(self.policy)
 
+    def save_bundle(self, output_dir):
+        """Save the executable protocol without Guppy compilation."""
+        from spiderwarp.se_protocol_io import save_protocol
+        return save_protocol(self, output_dir)
+
+    @classmethod
+    def load(cls, path, *, verify=False):
+        from spiderwarp.se_protocol_io import load_protocol
+        return load_protocol(path, verify=verify)
+
+    def export_guppy(self, output_dir):
+        """Write standalone source without importing Guppy or compiling it."""
+        from spiderwarp._se_adaptive_guppy import generate_adaptive_source
+        from spiderwarp.se_protocol_io import atomic_write
+        self.source = generate_adaptive_source(self)
+        self.source_path = Path(output_dir).expanduser().resolve() / "steane_se_protocol.py"
+        atomic_write(self.source_path, self.source)
+        return self.source_path
+
     def run(self, simulator, *, frame_x=0, frame_z=0):
         """Run on an existing Stim block and return acceptance plus a frame.
 
@@ -128,6 +147,7 @@ class AdaptiveSEProtocol:
             hugr_sha256=hashlib.sha256(self.package_path.read_bytes()).hexdigest(),
         )
         (directory / "verification.json").write_text(json.dumps(certificate, indent=2) + "\n")
+        self.save_bundle(directory)
         return self.source_path, self.package_path
 
 
@@ -143,7 +163,8 @@ def build_adaptive_se_protocol(
     Integer keys label canonical X-SE circuits; Z-SE is derived for identical
     H_x/H_z checks. Alternatively pass named SEGadgets, including multiple
     variants at the same distance. Input circuits are finalized by default.
-    Guppy is needed only when export=True or output_dir is supplied.
+    Guppy is needed only when export=True. With export=False, output_dir saves
+    a reloadable simulation bundle without compilation.
 
     The default contract requires acceptance/logical correctness through t,
     clean-input acceptance through floor(d/2), and accepted CSS s-filters.
@@ -192,6 +213,8 @@ def build_adaptive_se_protocol(
     policy = builder.build(first_action=first_action, max_cnot_cost=max_cnot_cost,
                            minimize=minimize, verify=True)
     result = AdaptiveSEProtocol(code, policy)
-    if export or output_dir is not None:
+    if export:
         result.export(output_dir)
+    elif output_dir is not None:
+        result.save_bundle(output_dir)
     return result

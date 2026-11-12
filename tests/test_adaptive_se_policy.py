@@ -211,7 +211,7 @@ def test_adaptive_guppy_export_compiles_reloads_and_agrees_on_control_flow(tmp_p
     from test_optimized_steane_se import generated_python
 
     code, _, actions = bell_actions()
-    protocol = build_adaptive_se_protocol(code, actions, first_action="Z", output_dir=tmp_path)
+    protocol = build_adaptive_se_protocol(code, actions, first_action="Z", output_dir=tmp_path, export=True)
     Package.from_bytes(protocol.package_path.read_bytes())
     import hashlib
     import json

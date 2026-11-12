@@ -1,0 +1,152 @@
+[
+  {
+    "p": 0.0001,
+    "cycles": 1,
+    "prepared_state": "0"
+  },
+  {
+    "p": 0.0001,
+    "cycles": 1,
+    "prepared_state": "+"
+  },
+  {
+    "p": 0.00015848931924611142,
+    "cycles": 1,
+    "prepared_state": "0"
+  },
+  {
+    "p": 0.00015848931924611142,
+    "cycles": 1,
+    "prepared_state": "+"
+  },
+  {
+    "p": 0.00025118864315095795,
+    "cycles": 1,
+    "prepared_state": "0"
+  },
+  {
+    "p": 0.00025118864315095795,
+    "cycles": 1,
+    "prepared_state": "+"
+  },
+  {
+    "p": 0.00039810717055349735,
+    "cycles": 1,
+    "prepared_state": "0"
+  },
+  {
+    "p": 0.00039810717055349735,
+    "cycles": 1,
+    "prepared_state": "+"
+  },
+  {
+    "p": 0.000630957344480193,
+    "cycles": 1,
+    "prepared_state": "0"
+  },
+  {
+    "p": 0.000630957344480193,
+    "cycles": 1,
+    "prepared_state": "+"
+  },
+  {
+    "p": 0.001,
+    "cycles": 1,
+    "prepared_state": "0"
+  },
+  {
+    "p": 0.001,
+    "cycles": 1,
+    "prepared_state": "+"
+  },
+  {
+    "p": 0.001584893192461114,
+    "cycles": 1,
+    "prepared_state": "0"
+  },
+  {
+    "p": 0.001584893192461114,
+    "cycles": 1,
+    "prepared_state": "+"
+  },
+  {
+    "p": 0.002511886431509582,
+    "cycles": 1,
+    "prepared_state": "0"
+  },
+  {
+    "p": 0.002511886431509582,
+    "cycles": 1,
+    "prepared_state": "+"
+  },
+  {
+    "p": 0.003981071705534973,
+    "cycles": 1,
+    "prepared_state": "0"
+  },
+  {
+    "p": 0.003981071705534973,
+    "cycles": 1,
+    "prepared_state": "+"
+  },
+  {
+    "p": 0.00630957344480193,
+    "cycles": 1,
+    "prepared_state": "0"
+  },
+  {
+    "p": 0.00630957344480193,
+    "cycles": 1,
+    "prepared_state": "+"
+  },
+  {
+    "p": 0.01,
+    "cycles": 1,
+    "prepared_state": "0"
+  },
+  {
+    "p": 0.01,
+    "cycles": 1,
+    "prepared_state": "+"
+  },
+  {
+    "p": 0.001,
+    "cycles": 3,
+    "prepared_state": "0"
+  },
+  {
+    "p": 0.001,
+    "cycles": 3,
+    "prepared_state": "+"
+  },
+  {
+    "p": 0.001,
+    "cycles": 5,
+    "prepared_state": "0"
+  },
+  {
+    "p": 0.001,
+    "cycles": 5,
+    "prepared_state": "+"
+  },
+  {
+    "p": 0.001,
+    "cycles": 7,
+    "prepared_state": "0"
+  },
+  {
+    "p": 0.001,
+    "cycles": 7,
+    "prepared_state": "+"
+  },
+  {
+    "p": 0.001,
+    "cycles": 10,
+    "prepared_state": "0"
+  },
+  {
+    "p": 0.001,
+    "cycles": 10,
+    "prepared_state": "+"
+  }
+]

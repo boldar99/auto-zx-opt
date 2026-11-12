@@ -23,9 +23,9 @@ class CustomErrorModel:
         self.p_leakage=p_leakage
 
 
-def add_noise_to_ideal_stim_circuit(circ: stim.Circuit, errorModel: CustomErrorModel):
+def add_noise_to_ideal_stim_circuit(circ: stim.Circuit, errorModel: CustomErrorModel, *, persistent_qubits=()):
     absteract_circ=stim_circuit_to_abstract_circuit(circ)
-    absteract_circ_w_idling=add_idling_gates(absteract_circ)
+    absteract_circ_w_idling=add_idling_gates(absteract_circ, persistent_qubits=persistent_qubits)
     return abstract_circuit_to_noisy_stim_circuit(absteract_circ_w_idling, errorModel)
 
 def stim_circuit_to_abstract_circuit(circ: stim.Circuit):
@@ -103,7 +103,7 @@ def abstract_circuit_to_noisy_stim_circuit(abs_circ: list[QGate], errorModel: Cu
     return circ
 
 
-def add_idling_gates(circ: list[QGate], annotations: list[str]=['DETECTOR','OBSERVABLE_INCLUDE', 'HERALDED_ERASE']):
+def add_idling_gates(circ: list[QGate], annotations: list[str]=['DETECTOR','OBSERVABLE_INCLUDE', 'HERALDED_ERASE'], *, persistent_qubits=()):
     '''given a circuit as a list of QGates, return a circuit which adds IDLE gates with arg equal to how many
     depth-1 are there between two consecutive gates on each qubit (or untill the end of the circuit if it's the last gate).
     In a fully dense circuit, there are 1 depth-1 idling between each 2-qubit gate.
@@ -126,6 +126,17 @@ def add_idling_gates(circ: list[QGate], annotations: list[str]=['DETECTOR','OBSE
     #remove identity gates from slices (they have served their purpose in shaping circuit slices)
     circ_partitioned=[[g for g in part if g.name!='I'] for part in circ_partitioned]
 
+    # Data already exist at the input boundary, unlike freshly reset ancillas.
+    # Their wait before the first operation was absent from the historical
+    # per-gadget scheduler. At consecutive gadget boundaries initial + trailing
+    # waits account for all idle slices, with zero classical branch latency.
+    initial_idles = []
+    for q in persistent_qubits:
+        first = next((d for d, part in enumerate(circ_partitioned)
+                      if any(q in g.targets for g in part)), len(circ_partitioned))
+        if first:
+            initial_idles.append(QGate('IDLE', [q], '', first))
+
     for d,part in enumerate(circ_partitioned):
         for g in part:
             t=int(g.tag.split('__')[-1])
@@ -140,7 +151,7 @@ def add_idling_gates(circ: list[QGate], annotations: list[str]=['DETECTOR','OBSE
                         break
 
                 new_circ[t].append(QGate('IDLE',[q],'',dd-d-1))
-    return [g for gs in new_circ for g in gs]
+    return initial_idles + [g for gs in new_circ for g in gs]
 
 
 
@@ -225,8 +236,8 @@ def default_noise_model() -> CustomErrorModel:
     )
 
 
-def apply_noise(circuit: stim.Circuit, error_model: CustomErrorModel | None = None) -> stim.Circuit:
+def apply_noise(circuit: stim.Circuit, error_model: CustomErrorModel | None = None, *, persistent_qubits=()) -> stim.Circuit:
     """Apply gate and inferred idle noise, using the default model if omitted."""
     if error_model is None:
         error_model = default_noise_model()
-    return add_noise_to_ideal_stim_circuit(circuit, error_model)
+    return add_noise_to_ideal_stim_circuit(circuit, error_model, persistent_qubits=persistent_qubits)

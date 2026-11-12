@@ -286,7 +286,7 @@ def compile_adaptive_protocol(protocol):
     return compile_adaptive_source(generate_adaptive_source(protocol))
 
 
-def compile_adaptive_source(source):
+def compile_adaptive_source(source, *, entrypoint="se_cycle"):
     """Compile source emitted from an already verified policy."""
     path = Path(tempfile.mkdtemp(prefix='spiderwarp_adaptive_se_')) / 'steane_se_protocol.py'
     path.write_text(source)
@@ -296,8 +296,15 @@ def compile_adaptive_source(source):
     sys.modules[name] = module
     try:
         spec.loader.exec_module(module)
-        function = module.se_cycle
-        package = module.compile_se_cycle()
+        function = getattr(module, entrypoint)
+        if entrypoint == "se_cycle":
+            package = module.compile_se_cycle()
+        else:
+            target = function
+            minimal_opt = getattr(target, "with_minimal_opt", None)
+            if minimal_opt is not None:
+                target = minimal_opt()
+            package = target.compile_function()
     except BaseException:
         sys.modules.pop(name, None)
         raise

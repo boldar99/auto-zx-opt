@@ -2,6 +2,209 @@
 
 Last updated: 2026-11-12
 
+## Resume checkpoint
+
+- The build/load/simulate workflow is implemented and has been run. The current
+  verified protocol bundle, standalone Guppy source, and compiled/reloaded HUGR
+  are in `build/se_32_20_4/`. The controller remains the verified 589-CNOT,
+  60-qubit adaptive policy.
+- The completed production dataset is `benchmarks/se_100k/`: 32 configurations,
+  9,329,148 attempted trajectories, 100k shots at every repetition point, and
+  up to one million at low physical p. Repetitions use the exact
+  `default_noise_model()`; physical-p sweeps scale that model. Keep seed
+  20261112 and the saved `run.json` command when resuming.
+- The latest plot preference is **linear survival with a tight data-dependent
+  range**, approximately 0.895–1.0 for this dataset. Do not restore a logarithmic
+  survival axis or force 0–1 limits. Regenerate with
+  `python -m spiderwarp.se_experiment plot benchmarks/se_100k`.
+- Noise-source assessment is complete; the data and confidence intervals are in
+  `analysis/32_20_4_noise_assessment/comparison.csv`, with methodology in
+  `assessment.json` and stage/depth/idle counts in `resources.json`.
+- **Scope remains assessment only for the proposed reuse change.** The user
+  explicitly said not to implement it. No alternative circuit, allocation, or
+  policy was built. The recommendation is to preserve ZX/CNOT optimization and
+  consider depth/live-idle minimization under the existing 60-qubit cap, rather
+  than minimizing qubit count. d1/d2-only changes are unlikely to remove most
+  of the observed logical error rate.
+- The final targeted validation passed: 17 tests in
+  `tests/test_se_experiment.py` and `tests/test_se_protocol_simulation.py`;
+  `git diff --check` also passed. This was not another full-suite run; see the
+  earlier full-suite result and corrected stale asset reference below.
+
+## Noise-source and reuse assessment (2026-11-12)
+
+Survival has been changed back to a tight linear y-axis (confidence intervals
+plus 8% padding, clipped to the probability domain). Existing 100k-run figures
+were regenerated without resampling. The physical-error and normalized-LER
+plots retain logarithmic axes.
+
+The user requested assessment, not implementation, of reduced d1/d2 reuse under
+the 60-qubit budget. No circuits, allocations, optimizer, or policy were changed.
+`analysis/32_20_4_noise_assessment/` contains fixed-circuit noise ablations,
+`comparison.csv`, `assessment.json`, and `resources.json`. Baselines are copied
+from the completed production run. One-cycle cases use 100k attempted shots per
+basis; ten-cycle confirmation cases use 20k, with the existing 100k baseline.
+Stage-specific perfect-memory probes use 100k per basis. All include the same
+initial-data idle convention and ideal experiment boundaries.
+
+Interpretation: the cycle plot shows P_L(N)/N for the entire 20-logical-qubit
+block, conditional on surviving all cycles. It is neither a per-logical-qubit
+rate nor a first-failure hazard. Noise-removal experiments assess sensitivity
+of the existing circuit, not the performance of a proposed allocation.
+
+One-cycle conditional block LER (logical 0 / logical +): full 1.785% / 3.635%;
+without two-qubit noise 0.206% / 0.982%; without memory 1.460% / 2.019%; without
+initialization noise 1.065% / 2.880%. At ten cycles, removing two-qubit noise
+gives 3.215% / 14.421%, whereas removing memory gives 16.778% / 23.951%
+(full 20.841% / 42.019%). Two-qubit-related faults give the largest sensitivity;
+linear memory is substantial, especially for logical +. These changes are not
+additive error attribution: mixed faults and postselection matter.
+
+At the default noise, d4 accounts for about 90% of extraction executions and
+90.5–90.7% of live idle exposure. Removing memory only in d1/d2 changes one-cycle
+LER to 1.735% / 3.375%; the logical-0 change is within sampling uncertainty.
+Removing memory only in d4 gives 1.376% / 2.099%. These are diagnostic proxies,
+not bounds or predictions for a rescheduled circuit.
+
+Current d1 uses 42 qubits, 23 ancilla reset lifetimes, and 79 CNOTs: zero reuse
+would need 32+23=55 qubits, within budget. d2 uses 51 qubits, 33 ancilla lifetimes,
+and 121 CNOTs: zero reuse needs 65 qubits, so at least five lifetime merges are
+necessary at 60 (versus fourteen today). Current d2 noise-model depth is 92
+layers in X / 86 in Z, versus 83 for d4, despite its lower CNOT count. This
+supports investigating less reuse, keeping the optimized quantum gate graph.
+However extra wires help only if they reduce data waits/live ancilla exposure;
+the right objective is depth/idle cost subject to 60 qubits, rather than minimum
+qubit count or minimum reuse count alone. d1/d2-only changes are a secondary
+improvement, given their measured contribution. No alternative was built.
+
+## Higher-statistics default-noise sweeps (2026-11-12)
+
+The latest requested run is `benchmarks/se_100k/`. Its repetition sweep uses
+`default_noise_model()` exactly (p_2q=8e-4), while its physical-error sweep
+scales every default rate together with p_2q. The preset now has 32 configurations:
+11 physical p values in both bases and five default-noise cycle counts in both
+bases. Plot membership is explicit, so the extra default-rate N=1 point does
+not accidentally enter the 11-point physical-error grid.
+
+`num_samples` in `se_sweep.py` allocates fixed production budgets proportional
+to 1/(N*p²), with a 100,000-shot floor and one-million-shot cap for this run.
+It plans 9,329,148 total trajectories. This approximately balances relative
+error bars in the low-noise regime; the floor and cap bound cost. It does not
+stop on observed errors. CLI defaults are now 100k shots, 10k-shot batches,
+inverse-square allocation for `sweep`, and fixed allocation for single `run`.
+Both allocation and per-task targets are persisted and resume correctly.
+
+`plot` defaults to the default model's p_2q for repetition/survival plots.
+Survival uses a linear y-axis fitted to the confidence intervals with 8% padding
+(clipped to the probability domain), as subsequently requested. For the
+historical pilot described below, use `--cycle-p 0.001` instead. The current
+run's exact settings and command are
+in `benchmarks/se_100k/run.json`; its log is `build/se_100k.log`.
+
+Targeted checks pass: 17 tests cover the allocator bounds/scaling, exact default
+noise selection, variable-budget resume, frame/noise sampling, and plot axes.
+The run is complete: all 9,329,148 trajectories and 13,391,955 executed cycles
+are saved. `run.json` is marked complete and `validation.json` records the
+noise/target/interval checks. A resume scheduled zero new shots. Every
+repetition point has exactly 100k attempted shots; the lowest three p values
+have one million per basis. The final PDF/PNG figures have been regenerated
+and visually checked. Survival was subsequently regenerated on a tight linear
+axis without resampling; LER plots retain their logarithmic axes.
+
+At the exact default noise model:
+
+| Cycles | Logical 0 failures / accepted | Logical + failures / accepted |
+|---|---:|---:|
+| 1 | 1,777 / 99,575 (1.7846%) | 3,618 / 99,527 (3.6352%) |
+| 10 | 18,863 / 90,510 (20.8408%) | 37,981 / 90,390 (42.0190%) |
+
+Ten-cycle survival is 90.510% and 90.390%, respectively. At p=1e-4 the
+million-shot physical sweep has 376 / 999,993 logical-0 failures and
+794 / 999,990 logical-+ failures. Complete Wilson intervals are in summary.csv.
+
+## Saved-protocol experiment workflow (2026-11-12)
+
+`python -m spiderwarp.se_experiment` now provides `build`, `compile`, `inspect`,
+`run`, `sweep`, `plot`, and optional `native` commands. See README for usage.
+
+- `build --out build/se_32_20_4 --emit guppy` synthesizes/verifies once, saves a
+  reloadable bundle, and emits source without importing Guppy. `compile` adds
+  HUGR separately. `export=False, output_dir=...` now saves a bundle without
+  triggering compilation; the previous warning about this combination is stale.
+- `AdaptiveSEProtocol.load(path)` validates file hashes, decoder identity,
+  readout widths, graph structure, and termination without fault enumeration or
+  policy synthesis. `verify=True` additionally reruns the independent checker.
+  `se_protocol_io.py` stores versioned JSON, content-addressed circuits/code,
+  and compressed numeric arrays. Loaded transitions remain read-only array
+  views instead of allocating a Python dictionary entry per transition.
+- `ProtocolSampler` reuses noisy circuits and ideal input/decoder construction
+  between batches. It keeps the same physical data block across cycles and
+  carries the cumulative returned frame. It stops on rejection, without retry,
+  and ideal-decodes only at the end. All executed extraction labels are noisy.
+- `se_sweep.py` provides deterministic batch seeds, bounded process workers,
+  atomic count CSVs, a single-writer lock, task fingerprints, restart/deduplication,
+  aggregate confidence intervals, and cycle/resource/rejection diagnostics.
+  Fingerprints include simulator/decoder sources, Stim/NumPy versions, and
+  architecture. Keep the seed when resuming; shot targets and jobs may change.
+- p denotes p_2q; other default hardware rates scale by p/8e-4. The new sampler
+  includes data idles before their first gate in each extraction, which the
+  historical scheduler omitted. It retains scheduled internal/trailing idle
+  noise and zero classical/inter-cycle delay. Its explicit model name is
+  `stim-adaptive-initial-data-idles-v1`. Historical `estimate_protocol_ler`
+  behavior stays the default; opt into this convention with
+  `cycles=N, include_initial_idles=True`.
+
+Actual artifacts are in `build/se_32_20_4/`: `protocol.json`, the 5.6 MB
+compressed policy, complete standalone `steane_se_protocol.py`, and compiled,
+reloaded `steane_se_protocol.hugr` (8,589,785 bytes). `export.json` binds the
+source/HUGR hashes to the bundle. The reloaded bundle regenerates source
+byte-for-byte identical to the previous verified 589-CNOT export. The current
+Guppy 0.21.16 / HUGR 0.16.0 environment compiled the full library in about
+131 seconds, including reload; no table-representation rewrite was necessary.
+
+The reduced reference sweep has been run: 11 p values from 1e-4 to 1e-2 at
+N=1, and N=1,3,5,7,10 at p=1e-3, in both bases (30 distinct configurations).
+`benchmarks/se_small/` holds 1,000 attempted trajectories per configuration,
+seed 20261112, task manifests, batch CSVs, `summary.csv`, `diagnostics.json`,
+`config.json`, `run.json`, and PDF/PNG figures. Worker batch times sum to about
+22.7 seconds for 30,000 trajectories / 69,706 executed cycles. Re-running the
+same shot target scheduled zero new work. These are pilot estimates:
+
+| p=1e-3 | Logical 0 failures / accepted | Logical + failures / accepted |
+|---|---:|---:|
+| N=1 | 22 / 994 | 68 / 992 |
+| N=10 | 232 / 856 | 462 / 846 |
+
+The plots match `FT-circuit-construction/713/notebooks/visuals.ipynb` (the
+referenced `visualize.ipynb` filename does not exist). They show p_L/p^2 vs p,
+p_L/N vs N, and survival, with Wilson intervals and zero-failure upper endpoints.
+LER remains conditional block LER across 20 logical qubits, separately in each
+basis. p_L/N is an endpoint normalization, not a first-failure hazard.
+
+`benchmarks/se_controls/` additionally holds 1,000 noiseless five-cycle shots
+per basis (seed 20261112). All 2,000 accepted with zero logical failures.
+
+Validation: the full regression run had 142 passes and one stale installation
+test reference to the removed `opt_zero_32_20_4` asset. Both that test and the
+README example now use `32_20_4_zero_d4`. The installation test and all ten new
+experiment tests pass on the focused rerun (11 passed). This includes native
+compilation/execution, initial data idles, physical frame composition, rejected
+trajectory accounting, atomic resume/deduplication, parallel reproducibility,
+and source-only export provenance. `git diff --check` passes.
+
+Optional direct serialized-HUGR execution is implemented in `se_native.py`.
+It compiles a runnable wrapper with state preparation, repeated framed calls,
+acceptance/frame outputs and final measurements, then runs Selene/Stim.
+The full-size three-cycle logical-0 wrapper ran eight noiseless shots, all
+accepted with zero failures. A separate 1,000-shot p=1e-3 run accepted 928 and
+had 292 logical failures; its metadata is in
+`build/se_native_32_20_4/native_results.json`. This is explicitly a DIFFERENT
+noise model: Selene's built-in gate noise also affects preparation/final
+readout and omits scheduled memory, so do not attribute that LER to the primary
+ideal-boundary experiment. There is no interpreter fallback. `[native]` pins
+the tested Guppy/HUGR/Selene/compiler stack; the primary workflow does not need
+these optional dependencies.
+
 
 ## Current adaptive implementation (2026-11-12)
 
@@ -40,7 +243,7 @@ A stronger promise of logical correctness for every accepted two-fault history
 is impossible with these noisy output boundaries. The optional stronger contract
 has a concrete no-go diagnostic and is not used by the default protocol.
 
-### Verified result and remaining export work
+### Verified result and export status
 
 On the finalized 32_20_4 d1/d2/d4 assets, the default contract and 60-qubit
 limit give a verified minimum of 589 CNOT-equivalent gates, at most four
@@ -48,13 +251,11 @@ extractions, and 60 peak qubits. Bound 588 is infeasible in this action library
 and distance ladder. The independent checker covers all 4,096 arbitrary-input
 syndrome sectors and over 14 million abstract history transitions.
 
-The generated standalone source and report are in
-`build/32_20_4_adaptive_protocol/`. Frame composition and a small Guppy/HUGR
-compile/reload pass. Full-size HUGR compilation remains unfinished: Guppy spends
-substantial time serializing its large constant decision arrays. Compilation
-was interrupted when the user asked to wrap up; do not claim that a real-size
-HUGR package has been produced. The full regression run was also interrupted;
-rerun it after further changes. The latest focused adaptive checks pass.
+The original standalone source and report are in
+`build/32_20_4_adaptive_protocol/`. Full-size compilation and reload are now
+complete; use `build/se_32_20_4/` for the new bundle, source and HUGR. The
+executable three-cycle wrapper also ran on Selene/Stim; see the newer workflow
+section above for its separate noise scope.
 
 ### Running the current adaptive protocol with hardware noise
 
@@ -66,10 +267,9 @@ sources, the complementary logical basis, and JSON sampling diagnostics.
 
 Simulation runs the adaptive Stim interpreter and incorporates the returned
 Pauli frame in ideal final decoding. It does not require Guppy or a compiled
-HUGR package. Build with `export=False` and **omit `output_dir`**: supplying an
-output directory currently triggers export even when `export=False` is passed.
-When using the notebook for simulation only, make that change in its build cell
-and skip **Load the exported HUGR**. Keep its local `output_dir` variable for
+HUGR package. Build with `export=False`; supplying `output_dir` now saves a
+simulation bundle without compiling. When using the notebook for simulation
+only, skip **Load the exported HUGR**. Keep its local `output_dir` variable for
 inspection files and sampling diagnostics.
 
 Runnable setup and sampling, using the finalized optimized SE assets:

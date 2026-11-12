@@ -24,7 +24,7 @@ from spiderwarp.resource_scheduling import plan_resource_aware_reuse
 
 code = CSSCode.load_code("misc", "32_20_4")
 assert (code.n, code.k, code.d) == (32, 20, 4)
-state_prep = load_state_prep_circuit("misc", "opt_zero_32_20_4")
+state_prep = load_state_prep_circuit("misc", "32_20_4_zero_d4")
 se = steane_se_from_stim_state_prep(state_prep, se_basis="Z", n=code.n)
 assert se.num_qubits >= code.n
 assert se.num_measurements > code.n

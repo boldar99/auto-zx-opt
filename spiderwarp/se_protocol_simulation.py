@@ -41,6 +41,10 @@ class ProtocolDiagnostics:
     flagged_stage_counts: dict[Stage, int] = field(default_factory=dict)
     rejections: dict[tuple[str, str, int, str], int] = field(default_factory=dict)
     paths: dict[tuple[Stage, ...], int] = field(default_factory=dict)
+    rejection_cycles: dict[int, int] = field(default_factory=dict)
+    cycles_started: int = 0
+    cycles_completed: int = 0
+    total_cnots: int = 0
 
     @property
     def rejection_counts(self) -> dict[str, int]:
@@ -76,6 +80,7 @@ class LogicalErrorRateEstimate:
     seed: int
     prepared_state: Literal["0", "+"] = "0"
     diagnostics: ProtocolDiagnostics | None = None
+    cycles: int = 1
 
     @property
     def discarded(self) -> int:
@@ -103,12 +108,14 @@ class LogicalErrorRateEstimate:
         return _wilson_interval(self.logical_errors, self.accepted)
 
 
-def _noisy_gadget(ideal: stim.Circuit, noise: CustomErrorModel) -> stim.Circuit:
+def _noisy_gadget(ideal: stim.Circuit, noise: CustomErrorModel, *, persistent_data=0) -> stim.Circuit:
     """Use the shared model on the lowered quantum circuit (readout is external)."""
     circuit = stim.Circuit()
     for operation in ideal.flattened():
         if operation.name not in {"DETECTOR", "QUBIT_COORDS", "TICK"}:
             circuit.append(operation)
+    if persistent_data:
+        return apply_noise(circuit, noise, persistent_qubits=range(persistent_data))
     return apply_noise(circuit, noise)
 
 
@@ -182,6 +189,96 @@ class _StateExperiment:
         return bool(np.any(logical_bits))
 
 
+def scaled_noise_model(p: float) -> CustomErrorModel:
+    """Set p_2q=p, scaling all other default hardware rates proportionally."""
+    if not math.isfinite(p) or not 0 <= p <= 1:
+        raise ValueError("p must be finite and between 0 and 1")
+    model = default_noise_model()
+    scale = p / model.p_2q
+    return CustomErrorModel(**{k: v * scale for k, v in vars(model).items()})
+
+
+class ProtocolSampler:
+    """Reusable shot-by-shot adaptive Stim reference; no compilation per batch.
+
+    The new experiment workflow includes data idles before the first gate of
+    each extraction. Set include_initial_idles=False to reproduce the historical
+    one-cycle model. Classical branch latency and inter-cycle delay are zero.
+    """
+
+    def __init__(self, protocol, *, noise_model=None, prepared_state="0", cycles=1,
+                 include_initial_idles=True, collect_paths=True):
+        if type(cycles) is not int or cycles < 0:
+            raise ValueError("cycles must be a nonnegative integer")
+        if prepared_state not in {"0", "+"}:
+            raise ValueError("prepared_state must be '0' or '+'")
+        if cycles > 1 and not hasattr(protocol, "policy"):
+            raise ValueError("Repeated cycles require an adaptive Pauli-frame protocol")
+        noise_model = default_noise_model() if noise_model is None else copy(noise_model)
+        if any(not math.isfinite(p) or not 0 <= p <= 1 for p in vars(noise_model).values()):
+            raise ValueError("Noise probabilities must be finite and between 0 and 1")
+        self.protocol, self.noise = protocol, noise_model
+        self.cycles, self.prepared_state, self.collect_paths = cycles, prepared_state, collect_paths
+        self.circuits, self.costs = {}, {}
+        for name, g in protocol.gadgets.items():
+            self.circuits[id(g.circuit)] = _noisy_gadget(
+                g.circuit, noise_model,
+                persistent_data=protocol.code.n if include_initial_idles else 0)
+            cost = sum(len(op.targets_copy()) // 2 for op in g.circuit.flattened()
+                       if op.name in {"CX", "CZ", "XCX"})
+            self.costs[name] = cost
+            self.costs[g.basis, g.distance] = cost
+        self.experiment = _StateExperiment(protocol.code, protocol.required_qubits, prepared_state)
+        self.corrections = {}
+
+    def sample(self, shots=1000, seed=0):
+        if type(shots) is not int or shots <= 0:
+            raise ValueError("shots must be a positive integer")
+        if type(seed) is not int or seed < 0:
+            raise ValueError("seed must be a nonnegative integer")
+        rng = np.random.default_rng(seed)
+        accepted = failures = started = completed = cnots = 0
+        stages, flagged, rejections, paths, rejection_cycles = (Counter() for _ in range(5))
+        for _ in range(shots):
+            simulator = self.experiment.initial.copy(seed=int(rng.integers(0, 2**63)))
+            noisy = _NoisySimulator(simulator, self.circuits, self.noise, self.corrections)
+            frame_x = frame_z = 0
+            shot_path = []
+            survives = True
+            for cycle in range(1, self.cycles + 1):
+                started += 1
+                # Preserve the legacy one-cycle API; later calls must carry the
+                # cumulative frame returned by the previous call, not XOR it twice.
+                result = (self.protocol.run(noisy) if cycle == 1 else
+                          self.protocol.run(noisy, frame_x=frame_x, frame_z=frame_z))
+                path = tuple((role, basis, distance)
+                             for role, basis, distance, _, _ in result.measurements)
+                stages.update(path)
+                flagged.update((role, basis, distance)
+                               for role, basis, distance, flags, _ in result.measurements if flags)
+                cnots += sum(self.costs.get(role, self.costs.get((basis, distance), 0))
+                             for role, basis, distance in path)
+                if self.collect_paths:
+                    shot_path.extend(path)
+                if not result.accepted:
+                    survives = False
+                    rejection_cycles[cycle] += 1
+                    stage = path[-1] if path else ("controller", "", 0)
+                    rejections[(*stage, result.discard_reason)] += 1
+                    break
+                completed += 1
+                frame_x, frame_z = result.frame_x, result.frame_z
+            if self.collect_paths:
+                paths[tuple(shot_path)] += 1
+            if survives:
+                accepted += 1
+                failures += self.experiment.logical_failure(simulator, frame_x=frame_x, frame_z=frame_z)
+        return LogicalErrorRateEstimate(
+            shots, accepted, failures, copy(self.noise), seed, self.prepared_state,
+            ProtocolDiagnostics(dict(stages), dict(flagged), dict(rejections), dict(paths),
+                                dict(rejection_cycles), started, completed, cnots), self.cycles)
+
+
 def estimate_protocol_ler(
     protocol: CompiledSEProtocol,
     *,
@@ -189,8 +286,10 @@ def estimate_protocol_ler(
     prepared_state: Literal["0", "+"] = "0",
     shots: int = 1000,
     seed: int = 0,
+    cycles: int = 1,
+    include_initial_idles: bool = False,
 ) -> LogicalErrorRateEstimate:
-    """Run one noisy adaptive SE cycle per fresh logical 0/+ input.
+    """Run noisy adaptive SE cycles per fresh logical 0/+ input.
 
     All k logical qubits start in the selected state. For 0 inputs the block
     LER detects logical X/Y errors through logical Z readout; for + inputs it
@@ -205,39 +304,11 @@ def estimate_protocol_ler(
     This executes the same branches/corrections as the Guppy/HUGR export through
     its Stim reference interpreter; it does not execute the HUGR binary itself.
     Seeds reproduce results for a fixed Stim version and machine architecture.
+
+    Input preparation occurs once and ideal decoding occurs only at the end.
+    Rejections terminate the trajectory without retrying. For backward
+    compatibility initial data idles default off in this function; the new CLI
+    and ProtocolSampler default them on and identify this model separately.
     """
-    if type(shots) is not int or shots <= 0:
-        raise ValueError("shots must be a positive integer")
-    if type(seed) is not int or seed < 0:
-        raise ValueError("seed must be a nonnegative integer")
-    if prepared_state not in {"0", "+"}:
-        raise ValueError("prepared_state must be '0' or '+'")
-    noise_model = default_noise_model() if noise_model is None else noise_model
-    probabilities = (noise_model.p_1q, noise_model.p_2q, noise_model.p_init,
-                     noise_model.p_meas, noise_model.p_linear_mem,
-                     noise_model.p_coherent_mem, noise_model.p_leakage)
-    if any(not math.isfinite(p) or not 0 <= p <= 1 for p in probabilities):
-        raise ValueError("Noise probabilities must be finite and between 0 and 1")
-    circuits = {id(g.circuit): _noisy_gadget(g.circuit, noise_model)
-                for g in protocol.gadgets.values()}
-    experiment = _StateExperiment(protocol.code, protocol.required_qubits, prepared_state)
-    rng = np.random.default_rng(seed)
-    accepted = failures = 0
-    stages, flagged, rejections, paths = Counter(), Counter(), Counter(), Counter()
-    corrections = {}
-    for _ in range(shots):
-        simulator = experiment.initial.copy(seed=int(rng.integers(0, 2**63)))
-        result = protocol.run(_NoisySimulator(simulator, circuits, noise_model, corrections))
-        path = tuple((role, basis, distance) for role, basis, distance, _, _ in result.measurements)
-        stages.update(path)
-        flagged.update((role, basis, distance) for role, basis, distance, flags, _
-                       in result.measurements if flags)
-        paths[path] += 1
-        if result.accepted:
-            accepted += 1
-            failures += experiment.logical_failure(simulator, frame_x=result.frame_x, frame_z=result.frame_z)
-        else:
-            rejections[(*path[-1], result.discard_reason)] += 1
-    return LogicalErrorRateEstimate(
-        shots, accepted, failures, copy(noise_model), seed, prepared_state,
-        ProtocolDiagnostics(dict(stages), dict(flagged), dict(rejections), dict(paths)))
+    return ProtocolSampler(protocol, noise_model=noise_model, prepared_state=prepared_state,
+                           cycles=cycles, include_initial_idles=include_initial_idles).sample(shots, seed)

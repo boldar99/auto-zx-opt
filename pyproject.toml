@@ -25,6 +25,12 @@ notebooks = ["ipykernel", "jupyterlab"]
 test = ["pytest"]
 mqt = ["mqt.qecc"]
 guppy = ["guppylang>=0.21.6,<1.2"]
+native = [
+    "guppylang==0.21.16",
+    "hugr==0.16.0",
+    "selene-sim==0.2.18",
+    "selene-hugr-qis-compiler==0.2.11",
+]
 
 [tool.setuptools.packages.find]
 include = ["spiderwarp", "spiderwarp.*"]

@@ -69,7 +69,7 @@ from spiderwarp.utils import load_state_prep_circuit
 from spiderwarp.stim_utils import steane_se_from_stim_state_prep
 
 code = CSSCode.load_code("misc", "32_20_4")
-state_prep = load_state_prep_circuit("misc", "opt_zero_32_20_4")
+state_prep = load_state_prep_circuit("misc", "32_20_4_zero_d4")
 syndrome_extraction = steane_se_from_stim_state_prep(
     state_prep, se_basis="Z", n=code.n
 )
@@ -189,6 +189,133 @@ scheduled memory noise, so sampling and the exact gate-fault certificate have
 different explicitly reported scopes. Classical branch latency is not modeled.
 The [demo notebook](notebooks/32_20_4_protocol_demo.ipynb) shows circuit inspection,
 export/reload, both logical bases, and noise-source diagnostics.
+
+## Saved protocols and noisy repeated-cycle experiments
+
+Run the experiment CLI in your installed Python environment. Building performs
+policy synthesis and independent verification once; subsequent runs load the
+saved decision graph without synthesis. Guppy source generation does not need
+Guppy installed. HUGR compilation is a separate, optional operation.
+
+```sh
+python -m spiderwarp.se_experiment build --out build/se_32_20_4 --emit guppy
+python -m spiderwarp.se_experiment inspect build/se_32_20_4
+python -m spiderwarp.se_experiment compile build/se_32_20_4 --emit hugr
+
+# A noiseless repeated-cycle control, in both logical bases.
+python -m spiderwarp.se_experiment run build/se_32_20_4 \
+    --p 0 --cycles 5 --shots 1000 --results benchmarks/se_controls
+
+# Repetitions use the exact default_noise_model() when --p is omitted.
+python -m spiderwarp.se_experiment run build/se_32_20_4 \
+    --cycles 5 --shots 100000 --results benchmarks/se_single
+python -m spiderwarp.se_experiment sweep build/se_32_20_4 \
+    --preset small --shots 100000 --max-shots 1000000 --jobs -2 \
+    --seed 20261112 --results benchmarks/se_100k
+python -m spiderwarp.se_experiment plot benchmarks/se_100k
+
+# Resume to larger fixed production budgets without repeating saved work.
+python -m spiderwarp.se_experiment sweep build/se_32_20_4 \
+    --preset small --shots 200000 --max-shots 2000000 --jobs -2 \
+    --seed 20261112 --results benchmarks/se_100k
+```
+
+The small preset has 11 logarithmically spaced p values from 1e-4 to 1e-2 at
+one cycle, using scaled `default_noise_model()` rates. The repetition sweep
+uses the exact `default_noise_model()` at cycle counts 1, 3, 5, 7, 10, in both
+bases. Its p_2q is currently 8e-4, giving 32 distinct configurations. Sweep
+membership is stored so the default-rate N=1 point appears in its intended
+plot. `--ps ... --cycles ...` selects a Cartesian grid. `--config`
+accepts a JSON list of objects with `p`, `cycles`, and `prepared_state` (`"0"`
+or `"+"`). Alternatively each object can supply a `noise` object with explicit
+`CustomErrorModel` probabilities. A single run accepts `--noise-model file.json`.
+
+The default shot floor is 100,000. `sweep` uses `--allocation inverse-square`:
+`num_samples` plans `ceil(shots * (p_reference / p)^2 / N)`, bounded below by
+`shots` and above by `--max-shots` (default ten times `shots`). `p_reference`
+comes from `default_noise_model().p_2q`. Zero-noise/zero-cycle controls use the
+floor. This allocates more samples to rare logical errors: in the low-noise
+regime, p_L is approximately proportional to N*p², so inverse allocation makes
+expected failure counts and relative confidence widths more comparable.
+The floor and cap deliberately limit this approximation. The 100k-floor/1M-cap
+preset plans 9,329,148 attempted trajectories, including one million at each of
+the three lowest p values per basis and 100,000 at each repetition point.
+All budgets are fixed before sampling; there is no stopping on observed errors.
+`--allocation fixed` requests exactly `--shots` per point. Single `run` commands
+default to fixed allocation. Batches contain 10,000 shots by default.
+
+Here p means the **two-qubit Pauli error probability**. All default hardware
+rates scale together by p / 8e-4; p=8e-4 reproduces the current hardware rates.
+Every executed extraction, including d1 recovery, is noisy. Each shot preserves
+the physical data block and carries its cumulative Pauli frame between cycles.
+Preparation is ideal and occurs once; final ideal decoding occurs only after
+the last accepted cycle. A rejection terminates the shot without retrying.
+
+The new workflow accounts for data idles before the first gate in every
+extraction, as well as the existing scheduled internal and trailing idles.
+There is no classical branch latency or additional inter-cycle delay. This is
+model `stim-adaptive-initial-data-idles-v1`; historical notebook sampling omitted
+these initial data idles. `estimate_protocol_ler` retains its old noise default;
+pass `cycles=N, include_initial_idles=True` to use the new convention there.
+
+`protocol.json`, content-addressed code/circuit files, and compressed numeric
+policy arrays form a portable, non-pickle bundle. Hashes cover the executable
+policy and measurement maps. Loading checks hashes, structure, and termination;
+`inspect --verify` also repeats the expensive independent fault check. Generated
+standalone Guppy and HUGR still embed their complete decision tables.
+
+The results directory contains task manifests, one CSV of raw batch counts per
+task, `summary.csv`, and `diagnostics.json`. Task identities include the protocol,
+resolved noise model, cycle count, basis, simulator/decoder source fingerprints,
+dependency versions, architecture, and seed. Jobs and shot targets can change on
+resume; batch size changes the random partition of future shots. Only one
+writer may use a results directory at a time. Atomic checkpoints preserve
+committed batches after interruptions. Seeds reproduce across process counts
+with a fixed batch partition and supported environment.
+
+Figures show conditional **block** LER (any of the 20 logical readouts failing),
+normalized by p² or by N, plus trajectory survival. Each basis is shown
+separately. Survival uses a linear y-axis fitted to the confidence intervals
+with a small margin, rather than the full 0–1 range. Repetition plots default to
+the current default noise model's p_2q; `--cycle-p` selects a different anchor
+for older/custom results. p_L/N is a normalized endpoint probability, not the probability that
+a logical error ever occurred. Wilson intervals are computed from aggregate
+integer counts; zero failures appear as upper endpoints on log plots. No
+accepted shots means undefined conditional LER.
+
+For optional direct serialized-HUGR execution, install the tested native stack
+with `python -m pip install -e ".[native]"`, then run:
+
+```sh
+python -m spiderwarp.se_experiment native build/se_32_20_4 \
+    --basis 0 --cycles 3 --shots 100 --p 0 --out build/se_native_zero
+python -m spiderwarp.se_experiment native build/se_32_20_4 \
+    --basis + --cycles 3 --shots 100 --p 0.001 --out build/se_native_plus
+```
+
+This compiles an executable wrapper with preparation, repeated cycle calls,
+acceptance/frame outputs, and final measurements, reloads the HUGR, and runs
+Selene/Stim. The wrapper is cached by source and compiler identity. Native
+results are stored in `native_results.json` and are **a different noise model**:
+Selene's built-in gate noise also affects preparation and final readout and has
+no scheduled memory term. They are kept separate from the primary sweep.
+There is no interpreter fallback if native execution fails.
+
+The saved pilot under `benchmarks/se_small/` used 1,000 attempted shots
+per configuration and seed `20261112`, with its historical repetition anchor
+p=1e-3. Its `run.json` records that original command. Use `--cycle-p 0.001`
+when plotting that older dataset. At p=1e-3 the one-cycle
+conditional block LER estimates are 22/994 (logical 0) and 68/992 (logical +).
+After ten cycles they are 232/856 and 462/846, respectively. These pilot
+estimates are accompanied by confidence intervals in `summary.csv`.
+
+The completed production run is `benchmarks/se_100k/`: 9,329,148 attempted
+trajectories across 32 configurations. At the exact default noise rates,
+one-cycle conditional block LER is 1.7846% (logical 0) and 3.6352% (logical +);
+after ten cycles it is 20.8408% and 42.0190%. Ten-cycle survival is 90.510% and
+90.390%. `run.json` stores the reproducible command, `validation.json` records
+the checks, and `summary.csv` contains all 95% Wilson intervals. The `figures/`
+directory contains physical-error, repetition, and survival plots.
 
 The earlier fixed primary/recovery implementation remains available explicitly
 with `policy_mode="legacy"`. Its bool-returning Guppy interface and physical
