@@ -12,7 +12,7 @@ from spiderwarp.se_protocol_simulation import _wilson_interval
 from spiderwarp.noise_model import default_noise_model
 
 
-def plot_results(results, output_dir=None, *, cycle_p=None):
+def plot_results(results, output_dir=None, *, cycle_p=None, compare=None, labels=None):
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -22,11 +22,22 @@ def plot_results(results, output_dir=None, *, cycle_p=None):
     source = results / "summary.csv" if results.is_dir() else results
     directory = Path(output_dir) if output_dir else source.parent / "figures"
     directory.mkdir(parents=True, exist_ok=True)
-    with source.open(newline="") as f:
-        rows = list(csv.DictReader(f))
+    sources = [source] + [Path(p) / "summary.csv" if Path(p).is_dir() else Path(p) for p in (compare or [])]
+    if labels is not None and len(labels) != len(sources):
+        raise ValueError("Supply one label for each result directory")
+    rows, names = [], {}
+    for i, csv_path in enumerate(sources):
+        with csv_path.open(newline="") as f:
+            selected = list(csv.DictReader(f))
+        for row in selected:
+            if labels is not None:
+                names[row["protocol_hash"]] = labels[i]
+            elif compare:
+                names[row["protocol_hash"]] = csv_path.parent.name
+        rows.extend(selected)
     if not rows:
         raise ValueError("No simulation results to plot")
-    groups = defaultdict(lambda: defaultdict(lambda: dict(counts=[0, 0, 0], sweeps=set())))
+    groups = defaultdict(lambda: defaultdict(lambda: dict(counts=[0, 0, 0, 0], sweeps=set())))
     for row in rows:
         p, cycles = float(row["p"]), int(row["cycles"])
         if p <= 0 or cycles <= 0:
@@ -37,14 +48,18 @@ def plot_results(results, output_dir=None, *, cycle_p=None):
         point = groups[key][p, cycles]
         point["sweeps"].update(json.loads(row.get("sweeps") or "[]"))
         totals = point["counts"]
-        for i, name in enumerate(("shots", "accepted", "logical_errors")):
+        for i, name in enumerate(("shots", "accepted", "logical_errors", "total_cnots")):
             totals[i] += int(row[name])
     if not groups:
         raise ValueError("No positive-p, positive-cycle results to plot")
 
-    def series(ax, x, totals, scale, label, *, survival=False):
+    def series(ax, x, totals, scale, label, *, survival=False, resources=False):
+        if resources:
+            ax.plot(x, [c[3] / c[0] / divisor for c, divisor in zip(totals, scale)],
+                    "o-", label=label)
+            return
         y, lo, hi, zero = [], [], [], []
-        for (shots, accepted, errors), divisor in zip(totals, scale):
+        for (shots, accepted, errors, _), divisor in zip(totals, scale):
             k, n = (accepted, shots) if survival else (errors, accepted)
             low, high = _wilson_interval(k, n)
             y.append(k / n / divisor if n else np.nan)
@@ -67,11 +82,13 @@ def plot_results(results, output_dir=None, *, cycle_p=None):
     profile_ids = {key: i + 1 for i, key in enumerate(sorted({k[:3] for k in groups}))}
     from spiderwarp.se_protocol_io import atomic_write
     atomic_write(directory / "models.json", json.dumps([
-        dict(model=i, protocol_hash=key[0], engine_hash=key[1], noise_ratios=dict(key[2]))
+        dict(model=i, protocol_hash=key[0], label=names.get(key[0]), engine_hash=key[1], noise_ratios=dict(key[2]))
         for key, i in profile_ids.items()], indent=2) + "\n")
-    for mode in ("physical_error", "cycles", "survival"):
+    modes = ("physical_error", "cycles", "survival") + (("cnot_cost",) if compare else ())
+    for mode in modes:
         fig, axes = plt.subplots(1, 2, figsize=(12, 4.7), squeeze=False)
         plotted = False
+        tick_values = set()
         for key, points in groups.items():
             protocol, engine, profile, basis = key
             ax = axes[0, 0 if basis == "0" else 1]
@@ -88,10 +105,13 @@ def plot_results(results, output_dir=None, *, cycle_p=None):
                 continue
             plotted = True
             xs = [p if mode == "physical_error" else n for p, n, _ in selected]
-            scales = [p * p if mode == "physical_error" else n if mode == "cycles" else 1
+            if mode != "physical_error":
+                tick_values.update(xs)
+            scales = [p * p if mode == "physical_error" else n if mode in {"cycles", "cnot_cost"} else 1
                       for p, n, _ in selected]
             series(ax, xs, [c for _, _, c in selected], scales,
-                   f"{protocol[:8]} / model {profile_ids[key[:3]]}", survival=mode == "survival")
+                   names.get(protocol, f"{protocol[:8]} / model {profile_ids[key[:3]]}"),
+                   survival=mode == "survival", resources=mode == "cnot_cost")
         if not plotted:
             plt.close(fig)
             continue
@@ -108,12 +128,14 @@ def plot_results(results, output_dir=None, *, cycle_p=None):
                 ax.set_xlabel("Two-qubit error probability p")
                 ax.set_ylabel("Conditional block failure probability / p²")
             else:
-                ax.set_xlabel("Number of SE cycles N")
+                ax.set_xlabel("Number of QEC cycles N")
+                ax.set_xticks(sorted(tick_values))
                 ax.set_ylabel("Conditional block failure probability / N" if mode == "cycles"
+                              else "Mean CNOTs per attempted trajectory / N" if mode == "cnot_cost"
                               else "Probability all cycles accept")
                 if mode == "cycles":
                     ax.set_yscale("log")
-                else:
+                elif mode == "survival":
                     ax.set_yscale("linear")
                     # Include the measured confidence intervals and a little
                     # padding, rather than forcing the entire probability range.

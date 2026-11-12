@@ -155,6 +155,11 @@ def read_manifest(path):
     manifest = json.loads(path.read_text())
     if manifest.get("schema_version") != SCHEMA_VERSION:
         raise ValueError("Unsupported SE protocol schema version")
+    if manifest.get("kind") == "steane-rus":
+        core = {k: v for k, v in manifest.items() if k not in {"protocol_hash", "versions"}}
+        if digest(core) != manifest["protocol_hash"]:
+            raise ValueError("Protocol manifest hash mismatch")
+        return path, manifest
     core_keys = ("schema_version", "code", "policy", "root", "actions", "files", "contract", "decoder_hash")
     if digest({k: manifest[k] for k in core_keys}) != manifest["protocol_hash"]:
         raise ValueError("Protocol manifest hash mismatch")
@@ -174,6 +179,11 @@ def load_protocol(path, *, verify=False):
     from spiderwarp.adaptive_steane_se import AdaptiveSEProtocol
 
     path, m = read_manifest(path)
+    if m.get("kind") == "steane-rus":
+        if verify:
+            raise ValueError("Steane RUS baselines do not have an adaptive-policy fault certificate")
+        from spiderwarp.steane_qec import load_steane_qec
+        return load_steane_qec(m)
     raw = json.loads((path.parent / m["code"]).read_text())
     n = raw["n"]
     if type(n) is not int or not 0 < n <= 63:

@@ -1,0 +1,2 @@
+start,shots,seed,accepted,logical_errors,seconds,cycles_started,cycles_completed,total_cnots,diagnostics
+0,1000,901419433943777492,1000,0,1.3949007089977385,5000,5000,3160000,"{""flagged_stage_counts"":[],""rejection_cycles"":[],""rejections"":[],""stage_counts"":[[[""prep_X_d4"",""X"",4],10000],[[""prep_Z_d4"",""Z"",4],10000],[[""read_X"",""X"",0],10000],[[""read_Z"",""Z"",0],10000]]}"

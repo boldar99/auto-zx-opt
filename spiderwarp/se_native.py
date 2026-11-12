@@ -74,7 +74,12 @@ def main() -> None:
     bits = array(measure_bit(q) for q in data)
     result("measurements", bits)
 '''.replace("PREPARATION", "\n".join(statements))
-    return (generate_adaptive_source(protocol)
+    if hasattr(protocol, "mode"):
+        from spiderwarp._steane_qec_guppy import generate_source
+        protocol_source = generate_source(protocol)
+    else:
+        protocol_source = generate_adaptive_source(protocol)
+    return (protocol_source
             + f"\nEXPERIMENT_CYCLES = {cycles}\nEXPERIMENT_PLUS = {prepared_state == '+'}\n"
             + tail)
 

@@ -26,6 +26,10 @@ def parser():
     build.add_argument("--optimize", action="store_true", help="Run ZX optimization before synthesis")
     build.add_argument("--feasible-only", action="store_true", help="Skip minimax search")
     build.add_argument("--emit", choices=["none", "guppy", "hugr"], default="guppy")
+    steane = sub.add_parser("build-steane", help="Save a conventional Steane RUS baseline")
+    steane.add_argument("--mode", choices=["d4", "ladder-ancilla", "ladder-cycle"], required=True)
+    steane.add_argument("--out", type=Path, required=True)
+    steane.add_argument("--emit", choices=["none", "guppy", "hugr"], default="guppy")
     compile_ = sub.add_parser("compile", help="Generate source/HUGR from an existing bundle")
     compile_.add_argument("protocol", type=Path)
     compile_.add_argument("--emit", choices=["guppy", "hugr"], default="hugr")
@@ -56,6 +60,8 @@ def parser():
     plot.add_argument("results", type=Path)
     plot.add_argument("--out", type=Path)
     plot.add_argument("--cycle-p", type=float, help="Repetition-sweep p_2q; default is default_noise_model().p_2q")
+    plot.add_argument("--compare", type=Path, nargs="+", help="Additional result directories to overlay")
+    plot.add_argument("--labels", nargs="+", help="Labels for results followed by --compare directories")
     inspect = sub.add_parser("inspect", help="Validate and describe a saved protocol")
     inspect.add_argument("protocol", type=Path)
     inspect.add_argument("--verify", action="store_true")
@@ -115,7 +121,12 @@ def emit_protocol(protocol, directory, emit):
 def main(argv=None):
     p = parser()
     args = p.parse_args(argv)
-    if args.command == "build":
+    if args.command == "build-steane":
+        from spiderwarp.steane_qec import build_steane_qec
+        protocol = build_steane_qec(args.mode, output_dir=args.out)
+        print(f"Steane {args.mode}: {protocol.required_qubits} physical qubits", flush=True)
+        emit_protocol(protocol, args.out.resolve(), args.emit)
+    elif args.command == "build":
         import stim
         from spiderwarp.adaptive_steane_se import build_adaptive_se_protocol
         from spiderwarp.csscode import CSSCode
@@ -143,6 +154,12 @@ def main(argv=None):
         export_path = path.parent / "export.json"
         export = json.loads(export_path.read_text()) if export_path.exists() else None
         code = protocol.code
+        if manifest.get("kind") == "steane-rus":
+            print(json.dumps(dict(protocol_hash=manifest["protocol_hash"], mode=protocol.mode,
+                                 required_qubits=protocol.required_qubits,
+                                 syndrome_confirmation=manifest["syndrome_confirmation"],
+                                 retry_limit=None, export=export), indent=2))
+            return
         code_info = (code.to_dict() if args.matrices else
                      dict(n=code.n, k=code.k, d=code.d, name=code.name,
                           x_checks=len(code.H_x), z_checks=len(code.H_z)))
@@ -182,7 +199,8 @@ def main(argv=None):
                   f"survival={row['survival']:.5g}; accepted={row['accepted']}/{row['shots']}")
     elif args.command == "plot":
         from spiderwarp.se_plotting import plot_results
-        for path in plot_results(args.results, args.out, cycle_p=args.cycle_p):
+        for path in plot_results(args.results, args.out, cycle_p=args.cycle_p,
+                                 compare=args.compare, labels=args.labels):
             print(path)
     elif args.command == "native":
         from spiderwarp.se_native import run_native

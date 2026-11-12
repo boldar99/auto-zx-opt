@@ -197,6 +197,75 @@ policy synthesis and independent verification once; subsequent runs load the
 saved decision graph without synthesis. Guppy source generation does not need
 Guppy installed. HUGR compilation is a separate, optional operation.
 
+### Conventional Steane RUS comparisons
+
+Three conventional Steane controllers use the original encoded-zero d1/d2/d4
+preparation assets, with Hadamard-dual encoded-plus preparations for Z readout:
+
+* `d4`: discard flagged ancillas and repeat d4 until every verification bit is zero.
+* `ladder-ancilla`: on each flagged preparation, discard and descend d4 → d2 → d1;
+  restart at d4 for every fresh ancilla, including syndrome confirmation reads.
+* `ladder-cycle`: use the same descent but retain the current level through both
+  bases and all syndrome reads; restart at d4 at the next QEC cycle.
+
+Each cycle confirms the Z syndrome twice consecutively, then confirms the X
+syndrome twice consecutively. A mismatch requires another fresh ancilla and
+readout until two consecutive syndromes agree. This protects against faulty
+syndrome readout, following the conventional repeated-syndrome construction
+([Preskill, *Reliable quantum computers*](https://www.preskill.caltech.edu/pubs/preskill-1998-reliable.pdf)).
+Corrections update the cumulative Pauli frame. The code remains `[[32,20,4]]`.
+Retry and confirmation loops have no attempt limit; ancilla rejection never
+rejects the data. Thus completed trajectories have survival one. Serial,
+on-demand preparation means the data accumulate memory noise during **every**
+preparation and discarded attempt. There is no parallel ancilla factory or
+classical branch delay. Failed ancillas are destructively measured before reuse.
+
+These baselines require **66 qubits** (32 data + 32 encoded ancilla + two
+verification qubits), compared with the adaptive method's 60-qubit cap.
+They use 632 CNOT-equivalent gates in a noiseless cycle; actual sampled costs
+include failed preparations and extra syndrome readings. These are conventional
+simulation baselines, without the adaptive policy's independent fault certificate.
+
+```sh
+python -m spiderwarp.se_experiment build-steane --mode d4 \
+    --out build/steane_rus_d4 --emit hugr
+python -m spiderwarp.se_experiment build-steane --mode ladder-ancilla \
+    --out build/steane_rus_ladder_ancilla --emit hugr
+python -m spiderwarp.se_experiment build-steane --mode ladder-cycle \
+    --out build/steane_rus_ladder_cycle --emit hugr
+
+# All three: the same 32 configurations, fixed production budgets and seed as
+# benchmarks/se_100k; 100k-shot floor and 1M cap, resumable in 10k-shot batches.
+python -m spiderwarp.se_comparison --jobs 8
+python -m spiderwarp.se_comparison --plot-only
+```
+
+Each baseline saves 9,329,148 trajectories under
+`benchmarks/steane_rus_<mode>_100k/`, with hyphens replaced by underscores.
+Guppy source and reloaded HUGR are saved under the corresponding `build/`
+directory. The native CLI also accepts these bundles; its separate gate-noise
+model still excludes memory and includes experiment boundaries.
+Combined PDF/PNG figures are in `benchmarks/steane_comparison/figures/`:
+physical-p LER/p², cycle endpoint LER/N, survival on a tight linear axis, and
+mean executed CNOTs per requested cycle. The CNOT normalization includes early
+termination of rejected adaptive trajectories. The saved adaptive production
+data are reused unchanged. Noise rates, ideal experiment boundaries, statistics,
+and shot allocations match across methods; qubit usage and controllers differ.
+
+To overlay other result directories with explicit legend labels:
+
+```sh
+python -m spiderwarp.se_experiment plot benchmarks/se_100k \
+    --compare benchmarks/steane_rus_d4_100k \
+    --labels "Current adaptive" "Steane RUS d4" \
+    --out benchmarks/steane_comparison/figures
+```
+
+The [comparison notebook](notebooks/32_20_4_steane_comparison.ipynb) contains
+the default-noise count table, figures, and links to all Guppy/HUGR artifacts.
+
+### Adaptive saved-protocol workflow
+
 ```sh
 python -m spiderwarp.se_experiment build --out build/se_32_20_4 --emit guppy
 python -m spiderwarp.se_experiment inspect build/se_32_20_4

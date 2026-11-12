@@ -1,0 +1,86 @@
+{
+  "peak_qubits": 66,
+  "ideal_cycle_cnots": 632,
+  "stages": {
+    "prep_Z_d1": {
+      "qubits": 64,
+      "cnots": 56,
+      "depth": 7,
+      "measurements": 0,
+      "live_idle_units": 224,
+      "data_idle_units": 224
+    },
+    "prep_Z_d2": {
+      "qubits": 66,
+      "cnots": 94,
+      "depth": 42,
+      "measurements": 6,
+      "live_idle_units": 2407,
+      "data_idle_units": 1344
+    },
+    "prep_Z_d4": {
+      "qubits": 66,
+      "cnots": 126,
+      "depth": 80,
+      "measurements": 11,
+      "live_idle_units": 4768,
+      "data_idle_units": 2560
+    },
+    "read_Z": {
+      "qubits": 64,
+      "cnots": 32,
+      "depth": 2,
+      "measurements": 32,
+      "live_idle_units": 32,
+      "data_idle_units": 32
+    },
+    "discard_Z": {
+      "qubits": 64,
+      "cnots": 0,
+      "depth": 1,
+      "measurements": 32,
+      "live_idle_units": 32,
+      "data_idle_units": 32
+    },
+    "prep_X_d1": {
+      "qubits": 64,
+      "cnots": 56,
+      "depth": 7,
+      "measurements": 0,
+      "live_idle_units": 224,
+      "data_idle_units": 224
+    },
+    "prep_X_d2": {
+      "qubits": 66,
+      "cnots": 94,
+      "depth": 38,
+      "measurements": 6,
+      "live_idle_units": 2151,
+      "data_idle_units": 1216
+    },
+    "prep_X_d4": {
+      "qubits": 66,
+      "cnots": 126,
+      "depth": 72,
+      "measurements": 11,
+      "live_idle_units": 4256,
+      "data_idle_units": 2304
+    },
+    "read_X": {
+      "qubits": 64,
+      "cnots": 32,
+      "depth": 3,
+      "measurements": 32,
+      "live_idle_units": 64,
+      "data_idle_units": 64
+    },
+    "discard_X": {
+      "qubits": 64,
+      "cnots": 0,
+      "depth": 1,
+      "measurements": 32,
+      "live_idle_units": 32,
+      "data_idle_units": 32
+    }
+  }
+}

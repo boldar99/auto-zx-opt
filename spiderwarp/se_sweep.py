@@ -31,7 +31,8 @@ def engine_identity():
     here = Path(__file__).parent
     sources = {n: hashlib.sha256((here / n).read_bytes()).hexdigest() for n in
                ("se_sweep.py", "se_protocol_simulation.py", "noise_model.py", "lut_decoder.py",
-                "adaptive_steane_se.py", "se_protocol_io.py", "_se_circuit.py", "_se_adaptive.py")}
+                "adaptive_steane_se.py", "se_protocol_io.py", "_se_circuit.py", "_se_adaptive.py",
+                "steane_qec.py")}
     v = versions()
     return dict(model=MODEL_VERSION, sources=sources,
                 versions={k: v[k] for k in ("stim", "numpy")},

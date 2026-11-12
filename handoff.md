@@ -2,8 +2,106 @@
 
 Last updated: 2026-11-12
 
+## Steane RUS comparison (2026-11-12)
+
+The user requested conventional Steane QEC with fixed d4 RUS preparation and a
+lower-distance retry option. On clarification they requested **both** ladder
+scopes, so three baselines are implemented in `spiderwarp/steane_qec.py`:
+
+- `d4`: retry d4 until all preparation verification bits are zero.
+- `ladder-ancilla`: discard flagged ancillas and descend d4 -> d2 -> d1;
+  restart at d4 for every fresh ancilla, including syndrome confirmation reads.
+- `ladder-cycle`: retain that reduced level through all reads and both bases;
+  restart at d4 for each new QEC cycle.
+
+All use the original `FTStatePrep/misc/32_20_4_zero_d{1,2,4}.stim` assets,
+encoded-zero controls for X extraction and Hadamard-dual encoded-plus targets
+for Z extraction. Retry happens before coupling to the data. Each CSS syndrome
+is measured until two consecutive readings agree, Z first, then X. There is
+no retry limit or data rejection. Data memory noise accrues through every
+serial preparation, failed attempt, discard measurement and readout. The input
+and final decoder remain ideal; cumulative frames persist between cycles.
+Steane requires 66 qubits (32+32+2), versus the adaptive 60-qubit cap, and has
+632 CNOT-equivalent gates on its noiseless path. These are simulation baselines,
+not independently certified adaptive policies. The existing adaptive circuits,
+controller, noise defaults and saved production counts are unchanged.
+
+Standalone Guppy and compiled/reloaded HUGR exist in:
+
+- `build/steane_rus_d4/`
+- `build/steane_rus_ladder_ancilla/`
+- `build/steane_rus_ladder_cycle/`
+
+Each has `protocol.json`, `export.json`, `steane_se_protocol.py` and
+`steane_se_protocol.hugr`. `build-steane --mode ... --out ... --emit hugr`
+creates these; the existing `compile`, `inspect`, `run`, `sweep` and `native`
+commands accept these bundles. The standalone emitter is `_steane_qec_guppy.py`.
+
+The matched production sweep is **complete**: 32 configurations and 9,329,148
+trajectories / 13,529,148 executed cycles per Steane method; 27,987,444 new
+trajectories in total. It used floor 100k/cap 1M, 10k-shot batches, inverse-square
+allocation, eight workers and seed 20261112. The command was
+`python -u -m spiderwarp.se_comparison --jobs 8`, log
+`build/steane_comparison.log`. Results are in
+`benchmarks/steane_rus_<mode>_100k/` (hyphens replaced by underscores).
+All `run.json` files are complete and contain exact per-method resume commands.
+A real d4 resume scheduled zero new shots and preserved every batch. Run
+`python -m spiderwarp.se_comparison --plot-only` to audit matched counts/settings
+and regenerate `benchmarks/steane_comparison/comparison.csv`, `validation.json`,
+`resources.json`, and four combined PDF/PNG figures. The final audit has passed: all
+noise, seeds, configuration membership, target counts and Wilson intervals match;
+all source/HUGR hashes and regenerated sources match, and all three libraries
+reload. The comparison retains tight linear survival and logarithmic normalized
+LER; CNOT cost is also plotted.
+
+`notebooks/32_20_4_steane_comparison.ipynb` loads these results and links the
+source/binary artifacts. Matching cells were appended to the existing demo.
+Both notebooks’ comparison cells were executed and their table/figure outputs
+are saved. All four final PNG figures were visually checked; matching vector
+PDFs are saved. Cycle axes explicitly label 1, 3, 5, 7, 10.
+
+Validation: the full regression collection passed 164 tests. Ten further new
+cases passed in the final 44-test focused run, followed by four additional native
+retry regressions and two final plot-layout regressions. The focused files are
+`tests/test_steane_qec.py`, `tests/test_se_experiment.py`, and
+`tests/test_se_protocol_simulation.py`. Coverage includes retry scopes, confirmation,
+frame composition, encoded-Bell preservation with split CSS errors, discarding
+corrupted flagged ancillas, actual exported controller paths/decoder inputs,
+comparison plots, persistence, and native execution in both bases.
+All three permanent `*_controls/` datasets have 1,000 noiseless five-cycle shots
+per basis, all accepted with zero errors. Native three-cycle HUGR controls have
+eight shots per basis/method with split incoming X1/Z17 errors, all correct;
+their hashes are in `benchmarks/steane_comparison/controls.json`. Native noise
+scope remains separate from the reference sweeps. Four extra native programs
+forced d4 and d2 preparation flags to reach d1 in both ladder scopes/bases,
+checking dynamic discard/reallocation and cumulative frames. All 16 diagnostic
+shots passed; `forced_retry_controls.json` explicitly distinguishes these
+artificial flag checks from production noise data.
+
+At exact default hardware noise, the conditional **block** LERs are:
+
+| Method | N=1 logical 0 / + | N=10 logical 0 / + | Mean CNOTs at N=1, 0 / + |
+|---|---:|---:|---:|
+| Current adaptive | 1.785% / 3.635% | 20.841% / 42.019% | 444.7 / 444.4 |
+| Steane RUS d4 | 0.169% / 2.396% | 2.425% / 22.510% | 742.7 / 742.4 |
+| Steane ladder per ancilla | 0.347% / 2.428% | 3.862% / 21.987% | 718.5 / 719.1 |
+| Steane ladder per cycle | 0.977% / 2.223% | 9.920% / 20.735% | 679.9 / 680.7 |
+
+All Steane trajectories accept by construction (unbounded RUS/confirmation),
+versus adaptive ten-cycle survival 90.510% / 90.390%. Full counts and Wilson
+intervals are in `benchmarks/steane_comparison/comparison.csv`. At low physical
+p the fixed-d4 version has the lowest logical-0 LER; the cycle ladder reduces
+CNOT cost and logical-+ LER, while increasing logical-0 LER. The current adaptive
+method uses the fewest qubits and CNOTs. Physical-p curves cross at higher noise;
+LER comparisons remain conditional on acceptance. No policy certificate is
+claimed for the conventional RUS baselines.
+
 ## Resume checkpoint
 
+- The three Steane RUS comparisons above are complete, including standalone
+  Guppy/HUGR, matched production counts, controls, the final audit, and populated
+  comparison notebook/figures. Use `python -m spiderwarp.se_comparison --plot-only`
+  to regenerate the combined views without sampling.
 - The build/load/simulate workflow is implemented and has been run. The current
   verified protocol bundle, standalone Guppy source, and compiled/reloaded HUGR
   are in `build/se_32_20_4/`. The controller remains the verified 589-CNOT,
@@ -21,15 +119,15 @@ Last updated: 2026-11-12
   `analysis/32_20_4_noise_assessment/comparison.csv`, with methodology in
   `assessment.json` and stage/depth/idle counts in `resources.json`.
 - **Scope remains assessment only for the proposed reuse change.** The user
-  explicitly said not to implement it. No alternative circuit, allocation, or
-  policy was built. The recommendation is to preserve ZX/CNOT optimization and
+  explicitly said not to implement it. No alternative adaptive reuse circuit,
+  allocation, or policy was built. The recommendation is to preserve ZX/CNOT optimization and
   consider depth/live-idle minimization under the existing 60-qubit cap, rather
   than minimizing qubit count. d1/d2-only changes are unlikely to remove most
   of the observed logical error rate.
-- The final targeted validation passed: 17 tests in
-  `tests/test_se_experiment.py` and `tests/test_se_protocol_simulation.py`;
-  `git diff --check` also passed. This was not another full-suite run; see the
-  earlier full-suite result and corrected stale asset reference below.
+- New comparison validation passed: a 164-test full regression collection,
+  44 focused tests, four additional native retry regressions, and two final
+  plot-layout checks. `git diff --check` passed. Details and native control
+  counts are in `benchmarks/steane_comparison/validation.json`.
 
 ## Noise-source and reuse assessment (2026-11-12)
 

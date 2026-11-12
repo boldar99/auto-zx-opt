@@ -1,0 +1,61 @@
+{
+  "complete": true,
+  "methods": [
+    "Current adaptive (60 qubits)",
+    "Steane RUS d4 (66 qubits)",
+    "Steane ladder / ancilla (66 qubits)",
+    "Steane ladder / cycle (66 qubits)"
+  ],
+  "configurations_per_method": 32,
+  "attempted_shots": {
+    "Current adaptive (60 qubits)": 9329148,
+    "Steane RUS d4 (66 qubits)": 9329148,
+    "Steane ladder / ancilla (66 qubits)": 9329148,
+    "Steane ladder / cycle (66 qubits)": 9329148
+  },
+  "equal_noise_seeds_budgets_and_configurations": true,
+  "intervals": "95% Wilson checked against raw counts",
+  "interpretation": "Conditional 20-logical-qubit block LER; endpoint LER/N; survival separate",
+  "timing": "Serial noisy ancilla attempts, including persistent data idles; ideal experiment boundaries",
+  "resource_difference": "Current adaptive: 60 qubits; all conventional Steane variants: 66 qubits",
+  "syndrome_confirmation": "Steane: two consecutive readings per CSS basis; adaptive: its existing policy",
+  "certificates": "Adaptive certificate retained unchanged; no adaptive-policy certificate claimed for Steane RUS",
+  "source_and_hugr_hashes_checked": true,
+  "saved_source_matches_regenerated": true,
+  "library_hugr_reloaded": true,
+  "actual_executed_cycles": {
+    "d4": 13529148,
+    "ladder-ancilla": 13529148,
+    "ladder-cycle": 13529148
+  },
+  "noiseless_reference_controls": {
+    "shots": 6000,
+    "accepted": 6000,
+    "logical_errors": 0,
+    "cycles": 5
+  },
+  "native_controls": {
+    "shots": 48,
+    "accepted": 48,
+    "logical_errors": 0,
+    "cycles": 3,
+    "incoming_x": 1,
+    "incoming_z": 131072
+  },
+  "tests": {
+    "full_regression_collection": 164,
+    "focused": 44,
+    "final_plot_regressions": 2,
+    "forced_retry_regressions": 4
+  },
+  "forced_retry_native_controls": {
+    "shots": 16,
+    "accepted": 16,
+    "logical_errors": 0,
+    "flags_forced_at_distances": [
+      4,
+      2
+    ]
+  },
+  "real_d4_resume_scheduled_new_shots": 0
+}

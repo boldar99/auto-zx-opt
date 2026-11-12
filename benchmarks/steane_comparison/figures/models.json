@@ -1,0 +1,62 @@
+[
+  {
+    "model": 1,
+    "protocol_hash": "07022f2f0e2794e443d17093c8bca92c13537a1c7b5e3046cf52bd455d739e62",
+    "label": "Current adaptive (60 qubits)",
+    "engine_hash": "32df2613f77f025e02f1037e8d2287e5a41d4e13709b41aa8d25976ec8b6f08f",
+    "noise_ratios": {
+      "p_1q": 0.03125,
+      "p_2q": 1.0,
+      "p_coherent_mem": 0.0,
+      "p_init": 1.0,
+      "p_leakage": 0.0,
+      "p_linear_mem": 0.01575,
+      "p_meas": 0.00125
+    }
+  },
+  {
+    "model": 2,
+    "protocol_hash": "672d02c4ffe3163ef3e0a788dbf2b28a2153b06c036964eda40fb6ba1df4d08c",
+    "label": "Steane ladder / cycle (66 qubits)",
+    "engine_hash": "02e8348dfa710cb77a3c46ecd30a5ec44d1a940363eea19dd39fb0c3e04a0db0",
+    "noise_ratios": {
+      "p_1q": 0.03125,
+      "p_2q": 1.0,
+      "p_coherent_mem": 0.0,
+      "p_init": 1.0,
+      "p_leakage": 0.0,
+      "p_linear_mem": 0.01575,
+      "p_meas": 0.00125
+    }
+  },
+  {
+    "model": 3,
+    "protocol_hash": "6acb77cfb6abf016ae6b808aa8ea9f90764e79505b34d6af267e53a87b54ccea",
+    "label": "Steane RUS d4 (66 qubits)",
+    "engine_hash": "02e8348dfa710cb77a3c46ecd30a5ec44d1a940363eea19dd39fb0c3e04a0db0",
+    "noise_ratios": {
+      "p_1q": 0.03125,
+      "p_2q": 1.0,
+      "p_coherent_mem": 0.0,
+      "p_init": 1.0,
+      "p_leakage": 0.0,
+      "p_linear_mem": 0.01575,
+      "p_meas": 0.00125
+    }
+  },
+  {
+    "model": 4,
+    "protocol_hash": "8ccab9fce005b1f705f0bf4ca4f8b0f39117bbe44aef103e0aafdb5566dbc371",
+    "label": "Steane ladder / ancilla (66 qubits)",
+    "engine_hash": "02e8348dfa710cb77a3c46ecd30a5ec44d1a940363eea19dd39fb0c3e04a0db0",
+    "noise_ratios": {
+      "p_1q": 0.03125,
+      "p_2q": 1.0,
+      "p_coherent_mem": 0.0,
+      "p_init": 1.0,
+      "p_leakage": 0.0,
+      "p_linear_mem": 0.01575,
+      "p_meas": 0.00125
+    }
+  }
+]
