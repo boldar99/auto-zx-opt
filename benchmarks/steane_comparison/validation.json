@@ -36,12 +36,14 @@
   "full_acceptance_required": [],
   "syndrome_confirmation": "Steane: one reading per CSS basis; adaptive: its existing policy",
   "certificates": "See each saved adaptive contract/certificate; no adaptive-policy certificate claimed for Steane RUS",
-  "baseline_excluded": true,
-  "old_adaptive_data_deleted": true,
-  "adaptive_domain": "r+s<=2; history PS requires order-one compatibility; V2 adds exact uniqueness rescues",
+  "standard_base_rule": "No flags: incoming CSS order <=1; flags: fault-history recovery",
+  "all_adaptive_methods_use_standard_base": true,
+  "old_history_only_implementation_removed": true,
+  "old_simulation_data_deleted": true,
+  "adaptive_methods_rerun": 5,
+  "independent_steane_data_retained": true,
   "no_d1": true,
   "max_adaptive_extractions_per_cycle": 3,
-  "max_adaptive_d4_per_cycle": 2,
   "allowed_distance_paths": [
     [
       4,
@@ -59,67 +61,65 @@
   ],
   "gate_cost": "accepted_cnots / accepted / N; complete accepted trajectories only",
   "rejected_trajectories_excluded_from_ler_and_gate_statistics": true,
-  "acceptance_rate_denominator": "All attempted trajectories",
   "adaptive_accepted_cycle_gate_bounds": [
     277,
     433
   ],
-  "no_order_two_rescues": false,
   "methods_audited": {
     "adaptive_history": {
       "configurations": 32,
       "attempted_shots": 9329148,
       "raw_gate_counts_verified": true,
       "batch_counts_verified": true,
-      "protocol_hash": "62da3175473f60675125c331b7cc2ac9c5bdee5ed71e23f7fe04e8da439cfe44",
+      "protocol_hash": "84bc3315c7b9365c882ecb2d77197fe63e42c43f65f6c94322745026d0f765f6",
       "source_regenerates_identically": true,
-      "source_sha256": "67e157642f82b22f66e441e497766915cc5aa13535e44c734c21815007a115d0",
+      "source_sha256": "0031a4a897121338d839743086f265f4a2dae43bb5434219b9f3911bfa134d5d",
       "hugr_reloaded": true,
-      "hugr_sha256": "bd3e3ad115c93e2d23f7a6f5a40ba7fb1bdfd2821f2c6b999a796cf771652429"
+      "hugr_sha256": "891bc40e758d3b71d5b85e77b9a369aae6a6a13abf0c0316a07642caa633124f"
     },
     "adaptive_order_two": {
       "configurations": 32,
       "attempted_shots": 9329148,
       "raw_gate_counts_verified": true,
       "batch_counts_verified": true,
-      "protocol_hash": "c1886b03bf70e35791d080b5f7b0279871bbbcb9134e9193a841ebd9e9f589be",
+      "protocol_hash": "9498a1814055a22120af233da990f2ad70407b6464441541608bb29c187bd5a8",
       "source_regenerates_identically": true,
-      "source_sha256": "35dd2576d911b7c2ac765086ebb22d8542274f103c874d925e356fd3878a2f9a",
+      "source_sha256": "fee1c85b80f71905a1d83dc1d339dd621bd31b65c32916ea00660290328f996c",
       "hugr_reloaded": true,
-      "hugr_sha256": "f09b749a7ef5ea7ac96bd237a7be98549f12a49c392e2396a4000256b845f50e"
+      "hugr_sha256": "f4d1cb4fbb7c3f903f172e23625406a1222b694a1b56bfde303cf5d7bbe7aab9"
     },
     "adaptive_probability_10": {
       "configurations": 32,
       "attempted_shots": 9329148,
       "raw_gate_counts_verified": true,
       "batch_counts_verified": true,
-      "protocol_hash": "0db6bd03938e2295a1a0e75433858d7713fde76596e123f70ebd6ab56b1c3eaf",
+      "protocol_hash": "05568b8fd5d2a8bcc21d83a41607f63e63abad46bd0b6568abc7d35257963949",
       "source_regenerates_identically": true,
-      "source_sha256": "efa0a78ab972cbfed842031e601bb899d194b15b78f43ca3971c502c4150d31f",
+      "source_sha256": "66b63b623f6bce915f21b371bb2979bb7dcf19e260fc31c9e84862a69d96a20e",
       "hugr_reloaded": true,
-      "hugr_sha256": "815ab2356b50abf19026da06ebf94fa7745bd11a6ddec104893520e7386bbc5c"
+      "hugr_sha256": "2d080b7fdefa974def099f86dfad239953d53af9d407fc12154b78af309119e6"
     },
     "adaptive_probability_25": {
       "configurations": 32,
       "attempted_shots": 9329148,
       "raw_gate_counts_verified": true,
       "batch_counts_verified": true,
-      "protocol_hash": "08f58e6d201b0cb04429d0cc6d21ba6bb6e8c626106fdabd801e08108b6a535e",
+      "protocol_hash": "541d24edafd0c72b755c49d97825ed8dfb222a9bde866df45bf181bf7f623d80",
       "source_regenerates_identically": true,
-      "source_sha256": "8d017f705d6b8eec374f93a6ad6aff0582163a2bd63c2cadaf871909defb34e1",
+      "source_sha256": "badade2f1f19b5f398bd38903733b3f953bcee0af1d2144a1a2356f6b2b088a7",
       "hugr_reloaded": true,
-      "hugr_sha256": "69eaf02589d254563a37fd04662aa96009b46986911de381a73583dffeb34dbf"
+      "hugr_sha256": "14f9cddab17bd6bf6f777fdc2ce95a306808b8c428416c47545e0098a4db6815"
     },
     "adaptive_no_flags": {
       "configurations": 32,
       "attempted_shots": 9329148,
       "raw_gate_counts_verified": true,
       "batch_counts_verified": true,
-      "protocol_hash": "131e76ee8a48727bc49c57fe1e91192578cd7627931903ad0644f87982874c88",
+      "protocol_hash": "0475d94b4983ba212d8830c2bf5f496b7e39b68a8f158c4d45e3e833b2d531bc",
       "source_regenerates_identically": true,
-      "source_sha256": "2f7235c9935973c3aca6ebf8872a234262aa3df1355d07e72e58fb14eb7434cc",
+      "source_sha256": "2943f79e9b9f0809234059fbd720851091f284d0e5a07606d543886876c4dae9",
       "hugr_reloaded": true,
-      "hugr_sha256": "ab8482beef56d0ee06b954105687a4e0dafb2b1bce4fc5bdc28b02be3058faeb"
+      "hugr_sha256": "8dc4544c6be6786f0ceb037f98de68c781f7cf1fc4cb037f6713cef79946ad5c"
     },
     "steane_fixed_ps": {
       "configurations": 32,
@@ -133,34 +133,1183 @@
       "hugr_sha256": "c8ab9a198f5653a63800c7b36a60dea8f8461bff21aa76d28930b13cea622ea2"
     }
   },
-  "order_two_uniqueness_rescue": "adaptive_order_two",
-  "rescue_certificate_includes_memory": false,
-  "propagated_weight_guard_retired": true,
-  "full_adaptive_css_mode_identical_to_history": true,
-  "notebooks_refreshed": true,
-  "six_figure_pairs_generated": true,
-  "visual_inspection_pending": false,
-  "physical_native_controls": "controls.json",
-  "all_css_one_inputs_accepted_and_correct_in_controls": true,
-  "order_two_physical_controls": "order_two_controls.json",
-  "additional_rescues_physically_replayed_correct": 1523,
-  "order_two_export_transition_audit": {
-    "nodes_checked": 186390,
-    "transitions_checked": 1045488,
-    "packed_nodes": 186391,
+  "physical_native_controls": {
     "complete": true,
-    "seconds": 26.399441375004244
+    "methods": {
+      "adaptive_history": {
+        "0": {
+          "css_one_inputs": 1089,
+          "accepted_inputs_correct": 1089,
+          "postselected_inputs": 0,
+          "first_fault_classes": 1005,
+          "accepted_faults_correct": 1003,
+          "postselected_faults": 2,
+          "second_fault_classes": 1005,
+          "accepted_second_faults_correct": 1003,
+          "accepted_d2_followup_replays": 771,
+          "rejected_d2_followup_replays": 0,
+          "noiseless_ten_cycle_shots": 100,
+          "native_clean": {
+            "backend": "selene-stim",
+            "noise_model": "gate-noise-including-preparation-and-readout-no-memory-v1",
+            "noise": {
+              "p_1q": 0.0,
+              "p_2q": 0.0,
+              "p_init": 0.0,
+              "p_meas": 0.0
+            },
+            "p": 0,
+            "seed": 20261113,
+            "cycles": 3,
+            "prepared_state": "0",
+            "shots": 8,
+            "accepted": 8,
+            "logical_errors": 0,
+            "ler": 0.0,
+            "ler_interval_95": [
+              0.0,
+              0.32440756488388023
+            ],
+            "survival": 1.0,
+            "versions": {
+              "spiderwarp": "0.1.0",
+              "numpy": "2.2.6",
+              "stim": "1.17.dev1792124270",
+              "guppylang": "0.21.16",
+              "hugr": "0.16.0",
+              "selene-sim": "0.2.18"
+            },
+            "experiment": {
+              "protocol_hash": "84bc3315c7b9365c882ecb2d77197fe63e42c43f65f6c94322745026d0f765f6",
+              "prepared_state": "0",
+              "cycles": 3,
+              "incoming_x": 1,
+              "incoming_z": 131072,
+              "source_sha256": "6b278b299641e5cbbef609c0ce60e4f43327f32980c945a32d63f63e3e2263a0",
+              "versions": {
+                "spiderwarp": "0.1.0",
+                "numpy": "2.2.6",
+                "stim": "1.17.dev1792124270",
+                "guppylang": "0.21.16",
+                "hugr": "0.16.0",
+                "selene-sim": "0.2.18"
+              },
+              "compile_hash": "7b9c63b69f592bcae8fc5686aabecac762af6b0154d703b8514782874013f71a",
+              "hugr_sha256": "7ca3cceca29750f120a5cc0c27d1bba32f88886b26e19aa9a5cfb49c61f7f48d"
+            }
+          },
+          "native_gate_only_noisy": {
+            "backend": "selene-stim",
+            "noise_model": "gate-noise-including-preparation-and-readout-no-memory-v1",
+            "noise": {
+              "p_1q": 3.125e-05,
+              "p_2q": 0.001,
+              "p_init": 0.001,
+              "p_meas": 1.2499999999999999e-06
+            },
+            "p": 0.001,
+            "seed": 20261113,
+            "cycles": 1,
+            "prepared_state": "0",
+            "shots": 100,
+            "accepted": 71,
+            "logical_errors": 7,
+            "ler": 0.09859154929577464,
+            "ler_interval_95": [
+              0.048582823723969326,
+              0.18980722240592854
+            ],
+            "survival": 0.71,
+            "versions": {
+              "spiderwarp": "0.1.0",
+              "numpy": "2.2.6",
+              "stim": "1.17.dev1792124270",
+              "guppylang": "0.21.16",
+              "hugr": "0.16.0",
+              "selene-sim": "0.2.18"
+            },
+            "experiment": {
+              "protocol_hash": "84bc3315c7b9365c882ecb2d77197fe63e42c43f65f6c94322745026d0f765f6",
+              "prepared_state": "0",
+              "cycles": 1,
+              "incoming_x": 0,
+              "incoming_z": 0,
+              "source_sha256": "cfe49a01466cbff687543aa126245ea32ff095343efca32e3e3f2294ce1d484e",
+              "versions": {
+                "spiderwarp": "0.1.0",
+                "numpy": "2.2.6",
+                "stim": "1.17.dev1792124270",
+                "guppylang": "0.21.16",
+                "hugr": "0.16.0",
+                "selene-sim": "0.2.18"
+              },
+              "compile_hash": "5ad1afc7f1f0b3d4528364544bd1890c43b0921183b9cc2825cedcdc62f907dc",
+              "hugr_sha256": "be481c52852918524526728e88172ba32a0e736b9cfac4263a715182e6f4bdef"
+            }
+          }
+        },
+        "+": {
+          "css_one_inputs": 1089,
+          "accepted_inputs_correct": 1089,
+          "postselected_inputs": 0,
+          "first_fault_classes": 1005,
+          "accepted_faults_correct": 1003,
+          "postselected_faults": 2,
+          "second_fault_classes": 1005,
+          "accepted_second_faults_correct": 1003,
+          "accepted_d2_followup_replays": 771,
+          "rejected_d2_followup_replays": 0,
+          "noiseless_ten_cycle_shots": 100,
+          "native_clean": {
+            "backend": "selene-stim",
+            "noise_model": "gate-noise-including-preparation-and-readout-no-memory-v1",
+            "noise": {
+              "p_1q": 0.0,
+              "p_2q": 0.0,
+              "p_init": 0.0,
+              "p_meas": 0.0
+            },
+            "p": 0,
+            "seed": 20261113,
+            "cycles": 3,
+            "prepared_state": "+",
+            "shots": 8,
+            "accepted": 8,
+            "logical_errors": 0,
+            "ler": 0.0,
+            "ler_interval_95": [
+              0.0,
+              0.32440756488388023
+            ],
+            "survival": 1.0,
+            "versions": {
+              "spiderwarp": "0.1.0",
+              "numpy": "2.2.6",
+              "stim": "1.17.dev1792124270",
+              "guppylang": "0.21.16",
+              "hugr": "0.16.0",
+              "selene-sim": "0.2.18"
+            },
+            "experiment": {
+              "protocol_hash": "84bc3315c7b9365c882ecb2d77197fe63e42c43f65f6c94322745026d0f765f6",
+              "prepared_state": "+",
+              "cycles": 3,
+              "incoming_x": 1,
+              "incoming_z": 131072,
+              "source_sha256": "495bb868ce6afd8a576601cffdb863250ca08c8ab28f8c30e9800e749f558f43",
+              "versions": {
+                "spiderwarp": "0.1.0",
+                "numpy": "2.2.6",
+                "stim": "1.17.dev1792124270",
+                "guppylang": "0.21.16",
+                "hugr": "0.16.0",
+                "selene-sim": "0.2.18"
+              },
+              "compile_hash": "4fddb956f719a2e92575069c04b3e3f350b3fb33481376f00e72d204fcc7e07d",
+              "hugr_sha256": "b13391f6bbfc68782655f1046a924ab9a630cbaa675996a114011a775ec5ae65"
+            }
+          },
+          "native_gate_only_noisy": {
+            "backend": "selene-stim",
+            "noise_model": "gate-noise-including-preparation-and-readout-no-memory-v1",
+            "noise": {
+              "p_1q": 3.125e-05,
+              "p_2q": 0.001,
+              "p_init": 0.001,
+              "p_meas": 1.2499999999999999e-06
+            },
+            "p": 0.001,
+            "seed": 20261113,
+            "cycles": 1,
+            "prepared_state": "+",
+            "shots": 100,
+            "accepted": 87,
+            "logical_errors": 5,
+            "ler": 0.05747126436781609,
+            "ler_interval_95": [
+              0.02479563779315351,
+              0.12757376490451622
+            ],
+            "survival": 0.87,
+            "versions": {
+              "spiderwarp": "0.1.0",
+              "numpy": "2.2.6",
+              "stim": "1.17.dev1792124270",
+              "guppylang": "0.21.16",
+              "hugr": "0.16.0",
+              "selene-sim": "0.2.18"
+            },
+            "experiment": {
+              "protocol_hash": "84bc3315c7b9365c882ecb2d77197fe63e42c43f65f6c94322745026d0f765f6",
+              "prepared_state": "+",
+              "cycles": 1,
+              "incoming_x": 0,
+              "incoming_z": 0,
+              "source_sha256": "9f5929d5404aa428e4264ef818c4d3fbda946e00024feaba35f0a22b59dcb071",
+              "versions": {
+                "spiderwarp": "0.1.0",
+                "numpy": "2.2.6",
+                "stim": "1.17.dev1792124270",
+                "guppylang": "0.21.16",
+                "hugr": "0.16.0",
+                "selene-sim": "0.2.18"
+              },
+              "compile_hash": "d2ffc74bd4f8c27bbfd0fccb2163ae484571ac10cbc9114119924b7a28c89566",
+              "hugr_sha256": "fd752cc50f3c99da17b757d97195235602cabea101404617f7cda88ac5a17bd5"
+            }
+          }
+        }
+      },
+      "adaptive_no_flags": {
+        "0": {
+          "css_one_inputs": 1089,
+          "accepted_inputs_correct": 1089,
+          "postselected_inputs": 0,
+          "first_fault_classes": 1005,
+          "accepted_faults_correct": 232,
+          "postselected_faults": 773,
+          "second_fault_classes": 1005,
+          "accepted_second_faults_correct": 232,
+          "accepted_d2_followup_replays": 0,
+          "rejected_d2_followup_replays": 0,
+          "noiseless_ten_cycle_shots": 100,
+          "native_clean": {
+            "backend": "selene-stim",
+            "noise_model": "gate-noise-including-preparation-and-readout-no-memory-v1",
+            "noise": {
+              "p_1q": 0.0,
+              "p_2q": 0.0,
+              "p_init": 0.0,
+              "p_meas": 0.0
+            },
+            "p": 0,
+            "seed": 20261113,
+            "cycles": 3,
+            "prepared_state": "0",
+            "shots": 8,
+            "accepted": 8,
+            "logical_errors": 0,
+            "ler": 0.0,
+            "ler_interval_95": [
+              0.0,
+              0.32440756488388023
+            ],
+            "survival": 1.0,
+            "versions": {
+              "spiderwarp": "0.1.0",
+              "numpy": "2.2.6",
+              "stim": "1.17.dev1792124270",
+              "guppylang": "0.21.16",
+              "hugr": "0.16.0",
+              "selene-sim": "0.2.18"
+            },
+            "experiment": {
+              "protocol_hash": "0475d94b4983ba212d8830c2bf5f496b7e39b68a8f158c4d45e3e833b2d531bc",
+              "prepared_state": "0",
+              "cycles": 3,
+              "incoming_x": 1,
+              "incoming_z": 131072,
+              "source_sha256": "592885ca3ab168f1c56c7c8e458c022fa0a7542e49f0d358e8f9863241b62972",
+              "versions": {
+                "spiderwarp": "0.1.0",
+                "numpy": "2.2.6",
+                "stim": "1.17.dev1792124270",
+                "guppylang": "0.21.16",
+                "hugr": "0.16.0",
+                "selene-sim": "0.2.18"
+              },
+              "compile_hash": "3a06d0d8a5860a28a9dbe92d54834593b2da39b9873f54ab433aec4da486a5de",
+              "hugr_sha256": "5c444297cb92fd00b7dc298a48d002d3c43f242934f43e7ee3e0d1d62411526f"
+            }
+          },
+          "native_gate_only_noisy": {
+            "backend": "selene-stim",
+            "noise_model": "gate-noise-including-preparation-and-readout-no-memory-v1",
+            "noise": {
+              "p_1q": 3.125e-05,
+              "p_2q": 0.001,
+              "p_init": 0.001,
+              "p_meas": 1.2499999999999999e-06
+            },
+            "p": 0.001,
+            "seed": 20261113,
+            "cycles": 1,
+            "prepared_state": "0",
+            "shots": 100,
+            "accepted": 60,
+            "logical_errors": 6,
+            "ler": 0.1,
+            "ler_interval_95": [
+              0.04664283447388416,
+              0.20149464723978772
+            ],
+            "survival": 0.6,
+            "versions": {
+              "spiderwarp": "0.1.0",
+              "numpy": "2.2.6",
+              "stim": "1.17.dev1792124270",
+              "guppylang": "0.21.16",
+              "hugr": "0.16.0",
+              "selene-sim": "0.2.18"
+            },
+            "experiment": {
+              "protocol_hash": "0475d94b4983ba212d8830c2bf5f496b7e39b68a8f158c4d45e3e833b2d531bc",
+              "prepared_state": "0",
+              "cycles": 1,
+              "incoming_x": 0,
+              "incoming_z": 0,
+              "source_sha256": "17083ada25ff0e3a9ef995446074aeb324fb8bd6b9f129b2f2d03ad51c77fab2",
+              "versions": {
+                "spiderwarp": "0.1.0",
+                "numpy": "2.2.6",
+                "stim": "1.17.dev1792124270",
+                "guppylang": "0.21.16",
+                "hugr": "0.16.0",
+                "selene-sim": "0.2.18"
+              },
+              "compile_hash": "9971ce57fb27c451d0595bd39fcc69a6f46d03748199d6941ec100b9948313be",
+              "hugr_sha256": "83632fbbec90c8b3b3c4f13434f150c75c3c10fb15f349053b708cec6c3d4f1f"
+            }
+          }
+        },
+        "+": {
+          "css_one_inputs": 1089,
+          "accepted_inputs_correct": 1089,
+          "postselected_inputs": 0,
+          "first_fault_classes": 1005,
+          "accepted_faults_correct": 232,
+          "postselected_faults": 773,
+          "second_fault_classes": 1005,
+          "accepted_second_faults_correct": 232,
+          "accepted_d2_followup_replays": 0,
+          "rejected_d2_followup_replays": 0,
+          "noiseless_ten_cycle_shots": 100,
+          "native_clean": {
+            "backend": "selene-stim",
+            "noise_model": "gate-noise-including-preparation-and-readout-no-memory-v1",
+            "noise": {
+              "p_1q": 0.0,
+              "p_2q": 0.0,
+              "p_init": 0.0,
+              "p_meas": 0.0
+            },
+            "p": 0,
+            "seed": 20261113,
+            "cycles": 3,
+            "prepared_state": "+",
+            "shots": 8,
+            "accepted": 8,
+            "logical_errors": 0,
+            "ler": 0.0,
+            "ler_interval_95": [
+              0.0,
+              0.32440756488388023
+            ],
+            "survival": 1.0,
+            "versions": {
+              "spiderwarp": "0.1.0",
+              "numpy": "2.2.6",
+              "stim": "1.17.dev1792124270",
+              "guppylang": "0.21.16",
+              "hugr": "0.16.0",
+              "selene-sim": "0.2.18"
+            },
+            "experiment": {
+              "protocol_hash": "0475d94b4983ba212d8830c2bf5f496b7e39b68a8f158c4d45e3e833b2d531bc",
+              "prepared_state": "+",
+              "cycles": 3,
+              "incoming_x": 1,
+              "incoming_z": 131072,
+              "source_sha256": "d6770a1ce6f7b1f1c683af60de577deb342f10c4eb8cd2d666802b5ea62ebe76",
+              "versions": {
+                "spiderwarp": "0.1.0",
+                "numpy": "2.2.6",
+                "stim": "1.17.dev1792124270",
+                "guppylang": "0.21.16",
+                "hugr": "0.16.0",
+                "selene-sim": "0.2.18"
+              },
+              "compile_hash": "a1e25f58ccc760c54ed97123632432583c55ba29cad09effee4eef78d879f114",
+              "hugr_sha256": "ef728511613a91228cc107f922577eaa002fbc13a38a1db83872bdf908e48525"
+            }
+          },
+          "native_gate_only_noisy": {
+            "backend": "selene-stim",
+            "noise_model": "gate-noise-including-preparation-and-readout-no-memory-v1",
+            "noise": {
+              "p_1q": 3.125e-05,
+              "p_2q": 0.001,
+              "p_init": 0.001,
+              "p_meas": 1.2499999999999999e-06
+            },
+            "p": 0.001,
+            "seed": 20261113,
+            "cycles": 1,
+            "prepared_state": "+",
+            "shots": 100,
+            "accepted": 70,
+            "logical_errors": 5,
+            "ler": 0.07142857142857142,
+            "ler_interval_95": [
+              0.03089421703784702,
+              0.1565541221709532
+            ],
+            "survival": 0.7,
+            "versions": {
+              "spiderwarp": "0.1.0",
+              "numpy": "2.2.6",
+              "stim": "1.17.dev1792124270",
+              "guppylang": "0.21.16",
+              "hugr": "0.16.0",
+              "selene-sim": "0.2.18"
+            },
+            "experiment": {
+              "protocol_hash": "0475d94b4983ba212d8830c2bf5f496b7e39b68a8f158c4d45e3e833b2d531bc",
+              "prepared_state": "+",
+              "cycles": 1,
+              "incoming_x": 0,
+              "incoming_z": 0,
+              "source_sha256": "4d367d72450939d364da1d05df6270c2e0b4a80b219441324462f6f639ad563e",
+              "versions": {
+                "spiderwarp": "0.1.0",
+                "numpy": "2.2.6",
+                "stim": "1.17.dev1792124270",
+                "guppylang": "0.21.16",
+                "hugr": "0.16.0",
+                "selene-sim": "0.2.18"
+              },
+              "compile_hash": "5292172cc72e99a3ac98ff369a97956874ae46757220b31c4308a1c0ce32d256",
+              "hugr_sha256": "c492425f4bf0f5d07e71d3f7fc0d53e74993a0ed69891d39880613a9e5f8c1f2"
+            }
+          }
+        }
+      }
+    },
+    "physical_css_one_inputs": 4356,
+    "native_clean_shots": 32,
+    "native_noisy_shots": 400,
+    "native_noise_scope": "Gate-only backend controls; differs from production scheduled-memory noise",
+    "history_method_requires_single_fault_acceptance": false,
+    "zero_flag_experiment_can_postselect_single_faults": true
   },
-  "probability_rescues": {
-    "epsilons": [
-      0.1,
-      0.25
+  "standard_base_controls": {
+    "complete": true,
+    "base_accepted_records": 2371,
+    "quiet_accepted_records": 1089,
+    "flagged_accepted_records": 1282,
+    "flagged_paths_and_frames_preserved": true,
+    "removed_unflagged_records": [
+      [
+        [
+          "Z_d4",
+          0,
+          0
+        ],
+        [
+          "X_d4",
+          0,
+          32
+        ]
+      ],
+      [
+        [
+          "Z_d4",
+          0,
+          0
+        ],
+        [
+          "X_d4",
+          0,
+          40
+        ]
+      ],
+      [
+        [
+          "Z_d4",
+          0,
+          32
+        ],
+        [
+          "X_d4",
+          0,
+          61
+        ]
+      ],
+      [
+        [
+          "Z_d4",
+          0,
+          40
+        ],
+        [
+          "X_d4",
+          0,
+          9
+        ]
+      ]
     ],
-    "error": "Wrong MAP Pauli class modulo stabilizers",
-    "mandatory_order_one": true,
-    "model": "Default-noise frozen two-response-channel posterior, including memory",
-    "all_orders_bound": false,
-    "discovery_sampling": false
+    "export": {
+      "nodes_checked": 287,
+      "transitions_checked": 2546,
+      "missing_edges_reject": true
+    },
+    "all_noiseless_css_one_inputs_accepted_correct": true,
+    "single_internal_fault_acceptance_guarantee": false
+  },
+  "order_two_controls": {
+    "complete": true,
+    "counts": {
+      "attempted": 6000,
+      "category_0_attempted": 1000,
+      "rejected": 3651,
+      "category_1_attempted": 1000,
+      "accepted": 2349,
+      "rescued_exactly_correct": 1524,
+      "category_1_rescued": 441,
+      "category_2_attempted": 1000,
+      "category_3_attempted": 1000,
+      "category_4_attempted": 1000,
+      "category_5_attempted": 1000,
+      "protected": 825,
+      "category_3_rescued": 342,
+      "category_0_rescued": 228,
+      "category_4_rescued": 115,
+      "category_2_rescued": 335,
+      "category_5_rescued": 63
+    },
+    "measurement_pairs": {
+      "physical_pairs": 3233,
+      "both_first_pairs": 820,
+      "accepted": 1548,
+      "rejected": 1685,
+      "additional_exact_rescues": 429,
+      "both_first_rescues": 408,
+      "both_second_pairs": 820,
+      "both_second_rescues": 1,
+      "across_first_second_pairs": 1593,
+      "across_first_second_rescues": 20
+    },
+    "examples": [
+      {
+        "basis": "0",
+        "incoming": [
+          [
+            "Y",
+            9
+          ]
+        ],
+        "plan": [
+          0,
+          1,
+          0
+        ],
+        "measurements": [
+          [
+            "Z_d4",
+            "Z",
+            4,
+            0,
+            27
+          ],
+          [
+            "X_d4",
+            "X",
+            4,
+            352,
+            63
+          ],
+          [
+            "Z_d2",
+            "Z",
+            2,
+            0,
+            2
+          ]
+        ],
+        "frame": [
+          33554944,
+          512
+        ]
+      },
+      {
+        "basis": "0",
+        "incoming": [],
+        "plan": [
+          0,
+          2,
+          0
+        ],
+        "measurements": [
+          [
+            "Z_d4",
+            "Z",
+            4,
+            0,
+            0
+          ],
+          [
+            "X_d4",
+            "X",
+            4,
+            1420,
+            11
+          ],
+          [
+            "Z_d2",
+            "Z",
+            2,
+            0,
+            11
+          ]
+        ],
+        "frame": [
+          101649935,
+          0
+        ]
+      },
+      {
+        "basis": "0",
+        "incoming": [
+          [
+            "Z",
+            8
+          ],
+          [
+            "X",
+            17
+          ]
+        ],
+        "plan": [
+          0,
+          1,
+          0
+        ],
+        "measurements": [
+          [
+            "Z_d4",
+            "Z",
+            4,
+            0,
+            29
+          ],
+          [
+            "X_d4",
+            "X",
+            4,
+            129,
+            38
+          ],
+          [
+            "X_d2",
+            "X",
+            2,
+            0,
+            59
+          ]
+        ],
+        "frame": [
+          376138134,
+          256
+        ]
+      },
+      {
+        "basis": "0",
+        "incoming": [
+          [
+            "X",
+            16
+          ],
+          [
+            "Z",
+            30
+          ]
+        ],
+        "plan": [
+          1,
+          0,
+          0
+        ],
+        "measurements": [
+          [
+            "Z_d4",
+            "Z",
+            4,
+            0,
+            28
+          ],
+          [
+            "X_d4",
+            "X",
+            4,
+            0,
+            33
+          ],
+          [
+            "Z_d2",
+            "Z",
+            2,
+            0,
+            61
+          ]
+        ],
+        "frame": [
+          65536,
+          357913941
+        ]
+      },
+      {
+        "basis": "0",
+        "incoming": [],
+        "plan": [
+          0,
+          2,
+          0
+        ],
+        "measurements": [
+          [
+            "Z_d4",
+            "Z",
+            4,
+            0,
+            0
+          ],
+          [
+            "X_d4",
+            "X",
+            4,
+            1870,
+            55
+          ]
+        ],
+        "frame": [
+          292884821,
+          0
+        ]
+      },
+      {
+        "basis": "0",
+        "incoming": [
+          [
+            "Z",
+            19
+          ],
+          [
+            "X",
+            30
+          ]
+        ],
+        "plan": [
+          0,
+          1,
+          0
+        ],
+        "measurements": [
+          [
+            "Z_d4",
+            "Z",
+            4,
+            0,
+            33
+          ],
+          [
+            "X_d4",
+            "X",
+            4,
+            1202,
+            13
+          ],
+          [
+            "Z_d2",
+            "Z",
+            2,
+            0,
+            63
+          ]
+        ],
+        "frame": [
+          292844613,
+          524288
+        ]
+      },
+      {
+        "basis": "0",
+        "incoming": [],
+        "plan": [
+          0,
+          2,
+          0
+        ],
+        "measurements": [
+          [
+            "Z_d4",
+            "Z",
+            4,
+            0,
+            0
+          ],
+          [
+            "X_d4",
+            "X",
+            4,
+            1912,
+            5
+          ],
+          [
+            "Z_d2",
+            "Z",
+            2,
+            0,
+            4
+          ]
+        ],
+        "frame": [
+          117903119,
+          0
+        ]
+      },
+      {
+        "basis": "0",
+        "incoming": [
+          [
+            "X",
+            1
+          ],
+          [
+            "Z",
+            9
+          ]
+        ],
+        "plan": [
+          1,
+          0,
+          0
+        ],
+        "measurements": [
+          [
+            "Z_d4",
+            "Z",
+            4,
+            1120,
+            26
+          ],
+          [
+            "X_d2",
+            "X",
+            2,
+            0,
+            58
+          ]
+        ],
+        "frame": [
+          2,
+          357914453
+        ]
+      },
+      {
+        "basis": "0",
+        "incoming": [],
+        "plan": [
+          1,
+          1,
+          0
+        ],
+        "measurements": [
+          [
+            "Z_d4",
+            "Z",
+            4,
+            0,
+            19
+          ],
+          [
+            "X_d4",
+            "X",
+            4,
+            384,
+            43
+          ],
+          [
+            "Z_d2",
+            "Z",
+            2,
+            0,
+            1
+          ]
+        ],
+        "frame": [
+          376007062,
+          8192
+        ]
+      },
+      {
+        "basis": "0",
+        "incoming": [
+          [
+            "X",
+            15
+          ],
+          [
+            "Z",
+            16
+          ]
+        ],
+        "plan": [
+          0,
+          1,
+          0
+        ],
+        "measurements": [
+          [
+            "Z_d4",
+            "Z",
+            4,
+            0,
+            3
+          ],
+          [
+            "X_d4",
+            "X",
+            4,
+            144,
+            61
+          ],
+          [
+            "Z_d2",
+            "Z",
+            2,
+            0,
+            6
+          ]
+        ],
+        "frame": [
+          8355584,
+          65536
+        ]
+      },
+      {
+        "basis": "0",
+        "incoming": [],
+        "plan": [
+          2,
+          0,
+          0
+        ],
+        "measurements": [
+          [
+            "Z_d4",
+            "Z",
+            4,
+            448,
+            63
+          ],
+          [
+            "X_d2",
+            "X",
+            2,
+            0,
+            57
+          ]
+        ],
+        "frame": [
+          0,
+          271782195
+        ]
+      },
+      {
+        "basis": "0",
+        "incoming": [],
+        "plan": [
+          0,
+          2,
+          0
+        ],
+        "measurements": [
+          [
+            "Z_d4",
+            "Z",
+            4,
+            0,
+            0
+          ],
+          [
+            "X_d4",
+            "X",
+            4,
+            1180,
+            2
+          ],
+          [
+            "Z_d2",
+            "Z",
+            2,
+            0,
+            42
+          ]
+        ],
+        "frame": [
+          8323323,
+          0
+        ]
+      },
+      {
+        "basis": "0",
+        "incoming": [
+          [
+            "X",
+            5
+          ],
+          [
+            "Z",
+            29
+          ]
+        ],
+        "plan": [
+          1,
+          0,
+          0
+        ],
+        "measurements": [
+          [
+            "Z_d4",
+            "Z",
+            4,
+            309,
+            16
+          ],
+          [
+            "X_d2",
+            "X",
+            2,
+            0,
+            17
+          ]
+        ],
+        "frame": [
+          32,
+          86320421
+        ]
+      },
+      {
+        "basis": "0",
+        "incoming": [
+          [
+            "X",
+            14
+          ],
+          [
+            "Z",
+            22
+          ]
+        ],
+        "plan": [
+          0,
+          1,
+          0
+        ],
+        "measurements": [
+          [
+            "Z_d4",
+            "Z",
+            4,
+            0,
+            35
+          ],
+          [
+            "X_d4",
+            "X",
+            4,
+            320,
+            1
+          ],
+          [
+            "Z_d2",
+            "Z",
+            2,
+            0,
+            32
+          ]
+        ],
+        "frame": [
+          16383,
+          4194304
+        ]
+      },
+      {
+        "basis": "0",
+        "incoming": [],
+        "plan": [
+          2,
+          0,
+          0
+        ],
+        "measurements": [
+          [
+            "Z_d4",
+            "Z",
+            4,
+            1950,
+            7
+          ],
+          [
+            "X_d2",
+            "X",
+            2,
+            0,
+            41
+          ]
+        ],
+        "frame": [
+          0,
+          287712789
+        ]
+      },
+      {
+        "basis": "0",
+        "incoming": [],
+        "plan": [
+          1,
+          1,
+          0
+        ],
+        "measurements": [
+          [
+            "Z_d4",
+            "Z",
+            4,
+            0,
+            33
+          ],
+          [
+            "X_d4",
+            "X",
+            4,
+            1072,
+            2
+          ],
+          [
+            "Z_d2",
+            "Z",
+            2,
+            0,
+            33
+          ]
+        ],
+        "frame": [
+          357913941,
+          16384
+        ]
+      }
+    ],
+    "seed": 2026111309,
+    "physical_faults": "Distinct physical sites; exact stabilizer and logical checks on additional rescues",
+    "noise_scope": "Certificate gate/reset/readout model; production memory noise assessed separately"
+  },
+  "order_two_export_audit": {
+    "nodes_checked": 186750,
+    "transitions_checked": 1045904,
+    "missing_edges_reject": true,
+    "complete": true,
+    "source_sha256": "fee1c85b80f71905a1d83dc1d339dd621bd31b65c32916ea00660290328f996c"
   },
   "probability_controls": {
     "complete": true,
@@ -168,26 +1317,26 @@
       "10": {
         "export": {
           "nodes_checked": 23918,
-          "transitions_checked": 242149,
+          "transitions_checked": 242147,
           "missing_edges_reject": true
         },
         "confidence": {
-          "additional_records": 294509,
-          "mandatory_records": 2375,
+          "additional_records": 294511,
+          "mandatory_records": 2371,
           "independently_rescored": 1000,
-          "max_estimated_error": 0.09990084103749607,
+          "max_estimated_error": 0.09916200230618996,
           "pointwise_posterior_matches_global_convolution": true
         }
       },
       "25": {
         "export": {
           "nodes_checked": 26241,
-          "transitions_checked": 312810,
+          "transitions_checked": 312808,
           "missing_edges_reject": true
         },
         "confidence": {
-          "additional_records": 346138,
-          "mandatory_records": 2375,
+          "additional_records": 346140,
+          "mandatory_records": 2371,
           "independently_rescored": 1000,
           "max_estimated_error": 0.25,
           "pointwise_posterior_matches_global_convolution": true
@@ -203,19 +1352,23 @@
     "seed": 2026111315,
     "note": "Correction confidence checked using independent pointwise meet-in-the-middle posterior; no production labels"
   },
+  "notebooks_refreshed": true,
+  "six_figure_pairs_generated": true,
+  "visual_inspection_pending": false,
+  "standard_validation": "standard_validation.json",
   "targeted_tests": {
-    "passed": 79,
+    "passed": 65,
     "skipped": 12,
-    "log": "build/probability_final_tests.log"
+    "log": "build/standard_final_tests.log",
+    "remaining_budget_regression": "build/standard_remaining_budget_test.log"
   },
-  "probability_validation": "probability_validation.json",
   "completed_run_resume": {
     "additional_shots": 0,
     "raw_files": 384,
     "all_hashes_preserved": true
   },
   "visual_inspection_passed": true,
-  "visually_checked_figure_pairs": [
+  "visually_inspected_figures": [
     "physical_error",
     "cycles",
     "survival",
@@ -224,17 +1377,17 @@
     "acceptance_error_tradeoff"
   ],
   "figure_sha256": {
-    "physical_error.png": "c154d25044305db8f2c2d9bfdb30c99b3b7fd2cd394d5d518ea9c48e19722223",
-    "physical_error.pdf": "7e7514d62f324006077b2acde29786169214fba749351c30f2b6978873199d55",
-    "cycles.png": "5a4f11bdca2817041c541dff3843a60f3ad0bfa1e85eb1caf4bd62d396f7abd5",
-    "cycles.pdf": "b4905a458aa005ad714f24b937fadfed770083acdeb7c7d55d2f48def5bfe0c9",
-    "survival.png": "0f862c782d3ed6b78612f32304e51794ecb9b525e2bc3b54a7c24637c7797787",
-    "survival.pdf": "f014be44c3d7a11a0e788a129d24f1dfe89fe3fcae83515ee6c73a82e0daa46b",
-    "cnot_cost.png": "50a49c38d27b8df7d20ad8212834362a609a1e9983129d0e383526fed9f3c8fb",
-    "cnot_cost.pdf": "d1b3029ad1a6a95a832882eb840280a0827a3a987b853ae45d5530576ee001ee",
-    "physical_survival.png": "ef31c6914096ba991c3e828dc4a75693a728b37e21465dcd22c1c89593cc0e5a",
-    "physical_survival.pdf": "0c555c84068b096f760082f319f0813fef606faaf35270a251d7041c7abab654",
-    "acceptance_error_tradeoff.png": "83fb4f9fb32b8af23599d9981b934873236c7d0bebf4dbc7e9e761f0ebdff719",
-    "acceptance_error_tradeoff.pdf": "628704b23582375e9e3bee61324a298605d3ca0b36f41533a39b62761c75dc07"
+    "physical_error.png": "adc0f03b53a0919941af2ad5737d046f2132a5c66c0e4310b984fee5cdc0f3e2",
+    "physical_error.pdf": "27471120861e10b8208157ecde93d5b9f718aba1ce4320400f8eefc73d67fb13",
+    "cycles.png": "97088b896a8050f3230f9588b925a4f2442536f5d3ae44b94b4762eb200400c3",
+    "cycles.pdf": "e35821432d467a22007946ff5524ef90685baa9069324b51bf38bafbc8a80c62",
+    "survival.png": "8c0269b1c812b2c72268610ddbcf11b189d9dc232ca6f040b161b861a9b21d92",
+    "survival.pdf": "148b73b45a88e2ade3380a4a1045ae8664cbbd3bfa9c83e766e7caa6ef454f93",
+    "cnot_cost.png": "5e2a7e76ca7fbd5cd713aff59839d09917116bd926430a7d3123f38359aeef6c",
+    "cnot_cost.pdf": "1b6d2a0d59d7f9ba4b1c7c499462fd484f149689b4945aa089c268c04fda4a8f",
+    "physical_survival.png": "fc7867a8979bc8128e31200f740419711f87b0b8d0314d375e7592c0e34751d9",
+    "physical_survival.pdf": "0b158d87f07e4d6f12c8a278865faad134676dfd95b29727eb595571eb1fc8b6",
+    "acceptance_error_tradeoff.png": "5bb84f9bb33c3fce72f4196eda2e4c3a7634bb211169502790f7390147c91c4c",
+    "acceptance_error_tradeoff.pdf": "3a339c9194a84b723182daa5559a42e79ea540920ebfd960e650c02c782595bf"
   }
 }

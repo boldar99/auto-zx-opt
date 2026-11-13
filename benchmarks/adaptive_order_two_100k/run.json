@@ -2,7 +2,7 @@
   "status": "complete",
   "method": "adaptive_order_two",
   "display_name": "Adaptive PS(r+s\u22641 or V\u2082)",
-  "protocol_hash": "c1886b03bf70e35791d080b5f7b0279871bbbcb9134e9193a841ebd9e9f589be",
+  "protocol_hash": "9498a1814055a22120af233da990f2ad70407b6464441541608bb29c187bd5a8",
   "engine": {
     "model": "stim-adaptive-initial-data-idles-accepted-cost-v2",
     "sources": {
@@ -68,7 +68,7 @@
   "max_shots": 1000000,
   "batch_size": 10000,
   "allocation": "inverse-square",
-  "jobs": 8,
+  "jobs": 2,
   "input_scope": "r+s<=2",
   "initial_data_idles": true,
   "data_preparation": "Ideal once per trajectory",
@@ -97,7 +97,9 @@
     ]
   ],
   "accepted_correction_order": 1,
-  "mandatory_acceptance": "r+s<=1",
+  "mandatory_acceptance": "Standard flag-conditioned base",
+  "base_rule": "No flags: incoming CSS syndromes with r_syn<=1; flags: history recovery",
+  "single_internal_fault_acceptance_guarantee": false,
   "additional_acceptance": "One final Pauli class modulo stabilizers among all r+s<=2 histories",
   "additional_rescue_orders": [
     [
@@ -117,5 +119,5 @@
   "exact_rescue_certificate_includes_memory": false,
   "attempted_shots": 9329148,
   "actual_attempted_shots": 9329148,
-  "wall_seconds": 409.9321847079991
+  "wall_seconds": 2010.3405287080095
 }

@@ -1,13 +1,13 @@
 {
   "method": "MAP-Pauli-confidence-rescue",
-  "model_version": 1,
+  "model_version": 2,
   "model_sources": {
     "se_likelihood.py": "305aaf6e1dd4a2c7508112245d2efcd1b5435ae77c003624afe447bffa7c7788",
     "noise_model.py": "0d36b45b8dbb5ead92e20858d8962db33b469492336d5ea6e9e42d4225727f0a",
     "se_protocol_simulation.py": "5991986f8d0bcce803701babb1ce7b70041d3179bf07a3ac7cdea86144691e8c",
     "_se_circuit.py": "b0f043a851b99f851c3909a4e9513da26497f1a5494aab40cd781571374bdf71",
     "_se_adaptive.py": "2882a4f796588ffe47619a500d3a538d70ab323f1d4836faa8a8db9dd3ecc071",
-    "se_postselection.py": "c357701f61d6dfb8468e43bc41db305a9b63ea6b45f1bbf27c2f2a6a9e703f3b"
+    "se_postselection.py": "f290f4b938d4e31801239294da34a0963f3f1dfa9da593fa4df16c86d6ba4bad"
   },
   "expansion_nonzero_channels": 2,
   "noise": {
@@ -27,21 +27,60 @@
   "approximation": "condition on at most two nonzero response channels; omitted mass is reported",
   "all_orders_ler_guarantee": false,
   "epsilon": 0.25,
-  "acceptance": "Order-one compatibility OR estimated MAP correction-error probability <= epsilon",
+  "acceptance": "Standard flag-conditioned base OR estimated MAP correction-error probability <= epsilon",
+  "base_rule": "No flags: incoming CSS order <=1; flags: history recovery",
   "error_probability": "1 - posterior probability of most likely final Pauli class modulo stabilizers",
-  "correction": "Inverse of MAP final data Pauli class; mandatory order-one frames unchanged",
-  "scored_records": 637391,
-  "mandatory_records": 2375,
-  "additional_accepted_records": 346138,
+  "correction": "Inverse of MAP final data Pauli class; accepted base frames unchanged",
+  "scored_records": 637395,
+  "mandatory_records": 2371,
+  "additional_accepted_records": 346140,
   "saved_nodes": 36572,
   "parent_rejected_records_considered": true,
   "discovery_sampling": false,
   "probabilities_used": true,
   "noise_profile_frozen": true,
   "output_labels_used": false,
-  "unknown_record_rule": "Reject outside the two-event response support unless order-one-compatible",
+  "unknown_record_rule": "Reject outside the two-event response support unless accepted by the standard base",
   "fixed_schedule": "Parent third-reading routes retained; otherwise complete two readings",
   "examples": [
+    {
+      "record": [
+        [
+          "Z_d4",
+          0,
+          40
+        ],
+        [
+          "X_d4",
+          0,
+          9
+        ]
+      ],
+      "correction": 508641840015081472,
+      "estimated_error": 0.027409741145622713,
+      "evidence_probability": 3.569313155784572e-05,
+      "omitted_probability": 0.009900222259294877,
+      "all_orders_risk_upper_bound": 0.9965061304675432
+    },
+    {
+      "record": [
+        [
+          "Z_d4",
+          0,
+          32
+        ],
+        [
+          "X_d4",
+          0,
+          61
+        ]
+      ],
+      "correction": 281474976710656,
+      "estimated_error": 0.027722501135411515,
+      "evidence_probability": 3.568944222637647e-05,
+      "omitted_probability": 0.009900222259294877,
+      "all_orders_risk_upper_bound": 0.9965076137282478
+    },
     {
       "record": [
         [
@@ -611,63 +650,25 @@
       "evidence_probability": 2.489235646920892e-07,
       "omitted_probability": 0.009900222259294877,
       "all_orders_risk_upper_bound": 0.9999809223613889
-    },
-    {
-      "record": [
-        [
-          "Z_d4",
-          0,
-          63
-        ],
-        [
-          "X_d4",
-          1536,
-          32
-        ]
-      ],
-      "correction": 0,
-      "estimated_error": 0.24122245500966266,
-      "evidence_probability": 1.6050501404983986e-07,
-      "omitted_probability": 0.009900222259294877,
-      "all_orders_risk_upper_bound": 0.9999876986977757
-    },
-    {
-      "record": [
-        [
-          "Z_d4",
-          0,
-          63
-        ],
-        [
-          "X_d4",
-          1536,
-          61
-        ]
-      ],
-      "correction": 65536,
-      "estimated_error": 0.24122245500966263,
-      "evidence_probability": 1.0700715024153292e-07,
-      "omitted_probability": 0.009900222259294877,
-      "all_orders_risk_upper_bound": 0.9999917987957198
     }
   ],
-  "protocol_hash": "08f58e6d201b0cb04429d0cc6d21ba6bb6e8c626106fdabd801e08108b6a535e",
-  "parent_protocol_hash": "2cfaffef72bbc5d63d97e75f62f156a2f074d2d800950357ed29ada6173b690b",
+  "protocol_hash": "541d24edafd0c72b755c49d97825ed8dfb222a9bde866df45bf181bf7f623d80",
+  "parent_protocol_hash": "84bc3315c7b9365c882ecb2d77197fe63e42c43f65f6c94322745026d0f765f6",
   "verification": {
     "contract": {
-      "correctable": 1,
+      "correctable": 0,
       "logical_order": 1,
       "max_syndrome_sectors": 65536,
       "fault_order": 2,
-      "accept_clean_through": 1,
+      "accept_clean_through": 0,
       "input_scope": "total-order",
       "accepted_filter_order": 1
     },
     "decoder_hash": "c2ac2ba6d1bd79dfa0080e57c091eed7c8316f1a0361855d9218ae10f3910e24",
     "verified": true,
     "checked_transitions": 4809438,
-    "accepted_contexts": 478266,
-    "discarded_contexts": 1472369,
+    "accepted_contexts": 477454,
+    "discarded_contexts": 1473181,
     "ec_a_input_syndromes": 0,
     "worst_case_cnots": 433,
     "max_extractions": 3,

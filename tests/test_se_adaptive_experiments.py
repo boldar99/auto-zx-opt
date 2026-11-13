@@ -23,6 +23,8 @@ def parent():
 def pair(parent, request):
     variant = request.param
     path = Path(__file__).resolve().parents[1] / ('build/adaptive_' + variant.replace('-', '_') + '_32_20_4')
+    if variant == 'css':
+        path = Path(__file__).resolve().parents[1] / 'build/se_postselected_32_20_4'
     if not (path / 'protocol.json').exists():
         pytest.skip('Selected full-size candidate must be compiled first')
     compiled = load_protocol(path)
@@ -101,10 +103,7 @@ def test_all_4096_noiseless_input_syndromes_obey_selected_contract(pair):
                     index = node.children.get((flags, syndrome ^ space.component_syndrome(frame, component)), 0)
             expected = max(decoder.weights['X'][sx], decoder.weights['Z'][sz]) <= 1
             if not expected:
-                if variant != 'css':
-                    assert node.kind == 'reject'
-                # A two-input-error record can be indistinguishable from a
-                # single readout fault. Full adaptive mode preserves the latter.
+                assert node.kind == 'reject'
                 continue
             assert node.kind == 'accept'
             kept += 1
@@ -112,7 +111,7 @@ def test_all_4096_noiseless_input_syndromes_obey_selected_contract(pair):
     assert kept == 1089
     assert protocol.verification.verified and protocol.required_qubits == 60
     assert policy.contract.logical_order == 1
-    assert policy.contract.correctable == int(variant == 'css' or variant.endswith('safe'))
+    assert policy.contract.correctable == int(variant.endswith('safe'))
 
 
 def test_safe_rescue_cannot_change_the_parent_syndrome(parent):
@@ -155,7 +154,7 @@ def test_one_fault_remains_one_after_propagation(parent, basis):
     from spiderwarp.se_protocol_simulation import _StateExperiment
     Inject = import_module('analysis.32_20_4_bounded_comparison.controls').InjectFirst
     root = Path(__file__).resolve().parents[1]
-    path = root / 'build/adaptive_css_32_20_4'
+    path = root / 'build/se_postselected_32_20_4'
     protocol = load_protocol(path)
     assert read_manifest(path)[1]['protocol_hash'] == read_manifest(root / 'build/se_postselected_32_20_4')[1]['protocol_hash']
     experiment = _StateExperiment(protocol.code, protocol.required_qubits, basis)
@@ -165,7 +164,9 @@ def test_one_fault_remains_one_after_propagation(parent, basis):
         for effect in gadget.single_fault_effects:
             sim = experiment.initial.copy(seed=17)
             result = protocol.run(Inject(sim, gadget, effect))
-            assert result.accepted
+            if not result.accepted:
+                assert not any(f for _, _, _, f, _ in result.measurements)
+                continue
             assert not experiment.logical_failure(sim, frame_x=result.frame_x, frame_z=result.frame_z)
             d = protocol.policy.decoder
             sig = d.space.pauli_syndrome(result.frame_x | (result.frame_z << protocol.code.n))

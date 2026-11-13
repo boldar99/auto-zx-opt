@@ -78,97 +78,62 @@ print(syndrome_extraction.num_qubits)
 
 ## Adaptive and Steane QEC comparison
 
-The [[32,20,4]] adaptive methods have these allowed completed distance paths:
+**PS(r+s≤1)** uses one standard flag-conditioned rule. If no flags are raised,
+interpret the measured Z_d4/X_d4 syndromes as incoming CSS errors and accept and
+correct iff r=max(w_X,w_Z)≤1. Raised flags use the fault-history recovery
+procedure, including propagated hook corrections of weight greater than one.
+The cumulative incoming Pauli frame is removed before syndrome decoding.
+Some unflagged single internal faults postselect; every noiseless incoming
+CSS-one input accepts correctly. Accepted histories through total order one are
+independently verified for logical preservation.
 
-- **d4 → d4 → d2**: use one d2 follow-up after a second-d4 flag or an unresolved correction;
-- **d4 → d4**: stop once a safe correction is determined;
-- **d4 → d2**: raised flags in the first d4 select d2 directly.
-
-There is **no d1 and no third d4**. The first reading is Z_d4, the second X_d4
-or X_d2; the follow-up is Z_d2 or X_d2 selected from compatible histories.
-A rejected trajectory may stop at an earlier prefix.
-
-Incoming CSS component order is `r=max(w_X,w_Z)` and `s` counts internal faulty
-locations. Analyze **r+s≤2** for detection, and **post-select if no r+s≤1
-explanation remains**. Correction/residual guarantees cover **r+s≤1**; hidden
-order-two histories are not an additional correction demand. The history method
-independently verifies mandatory acceptance and correction through order one.
-An internal fault remains one fault after propagation to multiple data qubits;
-its identified correction is allowed to have weight greater than one. The former
-extra raw syndrome/correction-weight guard was incorrect for this full adaptive
-mode and is retired. Its corrected fault-aware interpretation is identical to
-the history policy, so only one such curve is displayed.
-All adaptive methods accept and correct every noiseless CSS-weight-at-most-one input
-in the physical controls. The earlier all-nonzero-input rejection was a modeling
-error and its benchmark was removed.
-
-The comparison contains:
+All adaptive methods share this base:
 
 - **Adaptive PS(r+s≤1)**.
-- **Adaptive PS(r+s≤1 or V₂)** preserves every order-one decision and correction.
-  Additional records accept only when all compatible histories through order two
-  have one final data Pauli class modulo stabilizers. This includes incoming-two,
-  incoming-one plus one internal fault, and two distinct internal faulty locations.
-  Parent-rejected records are considered. A d4→d4 record may use one d2 in the
-  basis that separates the most uniquely correctable outcomes. The certificate
-  uses the existing gate/reset/readout fault model; production includes memory
-  noise. It does not promise correctness of every accepted order-two history.
-- **Adaptive PS(r+s≤1 or p_err≤10%)** and **Adaptive PS(r+s≤1 or p_err≤25%)**
-  retain all order-one histories and their original corrections. Other records
-  use the most probable final Pauli class modulo stabilizers as their correction;
-  `p_err = 1 - P(MAP class | complete record)`. The default-noise model includes
-  scheduled memory and an incoming iid Pauli prior, with at most two nonzero
-  response channels. All positive-probability records in that expansion are
-  enumerated without discovery sampling or output labels. The model and prior
-  are frozen before production and reused throughout the physical-noise sweep.
-  Epsilon is a per-correction estimate, not an all-orders or endpoint LER bound.
-- **Adaptive PS(f=0, r_syn≤1)**, with immediate rejection of any raised flag
-  and a direct-readout CSS uniqueness guard. This is the observable “no internal faults” proxy;
-  unflagged faults can still pass. It corrects incoming CSS-one inputs, including
-  split X/Z errors. Its only accepted path is d4→d4, at exactly 312 CX/CZ.
-  This separate direct-readout guard can reject unflagged internal faults;
-  it does not have the full adaptive method's single-fault acceptance guarantee.
-- **Steane d3 RUS PS(r_syn≤1)**, which retries flagged ancilla preparations
-  before coupling and measures the data syndrome once per CSS basis.
+- **Adaptive PS(r+s≤1 or V₂)** preserves accepted base records and adds records
+  only when all compatible r+s≤2 histories agree on one final Pauli class modulo
+  stabilizers. Any additional d2 measurement includes the remaining fault budget.
+- **Adaptive PS(r+s≤1 or p_err≤10%)** and **25%** preserve accepted base records.
+  Other records use the MAP Pauli correction and accept when its estimated error
+  probability meets epsilon. The frozen default-noise posterior includes memory,
+  an incoming iid Pauli prior and at most two nonzero response channels. Epsilon
+  is a correction-confidence estimate, not an all-orders endpoint LER bound.
+- **Adaptive PS(f=0, r_syn≤1)** restricts the same base by immediately rejecting
+  every raised flag.
+- **Steane d3 RUS PS(r_syn≤1)** is the independent reference, with one data
+  syndrome reading per CSS basis and flagged ancilla-preparation retries.
 
-Adaptive Baseline, d1 and the retired V/likelihood experiments are excluded.
-V₂ is the new full order-two uniqueness analysis on the current controller.
-The previous two-total-reading datasets and derived figures were
-removed. Current runs use the normal matching shot budgets, extending the valid
-half-shot samples without duplicating their completed batches.
+Allowed adaptive paths are d4→d4, d4→d2 and d4→d4→d2. There is no d1 or third d4.
+Adaptive methods use 60 peak qubits and 312, 277 or 433 CX/CZ gates respectively;
+Steane uses 66 qubits and 288 gates before preparation retries.
 
-**LER and gate-cost statistics exclude rejected data trajectories.** Gate cost
-is `accepted_cnots / accepted / N`, including all preparation retries inside
-accepted Steane trajectories. Even the early cycles of a later-rejected shot
-are excluded. Acceptance rate remains accepted/attempted to show yield. Raw
-all-attempt counts remain only for bookkeeping and audit.
+LER and gate cost include only fully accepted trajectories. Cost is
+`accepted_cnots / accepted / N`, including all preparation retries within an
+accepted Steane trajectory. Earlier cycles of later-rejected shots are excluded.
+Acceptance uses all attempted trajectories; intervals are 95% Wilson.
 
-Finalized adaptive d4/d2 extractions include coupling and cost 156/121 CX/CZ.
-Its completed paths therefore cost **433, 312 or 277**; an accepted-cycle mean
-cannot be below **277**. Peak qubits are 60. Steane uses d3 preparation
-`FTStatePrep/misc/32_20_4_zero_d3.stim` (112 CX/CZ), two 32-CX couplings, and
-66 peak qubits: 288 gates before preparation retries.
-
-Each method uses the same 32 configurations, noise, seed 20261112 and inverse-square
-allocation: **100,000 floor / 1,000,000 cap**, **9,329,148 attempts per method**.
-Wilson intervals use accepted counts; circles mark adaptive methods and squares
-Steane. Production includes scheduled memory noise with ideal input/final decoding.
+The previous history-only base, duplicate flag-recovery method, simulation data
+and attribution study have been removed. All five adaptive methods are rerun
+from empty datasets with 32 matching configurations, seed 20261112 and
+100,000 floor / 1,000,000 cap: 9,329,148 attempts each. The independent Steane
+results are retained. Production includes scheduled memory noise, with ideal
+preparation and final decoding once per trajectory.
 
 ```sh
+# The paired program supplies the recovery template, not a plotted baseline.
 python -m spiderwarp.se_experiment build --paired --distances 2 4 \
     --out build/se_32_20_4 --emit none
-python analysis/32_20_4_bounded_comparison/build.py
-python -m spiderwarp.se_comparison --jobs 8
-python analysis/32_20_4_bounded_comparison/controls.py
+PYTHONPATH=. python analysis/32_20_4_bounded_comparison/build.py
+PYTHONPATH=. python -m spiderwarp.se_comparison --jobs 8
+PYTHONPATH=. python analysis/32_20_4_bounded_comparison/controls.py
 PYTHONPATH=. python analysis/32_20_4_bounded_comparison/order_two_controls.py
 PYTHONPATH=. python analysis/32_20_4_bounded_comparison/probability_controls.py
-# Refresh saved figures and notebook outputs without sampling.
+PYTHONPATH=. python analysis/32_20_4_bounded_comparison/finalize.py
+# Refresh figures and notebooks without sampling.
 python -m spiderwarp.se_comparison --plot-only
 ```
 
 The [comparison notebook](notebooks/32_20_4_steane_comparison.ipynb) and
-[protocol demo](notebooks/32_20_4_protocol_demo.ipynb) embed count tables and all
-six figure pairs. Guppy/HUGR artifacts, independent verification, physical/native
-controls and raw-batch gate audits are linked from
-[the study](analysis/32_20_4_bounded_comparison/). Legacy arbitrary-input research
-contracts remain explicit and are not used for this comparison.
+[protocol demo](notebooks/32_20_4_protocol_demo.ipynb) embed counts and all six
+figure pairs. Sources, HUGRs, controls and raw-batch audits are linked from
+[the study](analysis/32_20_4_bounded_comparison/).

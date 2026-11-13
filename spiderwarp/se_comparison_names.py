@@ -12,9 +12,9 @@ PS_RULES = {
     'probability_10': ('r+s≤1 or p_err≤10%', r'r+s\leq1\ \mathrm{or}\ p_{\rm err}\leq10\%'),
     'probability_25': ('r+s≤1 or p_err≤25%', r'r+s\leq1\ \mathrm{or}\ p_{\rm err}\leq25\%'),
 }
-LEGEND_NOTE = (r'$r+s\leq1$: compatible history; $V_2$: exact uniqueness; '
+LEGEND_NOTE = (r'$r+s\leq1$: quiet incoming decoding / flagged recovery; $V_2$: exact uniqueness; '
                r'$p_{\rm err}$: estimated MAP correction error; $f=0$: zero flags; '
-               r'$r_{\rm syn}$: CSS order. LER/cost exclude rejected shots.')
+               r'$r_{\rm syn}$: CSS input order. LER/cost exclude rejected shots.')
 
 
 @dataclass(frozen=True)

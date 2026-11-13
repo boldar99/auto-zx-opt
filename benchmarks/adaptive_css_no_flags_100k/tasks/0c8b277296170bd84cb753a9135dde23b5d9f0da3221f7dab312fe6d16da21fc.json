@@ -1,0 +1,50 @@
+{
+  "task_hash": "0c8b277296170bd84cb753a9135dde23b5d9f0da3221f7dab312fe6d16da21fc",
+  "task": {
+    "protocol_hash": "0475d94b4983ba212d8830c2bf5f496b7e39b68a8f158c4d45e3e833b2d531bc",
+    "backend": "stim-reference",
+    "engine": {
+      "model": "stim-adaptive-initial-data-idles-accepted-cost-v2",
+      "sources": {
+        "se_sweep.py": "c5f3414fe4ab4c407e9725f351fa09db4fa58e09d741f97fdf493e680e64e75b",
+        "se_protocol_simulation.py": "5991986f8d0bcce803701babb1ce7b70041d3179bf07a3ac7cdea86144691e8c",
+        "noise_model.py": "0d36b45b8dbb5ead92e20858d8962db33b469492336d5ea6e9e42d4225727f0a",
+        "lut_decoder.py": "21c7d6f7b0be0e6fa71b395d0c2782b6bb9b5cecf328110a80c77ba23d901121",
+        "adaptive_steane_se.py": "d8b31dba9eea751d9c012d5e141744c34991ef75e34b08ac5c1c5e3371f60bfd",
+        "se_protocol_io.py": "828ad48ba79d9f3c42dfd7c82c9c611f8fa4919ba7ae236f44c1aac197e52be9",
+        "_se_circuit.py": "b0f043a851b99f851c3909a4e9513da26497f1a5494aab40cd781571374bdf71",
+        "_se_adaptive.py": "2882a4f796588ffe47619a500d3a538d70ab323f1d4836faa8a8db9dd3ecc071",
+        "steane_qec.py": "5e123663f3b92ea9bd186b7f1b24c11f29b7f2ac7cdcbdd853aa23ba8a7458d6"
+      },
+      "versions": {
+        "stim": "1.17.dev1792124270",
+        "numpy": "2.2.6"
+      },
+      "python": [
+        3,
+        11,
+        17
+      ],
+      "architecture": "arm64"
+    },
+    "noise": {
+      "p_1q": 2.5e-05,
+      "p_2q": 0.0008,
+      "p_meas": 1e-06,
+      "p_init": 0.0008,
+      "p_linear_mem": 1.2600000000000001e-05,
+      "p_coherent_mem": 0,
+      "p_leakage": 0.0
+    },
+    "prepared_state": "0",
+    "cycles": 7,
+    "seed": 20261112
+  },
+  "sweeps": [
+    "cycles"
+  ],
+  "target_shots": 100000,
+  "allocation": "inverse-square",
+  "shot_floor": 100000,
+  "max_shots": 1000000
+}

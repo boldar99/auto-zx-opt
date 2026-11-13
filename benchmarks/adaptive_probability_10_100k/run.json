@@ -2,7 +2,7 @@
   "status": "complete",
   "method": "adaptive_probability_10",
   "display_name": "Adaptive PS(r+s\u22641 or p_err\u226410%)",
-  "protocol_hash": "0db6bd03938e2295a1a0e75433858d7713fde76596e123f70ebd6ab56b1c3eaf",
+  "protocol_hash": "05568b8fd5d2a8bcc21d83a41607f63e63abad46bd0b6568abc7d35257963949",
   "engine": {
     "model": "stim-adaptive-initial-data-idles-accepted-cost-v2",
     "sources": {
@@ -68,7 +68,7 @@
   "max_shots": 1000000,
   "batch_size": 10000,
   "allocation": "inverse-square",
-  "jobs": 4,
+  "jobs": 2,
   "input_scope": "r+s<=2",
   "initial_data_idles": true,
   "data_preparation": "Ideal once per trajectory",
@@ -97,7 +97,9 @@
     ]
   ],
   "accepted_correction_order": 1,
-  "mandatory_acceptance": "r+s<=1",
+  "mandatory_acceptance": "Standard flag-conditioned base",
+  "base_rule": "No flags: incoming CSS syndromes with r_syn<=1; flags: history recovery",
+  "single_internal_fault_acceptance_guarantee": false,
   "epsilon": 0.1,
   "additional_acceptance": "Estimated wrong MAP Pauli-class probability <= epsilon",
   "probability_model": "Default hardware noise plus incoming iid Pauli prior, frozen before production",
@@ -105,5 +107,5 @@
   "all_orders_ler_guarantee": false,
   "attempted_shots": 9329148,
   "actual_attempted_shots": 9329148,
-  "wall_seconds": 879.5351227920037
+  "wall_seconds": 2003.2422490419995
 }

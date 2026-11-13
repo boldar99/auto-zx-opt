@@ -14,7 +14,7 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--emit', choices=('none', 'guppy', 'hugr'), default='hugr')
     args = parser.parse_args(argv)
-    parent_path = study.ROOT / 'build/se_32_20_4'
+    parent_path = study.ROOT / 'build' / study.BUNDLES['adaptive_history']
     parent = load_protocol(parent_path)
     results = compile_probability_rescues(parent, progress=lambda message: print(message, flush=True))
     # Save both ordinary controllers before optional native compilation so

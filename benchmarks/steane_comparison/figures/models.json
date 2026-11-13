@@ -1,10 +1,10 @@
 [
   {
     "model": 1,
-    "protocol_hash": "08f58e6d201b0cb04429d0cc6d21ba6bb6e8c626106fdabd801e08108b6a535e",
-    "label": "Adaptive PS($r+s\\leq1\\ \\mathrm{or}\\ p_{\\rm err}\\leq25\\%$) (60 qubits)",
+    "protocol_hash": "0475d94b4983ba212d8830c2bf5f496b7e39b68a8f158c4d45e3e833b2d531bc",
+    "label": "Adaptive PS($f=0,\\ r_{\\mathrm{syn}}\\leq1$) (60 qubits)",
     "marker": "o",
-    "color": "#8c564b",
+    "color": "#ff7f0e",
     "engine_hash": "8c2232dc509315c578854396e5267c4ab8a3576f6bdbc26b040f8e1f25e9685d",
     "noise_ratios": {
       "p_1q": 0.03125,
@@ -18,7 +18,7 @@
   },
   {
     "model": 2,
-    "protocol_hash": "0db6bd03938e2295a1a0e75433858d7713fde76596e123f70ebd6ab56b1c3eaf",
+    "protocol_hash": "05568b8fd5d2a8bcc21d83a41607f63e63abad46bd0b6568abc7d35257963949",
     "label": "Adaptive PS($r+s\\leq1\\ \\mathrm{or}\\ p_{\\rm err}\\leq10\\%$) (60 qubits)",
     "marker": "o",
     "color": "#2ca02c",
@@ -35,10 +35,10 @@
   },
   {
     "model": 3,
-    "protocol_hash": "131e76ee8a48727bc49c57fe1e91192578cd7627931903ad0644f87982874c88",
-    "label": "Adaptive PS($f=0,\\ r_{\\mathrm{syn}}\\leq1$) (60 qubits)",
+    "protocol_hash": "541d24edafd0c72b755c49d97825ed8dfb222a9bde866df45bf181bf7f623d80",
+    "label": "Adaptive PS($r+s\\leq1\\ \\mathrm{or}\\ p_{\\rm err}\\leq25\\%$) (60 qubits)",
     "marker": "o",
-    "color": "#ff7f0e",
+    "color": "#8c564b",
     "engine_hash": "8c2232dc509315c578854396e5267c4ab8a3576f6bdbc26b040f8e1f25e9685d",
     "noise_ratios": {
       "p_1q": 0.03125,
@@ -52,7 +52,7 @@
   },
   {
     "model": 4,
-    "protocol_hash": "62da3175473f60675125c331b7cc2ac9c5bdee5ed71e23f7fe04e8da439cfe44",
+    "protocol_hash": "84bc3315c7b9365c882ecb2d77197fe63e42c43f65f6c94322745026d0f765f6",
     "label": "Adaptive PS($r+s\\leq1$) (60 qubits)",
     "marker": "o",
     "color": "#d62728",
@@ -86,7 +86,7 @@
   },
   {
     "model": 6,
-    "protocol_hash": "c1886b03bf70e35791d080b5f7b0279871bbbcb9134e9193a841ebd9e9f589be",
+    "protocol_hash": "9498a1814055a22120af233da990f2ad70407b6464441541608bb29c187bd5a8",
     "label": "Adaptive PS($r+s\\leq1\\ \\mathrm{or}\\ V_2$) (60 qubits)",
     "marker": "o",
     "color": "#1f77b4",

@@ -1,4 +1,4 @@
-"""Frozen MAP Pauli corrections with mandatory order-one acceptance.
+"""Frozen MAP Pauli corrections extending the standard flag-conditioned base.
 
 Additional records use the final-data posterior under the scheduled hardware
 noise and incoming iid Pauli prior, truncated at two nonzero response channels.
@@ -26,13 +26,17 @@ PATHS = (('Z_d4', 'X_d4'), ('Z_d4', 'X_d2'),
 class ProbabilityRescueModel:
     """Enumerate the entire two-event support, with no discovery sampling.
 
-    Low-order histories retain the parent's exact actions and frames. Other
+    Accepted base records retain the parent's exact actions and frames. Other
     records complete two readings, or the parent's already selected third d2.
     Thus both epsilon values share a fixed measurement schedule for common
     records; their acceptance domains are nested.
     """
 
     def __init__(self, parent, **kwargs):
+        self.source_parent = parent
+        if parent.policy.contract.correctable == 1:
+            from spiderwarp.se_postselection import postselect_order_one
+            parent = postselect_order_one(parent, verify=False)
         if set(parent.gadgets) != {'Z_d4', 'X_d4', 'Z_d2', 'X_d2'}:
             raise ValueError('Probability rescue requires the bounded d4/d2 parent')
         self.parent = parent
@@ -190,8 +194,9 @@ def compile_probability_rescues(parent, thresholds=(0.1, 0.25), *, model=None,
     if not thresholds:
         raise ValueError('At least one epsilon is required')
     model = ProbabilityRescueModel(parent) if model is None else model
-    if model.parent is not parent:
+    if model.parent is not parent and model.source_parent is not parent:
         raise ValueError('Probability model belongs to a different parent')
+    parent = model.parent
     selected = {epsilon: [] for epsilon in thresholds}
     audit = Counter()
     examples = []
@@ -244,7 +249,7 @@ def compile_probability_rescues(parent, thresholds=(0.1, 0.25), *, model=None,
             return interned[key]
 
         root = intern(0)
-        contract = replace(parent.policy.contract, accept_clean_through=1)
+        contract = parent.policy.contract
         decoder = FixedCSSDecoder(parent.policy.decoder.space, contract)
         policy = AdaptivePolicy(parent.policy.actions.copy(), contract, decoder, tuple(nodes), root,
                                 AdaptiveVerificationReport(contract, decoder.fingerprint),
@@ -253,15 +258,16 @@ def compile_probability_rescues(parent, thresholds=(0.1, 0.25), *, model=None,
         protocol = AdaptiveSEProtocol(parent.code, policy)
         if verify:
             protocol.verify()
-        provenance = dict(model.model.metadata(), method='MAP-Pauli-confidence-rescue', model_version=1,
-            epsilon=epsilon, acceptance='Order-one compatibility OR estimated MAP correction-error probability <= epsilon',
+        provenance = dict(model.model.metadata(), method='MAP-Pauli-confidence-rescue', model_version=2,
+            epsilon=epsilon, acceptance='Standard flag-conditioned base OR estimated MAP correction-error probability <= epsilon',
+            base_rule='No flags: incoming CSS order <=1; flags: history recovery',
             error_probability='1 - posterior probability of most likely final Pauli class modulo stabilizers',
-            correction='Inverse of MAP final data Pauli class; mandatory order-one frames unchanged',
+            correction='Inverse of MAP final data Pauli class; accepted base frames unchanged',
             scored_records=audit['scored_records'], mandatory_records=len(model.mandatory),
             additional_accepted_records=len(selected[epsilon]), saved_nodes=len(policy.nodes),
             parent_rejected_records_considered=True, discovery_sampling=False, probabilities_used=True,
             noise_profile_frozen=True, output_labels_used=False, all_orders_ler_guarantee=False,
-            unknown_record_rule='Reject outside the two-event response support unless order-one-compatible',
+            unknown_record_rule='Reject outside the two-event response support unless accepted by the standard base',
             fixed_schedule='Parent third-reading routes retained; otherwise complete two readings',
             threshold_scope='Estimated per-cycle wrong-Pauli-class risk on additional records only',
             risk='Incorrect final data Pauli class after MAP correction', examples=examples)

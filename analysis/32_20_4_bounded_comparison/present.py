@@ -77,7 +77,7 @@ def tradeoff(rows):
     attempts = int(rows[0]['shots'])
     fig.text(.5, .012, f'{attempts:,} attempts per point for every method; 95% Wilson intervals. Any of 20 logical readouts may fail.', ha='center', fontsize=9)
     fig.text(.5, .04, LEGEND_NOTE, ha='center', fontsize=8.5)
-    fig.tight_layout(rect=(0, .23, 1, .96))
+    fig.tight_layout(rect=(0, .26 if len(METHODS) > 6 else .23, 1, .96))
     for suffix in ('png', 'pdf'):
         fig.savefig(COMPARISON / 'figures' / ('acceptance_error_tradeoff.' + suffix), dpi=180, bbox_inches='tight')
     plt.close(fig)
@@ -121,104 +121,64 @@ def capture(cells):
 
 
 def notebooks(shot_floor, shot_cap, total_attempts):
-    intro = '''# Adaptive and Steane QEC: d2 follow-up, accepted-trajectory statistics
+    intro = '''# Adaptive and Steane QEC: standard flag-conditioned postselection
 
-The comparison contains **Adaptive PS(r+s≤1)**, **Adaptive PS(r+s≤1 or V₂)**,
-**Adaptive PS(r+s≤1 or p_err≤10%)**, **Adaptive PS(r+s≤1 or p_err≤25%)**,
-**Adaptive PS(f=0, r_syn≤1)**, and **fixed d3 Steane RUS PS(r_syn≤1)**.
-Adaptive Baseline, d1, and the retired V/likelihood experiments are excluded.
+The meaning of **PS(r+s≤1)** is shared by every active adaptive method:
 
-The allowed completed adaptive paths are exactly:
+- If no flags are raised, interpret the Z_d4 and X_d4 readings as incoming
+  CSS errors. Accept and apply their direct correction iff max(w_X,w_Z)≤1.
+- Raised flags use the fault-history recovery procedure, including propagated
+  hook corrections of weight greater than one. The cumulative incoming Pauli
+  frame is removed before interpreting a reading.
 
-- **d4 → d4 → d2**: a d2 follow-up after the second d4 flag or an unresolved correction;
-- **d4 → d4**: stop when the two readings determine a safe correction;
-- **d4 → d2**: use d2 directly when the first d4 flags are raised.
+The base has 1,089 accepted quiet syndrome pairs and 1,282 accepted flagged
+records. It accepts every noiseless CSS-one input. Some unflagged internal
+single faults are postselected; they are not exceptions to the incoming-syndrome
+rule. Logical preservation of accepted histories is independently checked
+through total order one. No additional circuit-distance claim is made.
 
-The first reading is Z_d4 and the second is X_d4 or X_d2. A third reading,
-when needed, uses Z_d2 or X_d2 chosen from the compatible history classes.
-There is **no d1 and no third d4**. Rejected prefixes can stop sooner.
+The six displayed methods are the standard base; **r+s≤1 or V₂**;
+**r+s≤1 or p_err≤10%**; **r+s≤1 or p_err≤25%**;
+**f=0, r_syn≤1**; and **Steane d3 RUS PS(r_syn≤1)**.
+The previous history-only implementation and separate flag-recovery curve are
+removed, together with their prior simulation data.
 
-Incoming CSS order is r=max(w_X,w_Z), and s counts internal faulty locations.
-Analyze **r+s≤2** for detection and reject when **no r+s≤1 explanation remains**.
-Correction and residual guarantees cover **r+s≤1**. Higher-order histories that
-remain indistinguishable from low-order ones are not an extra correction demand.
-The history method independently verifies mandatory acceptance/correction of
-all order-one histories. One internal fault remains s=1 even when it propagates
-to multiple data errors. Flag and follow-up information identify its correction.
-There is no additional restriction on the propagated correction's weight.
+**V₂** preserves every accepted base path and correction. Other records accept
+only when all compatible histories through r+s≤2 agree on one final Pauli class
+modulo stabilizers. An optional d2 follow-up includes any remaining fault budget,
+including for a base-rejected record with a possible single-fault explanation.
+The certificate covers the gate/reset/readout model, without implicit idles.
 
-**V₂** preserves the history controller on every order-one-compatible record.
-Other records accept only if every compatible explanation through total order
-two agrees on one final data Pauli class modulo stabilizers. The analysis includes
-(r,s)=(2,0), (1,1), and (0,2), with two faults required to occupy distinct physical
-locations. Parent-rejected records are considered. A d4/d4 record may use one
-d2 in the basis that separates the most uniquely correctable outcome groups.
-The exact certificate uses the existing gate/reset/readout fault model, without
-implicit idle faults; production simulation includes scheduled memory noise.
-This certifies the additional rescues through order two in that circuit model,
-not every accepted order-two history or the all-orders production LER.
+**Probability rescues** preserve every accepted base path and correction.
+For other records, choose the MAP final data Pauli class modulo stabilizers and
+accept if p_err=1−P(MAP class | record)≤epsilon. The 10% and 25% domains are nested.
+The frozen default-noise model includes scheduled memory and an incoming iid
+Pauli prior, conditioned on at most two nonzero response channels. Physical-site
+multiplicity, exclusive alternatives and stabilizer degeneracy are retained.
+All positive-probability records are scored analytically; no discovery shots or
+ideal output labels select the controller. Epsilon is an estimated correction
+confidence cutoff, not an all-orders endpoint LER bound. The incoming prior is
+reset for inference each cycle and adds no physical operation.
 
-**Probability rescues** also preserve every order-one action and correction.
-For each other complete record, they choose the most probable final data-error
-Pauli class modulo stabilizers and return its inverse as the correction frame.
-Here **p_err = 1 − P(MAP class | complete record)**: the estimated probability
-that this correction does not return the original encoded state exactly.
-Accept additional records at p_err≤10% or p_err≤25%. This class-error criterion
-is a sufficient condition for logical correction; a remaining correctable data
-error is still counted as a wrong Pauli class by the selection model.
+**The zero-flag method** restricts the same standard base by immediately rejecting
+any raised flag. Accepted cycles are exactly Z_d4→X_d4, at 312 CX/CZ per cycle.
 
-The probability model includes scheduled memory, gate, reset and measurement
-noise, physical-location multiplicities, exclusive alternatives and stabilizer
-degeneracy. It is frozen at default hardware noise before production and reused
-throughout the physical-noise sweep. The incoming
-prior is iid depolarization at p₂q per data qubit, reset each cycle; it is an
-inference prior and adds no physical operation. The model conditions on at most
-two nonzero response channels. Omitted higher-event mass is recorded, so epsilon
-is an estimated per-correction confidence cutoff, not an all-orders bound or a
-target endpoint LER. All positive-probability records in that expansion are
-enumerated analytically, without discovery sampling or ideal output labels.
-The original parent chooses any third reading; other records finish the first
-two readings. The two thresholds therefore share the same measurement routing
-and correction for common records and have nested acceptance domains.
+Allowed completed adaptive paths are d4→d4, d4→d2 and d4→d4→d2. There is no d1
+or third d4. Each adaptive uses 60 peak qubits, with completed-cycle costs
+312, 277 or 433 CX/CZ respectively. Steane uses 66 qubits and 288 gates before
+its noisy ancilla-preparation retries. It reads each data CSS syndrome once.
 
-The former full-adaptive “r_syn≤1” curve incorrectly applied a raw syndrome/
-correction-weight guard and rejected some valid single internal faults. That
-curve is retired. With incoming order inferred using the complete fault history,
-the corrected mode has exactly the same protocol hash as PS(r+s≤1), so its
-compatibility alias is not displayed separately. Existing valid history results are reused.
+All five adaptive datasets are fresh reruns after deleting the previous data.
+The independent Steane dataset is retained byte-for-byte. Every method uses
+32 matching configurations, SHOT_FLOOR floor / SHOT_CAP cap and TOTAL_ATTEMPTS
+attempts, with inverse-square allocation and seed 20261112.
 
-**PS(f=0, r_syn≤1)** adds immediate rejection of every nonzero measured flag
-to the direct-readout CSS guard. This separate, stricter experiment does not
-promise acceptance of all unflagged internal faults. It is the requested
-observable meaning of “s=0”; a fault
-can be unflagged. It retains and corrects noiseless incoming CSS-one inputs,
-including separate X and Z errors on different qubits. Its accepted path is
-always **Z_d4 → X_d4**, costing exactly **312 CX/CZ per cycle**. Flagged
-prefixes reject before a d2 follow-up, so no d2 is executed by this variant.
-
-**Rejected data trajectories are excluded from LER and gate-cost statistics.**
-The cost is `accepted_cnots / accepted / N`: gates used by accepted full
-trajectories divided by their actual N completed cycles. Even the early cycles
-of a trajectory later rejected contribute nothing to that statistic. Acceptance
-rate remains accepted/attempted to expose yield. Noisily discarded ancillas
-inside an eventually accepted Steane RUS trajectory still count toward its cost.
-
-For a completed adaptive cycle, the three paths cost **433, 312, and 277 CX/CZ**
-respectively. Thus its accepted-cycle mean cannot be below **277**. A quiet cycle
-costs 312. Peak qubits are 60. Steane costs 288 before preparation retries and
-uses 66 peak qubits, with one data reading per CSS basis.
-
-Every method uses **32 matching configurations, SHOT_FLOOR attempts at each default-noise
-repetition point and a SHOT_CAP low-noise cap**, totaling **TOTAL_ATTEMPTS attempts per
-method**. Noise, seed 20261112 and inverse-square allocation match. Accepted
-counts differ. LER is conditional endpoint block error across 20 logical readouts;
-LER/N is a normalization of that endpoint rate, not a measured first-failure hazard.
-95% Wilson intervals use actual accepted counts. Production includes scheduled
-memory noise; ideal input and final decoding occur once per trajectory.
-
-Circles mark adaptive methods; squares mark Steane. Open downward triangles
-mark zero-failure confidence upper bounds. All sources, HUGRs, controls and
-batch/count/gate audits are saved with the study.
+LER and gate cost condition on fully accepted trajectories; earlier cycles of
+a later-rejected shot are excluded. Cost is accepted_cnots/accepted/N. Acceptance
+uses all attempts. LER is a 20-logical-qubit endpoint block error; LER/N is a
+normalization, rather than a measured first-failure hazard. Intervals are 95%
+Wilson. Production includes scheduled memory with ideal preparation and final
+decoding once per trajectory. Circles denote adaptive methods and squares Steane.
 '''
     intro = (intro.replace('SHOT_FLOOR', f'{shot_floor:,}')
              .replace('SHOT_CAP', f'{shot_cap:,}').replace('TOTAL_ATTEMPTS', f'{total_attempts:,}'))
@@ -346,44 +306,32 @@ def main():
     save_resources(load_protocol(ROOT / 'build/steane_single_d3_fixed_ps'), COMPARISON)
     notebooks(shot_floor, shot_cap, total_attempts)
     validation = json.loads((COMPARISON / 'validation.json').read_text())
-    validation.update(baseline_excluded=True, old_adaptive_data_deleted=True,
-                      adaptive_domain='r+s<=2; history PS requires order-one compatibility; V2 adds exact uniqueness rescues', no_d1=True,
-                      max_adaptive_extractions_per_cycle=3, max_adaptive_d4_per_cycle=2,
-                      allowed_distance_paths=[[4, 4, 2], [4, 4], [4, 2]],
-                      gate_cost='accepted_cnots / accepted / N; complete accepted trajectories only',
-                      rejected_trajectories_excluded_from_ler_and_gate_statistics=True,
-                      acceptance_rate_denominator='All attempted trajectories',
-                      adaptive_accepted_cycle_gate_bounds=[277, 433],
-                      no_order_two_rescues=False, methods_audited=audits,
-                      order_two_uniqueness_rescue='adaptive_order_two',
-                      rescue_certificate_includes_memory=False,
-                      propagated_weight_guard_retired=True,
-                      full_adaptive_css_mode_identical_to_history=True,
-                      notebooks_refreshed=True, six_figure_pairs_generated=True,
-                      visual_inspection_pending=True)
     controls = json.loads((OUT / 'controls.json').read_text())
-    assert controls['complete']
-    validation['physical_native_controls'] = 'controls.json'
-    validation['all_css_one_inputs_accepted_and_correct_in_controls'] = all(
-        record['accepted_inputs_correct'] == 1089 and record['postselected_inputs'] == 0
-        for method in controls['methods'].values() for record in method.values())
-    rescue_controls = json.loads((OUT / 'order_two_controls.json').read_text())
-    assert rescue_controls['complete'] and rescue_controls['counts']['rescued_exactly_correct'] > 0
-    validation['order_two_physical_controls'] = 'order_two_controls.json'
-    validation['additional_rescues_physically_replayed_correct'] = rescue_controls['counts']['rescued_exactly_correct']
-    export_audit = json.loads((OUT / 'order_two_export_audit.json').read_text())
-    assert export_audit['complete'] and export_audit['transitions_checked'] > 1000000
-    validation['order_two_export_transition_audit'] = export_audit
-    validation['probability_rescues'] = dict(epsilons=[0.1, 0.25],
-        error='Wrong MAP Pauli class modulo stabilizers', mandatory_order_one=True,
-        model='Default-noise frozen two-response-channel posterior, including memory',
-        all_orders_bound=False, discovery_sampling=False)
+    base_controls = json.loads((OUT / 'standard_base_controls.json').read_text())
+    v2_controls = json.loads((OUT / 'order_two_controls.json').read_text())
     probability_controls = json.loads((OUT / 'probability_controls.json').read_text())
-    assert probability_controls['complete'] and probability_controls['nesting']['acceptance_nested']
-    validation['probability_controls'] = probability_controls
+    v2_export = json.loads((OUT / 'order_two_export_audit.json').read_text())
+    assert all(c['complete'] for c in (controls, base_controls, v2_controls, probability_controls))
+    assert v2_export['complete'] and v2_export['transitions_checked'] > 1000000
+    validation.update(
+        standard_base_rule='No flags: incoming CSS order <=1; flags: fault-history recovery',
+        all_adaptive_methods_use_standard_base=True,
+        old_history_only_implementation_removed=True, old_simulation_data_deleted=True,
+        adaptive_methods_rerun=5, independent_steane_data_retained=True,
+        no_d1=True, max_adaptive_extractions_per_cycle=3,
+        allowed_distance_paths=[[4, 4, 2], [4, 4], [4, 2]],
+        gate_cost='accepted_cnots / accepted / N; complete accepted trajectories only',
+        rejected_trajectories_excluded_from_ler_and_gate_statistics=True,
+        adaptive_accepted_cycle_gate_bounds=[277, 433],
+        methods_audited=audits, physical_native_controls=controls,
+        standard_base_controls=base_controls, order_two_controls=v2_controls,
+        order_two_export_audit=v2_export,
+        probability_controls=probability_controls,
+        notebooks_refreshed=True, six_figure_pairs_generated=True,
+        visual_inspection_pending=True)
     write(COMPARISON / 'validation.json', validation)
     write(OUT / 'sampling_validation.json', validation)
-    print(f'All {len(all_rows)} rows and {len(endpoints)} endpoints audited; six figure pairs and both notebooks refreshed.', flush=True)
+    print(f'All {len(all_rows)} rows and {len(endpoints)} endpoints audited; figures and both notebooks refreshed.', flush=True)
 
 
 if __name__ == '__main__':

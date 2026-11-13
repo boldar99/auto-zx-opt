@@ -1,7 +1,7 @@
 {
-  "nodes_checked": 186390,
-  "transitions_checked": 1045488,
-  "packed_nodes": 186391,
+  "nodes_checked": 186750,
+  "transitions_checked": 1045904,
+  "missing_edges_reject": true,
   "complete": true,
-  "seconds": 26.399441375004244
+  "source_sha256": "fee1c85b80f71905a1d83dc1d339dd621bd31b65c32916ea00660290328f996c"
 }

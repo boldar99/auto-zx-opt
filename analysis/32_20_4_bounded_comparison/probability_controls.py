@@ -142,7 +142,7 @@ def confidence_controls(protocol, model, epsilon, samples=1000):
 
 
 def main():
-    parent = load_protocol(study.ROOT / 'build/se_32_20_4')
+    parent = load_protocol(study.ROOT / 'build' / study.BUNDLES['adaptive_history'])
     model = ProbabilityRescueModel(parent)
     protocols, checks = [], {}
     for epsilon in (10, 25):

@@ -37,7 +37,7 @@ def parser():
     postselected.add_argument("parent", type=Path)
     postselected.add_argument("--out", type=Path, default=Path("build/se_postselected_32_20_4"))
     postselected.add_argument("--emit", choices=["none", "guppy", "hugr"], default="guppy")
-    order_two = sub.add_parser("build-order-two", help="Compile exact r+s<=2 uniqueness rescues with mandatory order-one acceptance")
+    order_two = sub.add_parser("build-order-two", help="Compile exact r+s<=2 uniqueness rescues extending the standard flag-conditioned base")
     order_two.add_argument("parent", type=Path)
     order_two.add_argument("--out", type=Path, default=Path("build/adaptive_order_two_32_20_4"))
     order_two.add_argument("--emit", choices=["none", "guppy", "hugr"], default="guppy")
@@ -206,11 +206,13 @@ def main(argv=None):
         parent = load_protocol(args.parent)
         protocol = postselect_order_one(parent, progress=lambda s: print(s, flush=True))
         protocol.save_bundle(args.out)
-        provenance = dict(method="reject-no-order-zero-or-one-explanation",
+        provenance = dict(method="standard-flag-conditioned-order-one",
             parent_protocol_hash=read_manifest(args.parent)[1]["protocol_hash"],
             protocol_hash=read_manifest(args.out)[1]["protocol_hash"],
             early_abort=True, quantum_circuits_unchanged=True, surviving_frames_unchanged=True,
-            required_acceptance="r+s<=1; clean-input s=2 acceptance relaxed",
+            required_acceptance="Noiseless CSS-one inputs; unflagged faults may postselect",
+            no_flags="Interpret measured syndrome as incoming CSS error; require order <=1",
+            raised_flags="Fault-history recovery without propagated-correction weight cap",
             guard_verification=verify_order_one_guard(protocol))
         atomic_write(args.out / "postselection.json", json.dumps(provenance, indent=2)+"\n")
         print(json.dumps(vars(protocol.verification), default=vars, indent=2), flush=True)

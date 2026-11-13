@@ -2,7 +2,7 @@
   "status": "complete",
   "method": "adaptive_no_flags",
   "display_name": "Adaptive PS(f=0, r_syn\u22641)",
-  "protocol_hash": "131e76ee8a48727bc49c57fe1e91192578cd7627931903ad0644f87982874c88",
+  "protocol_hash": "0475d94b4983ba212d8830c2bf5f496b7e39b68a8f158c4d45e3e833b2d531bc",
   "engine": {
     "model": "stim-adaptive-initial-data-idles-accepted-cost-v2",
     "sources": {
@@ -88,12 +88,14 @@
     ]
   ],
   "accepted_correction_order": 1,
-  "mandatory_acceptance": "Clean input; syndrome PS may reject some faults",
+  "mandatory_acceptance": "Standard flag-conditioned base; all noiseless CSS-one inputs",
+  "base_rule": "No flags: incoming CSS syndromes with r_syn<=1; flags: history recovery",
+  "single_internal_fault_acceptance_guarantee": false,
   "observed_flag_postselection": "Reject any nonzero measured flag immediately",
   "flag_zero_is_not_actual_fault_zero": true,
   "accepted_cycle_cnots": 312,
   "incoming_correction": "CSS component weights <=1; unique through CSS component weights <=2",
   "attempted_shots": 9329148,
   "actual_attempted_shots": 9329148,
-  "wall_seconds": 513.8165322080022
+  "wall_seconds": 1312.4505306250066
 }

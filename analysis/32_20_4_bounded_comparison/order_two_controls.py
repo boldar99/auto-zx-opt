@@ -97,7 +97,8 @@ class Inject:
 
 def main():
     protocol = load_protocol(study.ROOT / 'build/adaptive_order_two_32_20_4')
-    evidence = OrderOneEvidence(protocol)
+    base_records = import_module('analysis.32_20_4_bounded_comparison.controls').accepted_records(
+        load_protocol(study.ROOT / 'build/se_postselected_32_20_4'))
     space = protocol.policy.decoder.space
     rng = random.Random(2026111309)
     counts, examples = Counter(), []
@@ -127,10 +128,8 @@ def main():
                 counts['rejected'] += 1
                 continue
             counts['accepted'] += 1
-            state = evidence.initial
-            for name, _, _, flags, syndrome in result.measurements:
-                state = evidence.transition(state, name).get((flags, syndrome), frozenset()) if state else state
-            if state:
+            record = tuple((name, flags, syndrome) for name, _, _, flags, syndrome in result.measurements)
+            if record in base_records:
                 counts['protected'] += 1
                 continue
             correction = result.frame_x | (result.frame_z << protocol.code.n)

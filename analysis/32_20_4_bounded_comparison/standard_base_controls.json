@@ -1,0 +1,64 @@
+{
+  "complete": true,
+  "base_accepted_records": 2371,
+  "quiet_accepted_records": 1089,
+  "flagged_accepted_records": 1282,
+  "flagged_paths_and_frames_preserved": true,
+  "removed_unflagged_records": [
+    [
+      [
+        "Z_d4",
+        0,
+        0
+      ],
+      [
+        "X_d4",
+        0,
+        32
+      ]
+    ],
+    [
+      [
+        "Z_d4",
+        0,
+        0
+      ],
+      [
+        "X_d4",
+        0,
+        40
+      ]
+    ],
+    [
+      [
+        "Z_d4",
+        0,
+        32
+      ],
+      [
+        "X_d4",
+        0,
+        61
+      ]
+    ],
+    [
+      [
+        "Z_d4",
+        0,
+        40
+      ],
+      [
+        "X_d4",
+        0,
+        9
+      ]
+    ]
+  ],
+  "export": {
+    "nodes_checked": 287,
+    "transitions_checked": 2546,
+    "missing_edges_reject": true
+  },
+  "all_noiseless_css_one_inputs_accepted_correct": true,
+  "single_internal_fault_acceptance_guarantee": false
+}

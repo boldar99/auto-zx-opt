@@ -44,6 +44,8 @@ class AdaptiveCSSCandidate:
             raise ValueError(variant)
         self.variant = variant
         self.parent = reverse_css_roles(parent) if variant.endswith('reversed') else parent
+        if variant in {'css', 'css-no-flags'}:
+            self.parent = postselect_order_one(self.parent, verify=False)
         self.code, self.policy = parent.code, None
         self.required_qubits = parent.required_qubits
         self.gadgets = dict(self.parent.gadgets)
@@ -409,10 +411,10 @@ class CompactCSSRescueEvidence:
 def compile_css_candidate(parent, variant='css', *, verify=True, progress=None):
     """Compile the exact sampling rule into a normal, standalone policy DAG.
 
-    The full adaptive CSS mode counts incoming errors and internal locations,
-    rather than the weight of their propagated correction. It therefore equals
-    the order-one history policy. The stricter zero-flag experiment additionally
-    bounds its direct flag-free CSS readings and may postselect single faults.
+    The full adaptive CSS mode uses the standard flag-conditioned base: quiet
+    readings describe incoming errors and raised flags use fault-history recovery.
+    Propagated hook-correction weight is not a fault count. The stricter zero-flag
+    experiment rejects every raised flag.
 
     For the other exploratory variants the independent contract
     requires clean acceptance and logical preservation of accepted histories

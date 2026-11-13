@@ -27,7 +27,7 @@ def test_contract_pruning_roundtrip_and_physical_frames(small_protocol, tmp_path
     old_nodes, old_contract, old_report = original.policy.nodes, original.policy.contract, original.verification
     derived = postselect_order_one(original)
     assert derived.verification.verified
-    assert derived.policy.contract.accept_clean_through == 1
+    assert derived.policy.contract.accept_clean_through == 0
     assert derived.policy.contract.logical_order == 1
     assert original.policy.nodes == old_nodes and original.policy.contract == old_contract
     assert original.verification is old_report
@@ -115,7 +115,7 @@ def test_full_size_saved_guard():
         pytest.skip("Full-size bundle is created by the integration build")
     protocol = load_protocol(path)
     assert protocol.verification.verified and protocol.required_qubits == 60
-    assert protocol.policy.contract.accept_clean_through == 1
+    assert protocol.policy.contract.accept_clean_through == 0
     assert protocol.policy.contract.input_scope == 'total-order'
     assert {protocol.policy.actions[node.action].gadget.distance
             for node in protocol.policy.nodes if node.kind == "extract"} == {2, 4}

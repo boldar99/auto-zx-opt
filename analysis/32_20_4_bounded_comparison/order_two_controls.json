@@ -3,21 +3,33 @@
   "counts": {
     "attempted": 6000,
     "category_0_attempted": 1000,
-    "rejected": 3634,
+    "rejected": 3651,
     "category_1_attempted": 1000,
-    "accepted": 2366,
-    "rescued_exactly_correct": 1523,
-    "category_1_rescued": 443,
+    "accepted": 2349,
+    "rescued_exactly_correct": 1524,
+    "category_1_rescued": 441,
     "category_2_attempted": 1000,
     "category_3_attempted": 1000,
     "category_4_attempted": 1000,
     "category_5_attempted": 1000,
-    "protected": 843,
-    "category_3_rescued": 340,
+    "protected": 825,
+    "category_3_rescued": 342,
     "category_0_rescued": 228,
-    "category_4_rescued": 114,
-    "category_2_rescued": 336,
-    "category_5_rescued": 62
+    "category_4_rescued": 115,
+    "category_2_rescued": 335,
+    "category_5_rescued": 63
+  },
+  "measurement_pairs": {
+    "physical_pairs": 3233,
+    "both_first_pairs": 820,
+    "accepted": 1548,
+    "rejected": 1685,
+    "additional_exact_rescues": 429,
+    "both_first_rescues": 408,
+    "both_second_pairs": 820,
+    "both_second_rescues": 1,
+    "across_first_second_pairs": 1593,
+    "across_first_second_rescues": 20
   },
   "examples": [
     {
@@ -632,17 +644,5 @@
   ],
   "seed": 2026111309,
   "physical_faults": "Distinct physical sites; exact stabilizer and logical checks on additional rescues",
-  "noise_scope": "Certificate gate/reset/readout model; production memory noise assessed separately",
-  "measurement_pairs": {
-    "physical_pairs": 3233,
-    "both_first_pairs": 820,
-    "accepted": 1576,
-    "rejected": 1657,
-    "additional_exact_rescues": 429,
-    "both_first_rescues": 408,
-    "both_second_pairs": 820,
-    "both_second_rescues": 1,
-    "across_first_second_pairs": 1593,
-    "across_first_second_rescues": 20
-  }
+  "noise_scope": "Certificate gate/reset/readout model; production memory noise assessed separately"
 }

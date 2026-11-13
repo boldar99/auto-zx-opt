@@ -1,0 +1,587 @@
+{
+  "reset_at": "2026-11-13T17:58:51.861206+00:00",
+  "user_instruction": "Replace the old r+s<=1 base, remove prior simulation data and rerun all adaptive methods",
+  "removed": [
+    {
+      "path": "benchmarks/adaptive_css_no_flags_100k",
+      "files": 69,
+      "bytes": 570937
+    },
+    {
+      "path": "benchmarks/adaptive_css_no_flags_50k",
+      "files": 69,
+      "bytes": 349929
+    },
+    {
+      "path": "benchmarks/adaptive_flag_recovery_100k",
+      "files": 69,
+      "bytes": 745839
+    },
+    {
+      "path": "benchmarks/adaptive_order_two_100k",
+      "files": 69,
+      "bytes": 779451
+    },
+    {
+      "path": "benchmarks/adaptive_probability_10_100k",
+      "files": 69,
+      "bytes": 725264
+    },
+    {
+      "path": "benchmarks/adaptive_probability_25_100k",
+      "files": 69,
+      "bytes": 721388
+    },
+    {
+      "path": "benchmarks/retired",
+      "files": 69,
+      "bytes": 449927
+    },
+    {
+      "path": "benchmarks/se_postselected_100k",
+      "files": 69,
+      "bytes": 746055
+    },
+    {
+      "path": "benchmarks/se_postselected_50k",
+      "files": 69,
+      "bytes": 449976
+    },
+    {
+      "path": "benchmarks/steane_comparison",
+      "files": 17,
+      "bytes": 2328021
+    },
+    {
+      "path": "benchmarks/steane_single_d3_fixed_ps_100k",
+      "files": 70,
+      "bytes": 646858
+    },
+    {
+      "path": "benchmarks/steane_single_d3_fixed_ps_50k",
+      "files": 69,
+      "bytes": 503805
+    },
+    {
+      "path": "analysis/32_20_4_history_attribution",
+      "files": 219,
+      "bytes": 7490676
+    },
+    {
+      "path": "notebooks/32_20_4_history_attribution.ipynb",
+      "files": 1,
+      "bytes": 699712
+    },
+    {
+      "path": "notebooks/32_20_4_steane_comparison.ipynb",
+      "files": 1,
+      "bytes": 2488869
+    },
+    {
+      "path": "notebooks/32_20_4_protocol_demo.ipynb",
+      "files": 1,
+      "bytes": 2488869
+    },
+    {
+      "path": "analysis/32_20_4_bounded_comparison/controls.json",
+      "files": 1,
+      "bytes": 15870
+    },
+    {
+      "path": "analysis/32_20_4_bounded_comparison/cost_denominator_correction.json",
+      "files": 1,
+      "bytes": 350
+    },
+    {
+      "path": "analysis/32_20_4_bounded_comparison/fault_count_fix_validation.json",
+      "files": 1,
+      "bytes": 1060
+    },
+    {
+      "path": "analysis/32_20_4_bounded_comparison/flag_recovery_build.json",
+      "files": 1,
+      "bytes": 2106
+    },
+    {
+      "path": "analysis/32_20_4_bounded_comparison/flag_recovery_controls.json",
+      "files": 1,
+      "bytes": 8404
+    },
+    {
+      "path": "analysis/32_20_4_bounded_comparison/flag_recovery_raw_hashes.json",
+      "files": 1,
+      "bytes": 84579
+    },
+    {
+      "path": "analysis/32_20_4_bounded_comparison/flag_recovery_validation.json",
+      "files": 1,
+      "bytes": 11747
+    },
+    {
+      "path": "analysis/32_20_4_bounded_comparison/half_shot_raw_hashes.json",
+      "files": 1,
+      "bytes": 35683
+    },
+    {
+      "path": "analysis/32_20_4_bounded_comparison/normal_shot_promotion.json",
+      "files": 1,
+      "bytes": 51623
+    },
+    {
+      "path": "analysis/32_20_4_bounded_comparison/order_two_build_validation.json",
+      "files": 1,
+      "bytes": 434660
+    },
+    {
+      "path": "analysis/32_20_4_bounded_comparison/order_two_controls.json",
+      "files": 1,
+      "bytes": 9133
+    },
+    {
+      "path": "analysis/32_20_4_bounded_comparison/order_two_export_audit.json",
+      "files": 1,
+      "bytes": 143
+    },
+    {
+      "path": "analysis/32_20_4_bounded_comparison/order_two_raw_hashes.json",
+      "files": 1,
+      "bytes": 48259
+    },
+    {
+      "path": "analysis/32_20_4_bounded_comparison/order_two_resume_validation.json",
+      "files": 1,
+      "bytes": 221
+    },
+    {
+      "path": "analysis/32_20_4_bounded_comparison/order_two_validation.json",
+      "files": 1,
+      "bytes": 1302
+    },
+    {
+      "path": "analysis/32_20_4_bounded_comparison/probability_10_build.json",
+      "files": 1,
+      "bytes": 16033
+    },
+    {
+      "path": "analysis/32_20_4_bounded_comparison/probability_25_build.json",
+      "files": 1,
+      "bytes": 16034
+    },
+    {
+      "path": "analysis/32_20_4_bounded_comparison/probability_controls.json",
+      "files": 1,
+      "bytes": 1143
+    },
+    {
+      "path": "analysis/32_20_4_bounded_comparison/probability_raw_hashes.json",
+      "files": 1,
+      "bytes": 72515
+    },
+    {
+      "path": "analysis/32_20_4_bounded_comparison/probability_validation.json",
+      "files": 1,
+      "bytes": 4224
+    },
+    {
+      "path": "analysis/32_20_4_bounded_comparison/raw_hashes.json",
+      "files": 1,
+      "bytes": 36451
+    },
+    {
+      "path": "analysis/32_20_4_bounded_comparison/raw_hashes_before_fault_count_fix.json",
+      "files": 1,
+      "bytes": 47043
+    },
+    {
+      "path": "analysis/32_20_4_bounded_comparison/removed_incomplete_css_guard_run.json",
+      "files": 1,
+      "bytes": 179
+    },
+    {
+      "path": "analysis/32_20_4_bounded_comparison/removed_obsolete_adaptive.json",
+      "files": 1,
+      "bytes": 8030
+    },
+    {
+      "path": "analysis/32_20_4_bounded_comparison/removed_two_reading_run.json",
+      "files": 1,
+      "bytes": 1418
+    },
+    {
+      "path": "analysis/32_20_4_bounded_comparison/retired_raw_syndrome_guard.json",
+      "files": 1,
+      "bytes": 7934
+    },
+    {
+      "path": "analysis/32_20_4_bounded_comparison/sampling_validation.json",
+      "files": 1,
+      "bytes": 20415
+    },
+    {
+      "path": "analysis/32_20_4_bounded_comparison/validation.json",
+      "files": 1,
+      "bytes": 2377
+    },
+    {
+      "path": "analysis/32_20_4_bounded_comparison/zero_flag_uncertainty.json",
+      "files": 1,
+      "bytes": 2456
+    },
+    {
+      "path": "build/adaptive_css_32_20_4",
+      "files": 11,
+      "bytes": 342943
+    },
+    {
+      "path": "build/adaptive_flag_recovery_32_20_4",
+      "files": 11,
+      "bytes": 335520
+    },
+    {
+      "path": "build/adaptive_css_no_flags_32_20_4",
+      "files": 11,
+      "bytes": 163731
+    },
+    {
+      "path": "build/adaptive_order_two_32_20_4",
+      "files": 11,
+      "bytes": 38010698
+    },
+    {
+      "path": "build/adaptive_probability_10_32_20_4",
+      "files": 11,
+      "bytes": 11163657
+    },
+    {
+      "path": "build/adaptive_probability_25_32_20_4",
+      "files": 11,
+      "bytes": 13691199
+    },
+    {
+      "path": "build/retired_raw_syndrome_guard_32_20_4",
+      "files": 12,
+      "bytes": 273593
+    },
+    {
+      "path": "build/bounded_native_controls",
+      "files": 180,
+      "bytes": 14230355
+    },
+    {
+      "path": "build/flag_recovery_native_controls",
+      "files": 56,
+      "bytes": 5903326
+    },
+    {
+      "path": "build/probability_preview",
+      "files": 2,
+      "bytes": 302081
+    },
+    {
+      "path": "analysis/32_20_4_bounded_comparison/build_flag_recovery.py",
+      "files": 1,
+      "bytes": 1754
+    },
+    {
+      "path": "analysis/32_20_4_bounded_comparison/finalize_flag_recovery.py",
+      "files": 1,
+      "bytes": 4435
+    },
+    {
+      "path": "analysis/32_20_4_bounded_comparison/flag_recovery_controls.py",
+      "files": 1,
+      "bytes": 5305
+    },
+    {
+      "path": "analysis/32_20_4_bounded_comparison/verify_normal_shots.py",
+      "files": 1,
+      "bytes": 7740
+    },
+    {
+      "path": "spiderwarp/se_flag_recovery.py",
+      "files": 1,
+      "bytes": 4833
+    }
+  ],
+  "previous_simulation_data_archived": false,
+  "retained_independent_steane": {
+    "benchmarks/steane_single_d3_fixed_ps_100k_accepted/.writer.lock": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "benchmarks/steane_single_d3_fixed_ps_100k_accepted/batches/08aee9886c18588419e689263fd4c60130069508e2586deaa604f4f25d27fc9c.csv": "134e61b5d0fde623c61378f74493acc4b21868d5d30d9e5c3068831bc70cdde9",
+    "benchmarks/steane_single_d3_fixed_ps_100k_accepted/batches/09a6ebf72623bf5852f0a450c69204dd08002f3cdc889890d6fd36540784378f.csv": "5a75613d6f7c354fcb1e774c25fd3f4180a22f256a15679e0fceb102581f29da",
+    "benchmarks/steane_single_d3_fixed_ps_100k_accepted/batches/2a086d175ad0a5f4827fc3c5aa11855eacf9c797d61c49ec8f21481f1f8d9e7b.csv": "cb6859ef2f1cd56f268adb0ffb5db837b21fb51c4a93a0e61784fc661a3ba2b1",
+    "benchmarks/steane_single_d3_fixed_ps_100k_accepted/batches/2ad152e1546b6d4e29c4eb2ed11f9be620960d9ac33d5d97af31208724c32daf.csv": "e68b69aead0948a635262c917fd31f5b5f879367e9188235371bd7c015bc120f",
+    "benchmarks/steane_single_d3_fixed_ps_100k_accepted/batches/3714192e6003245c7fb89cd354f1a3a359dff454192ae3d5d07db27364d04c94.csv": "43283ae571b2990fc799318556d0c2986f02c259f7c5eee8481d1209ab4424cd",
+    "benchmarks/steane_single_d3_fixed_ps_100k_accepted/batches/3d082febd1a7376a0bf2b2a84d33b0659b8a21583ab1ae2c28e3a3ca38141795.csv": "5ad61185eff5db4ff6d2f1bc6f83b71234746aa1c29583099e8877fc5f7a3e70",
+    "benchmarks/steane_single_d3_fixed_ps_100k_accepted/batches/3e7131a6833072466a73a552a4701f2ce13710c13561c34f86d0478e4d3f8cf8.csv": "8ba222b444cbc591013079bc2baa21544bfc72c23823678ee19b75e1b77da630",
+    "benchmarks/steane_single_d3_fixed_ps_100k_accepted/batches/40d99bf5436a1647e93ae10f0c1caba08424255e92983c14d438b1772b3caa1b.csv": "6ceb8a4670211c0c1f2ac7bae792d9bc84e3fc95bc171812a9eb029ca19becac",
+    "benchmarks/steane_single_d3_fixed_ps_100k_accepted/batches/436c781c1a4ad7e56b4dd8318943f6d24bd8d504002b18bd856fd2f1e5e41e90.csv": "3a6f8c9379cd190a9b691442ddc841a1896a8861f233c454c4bb14f126c810ad",
+    "benchmarks/steane_single_d3_fixed_ps_100k_accepted/batches/4e9f0dde8dc1cf27e3bcee89c478ba7a5b67bbbfc71d69c3979c7f1bd65b6e62.csv": "8765cdaf80e06c2eedfe0d21f57c948d04c50e92f0a30cea92c1964eb854057a",
+    "benchmarks/steane_single_d3_fixed_ps_100k_accepted/batches/57b1d48a3b72b575d97e3487dacc44a86b6fb19ae9ac7e942d47bd46d2c5f683.csv": "4cc87b77d5ca98d16f5acebca727332dcc2213adf2d17f5f770576be5c6c6877",
+    "benchmarks/steane_single_d3_fixed_ps_100k_accepted/batches/5e407e77dadffdd62746bc062f796757d045158a4b5e3b766c3e17732fd84651.csv": "803f71b07499bdf2d4684211377830f58761a27a88c797b53d073c6996a87fc9",
+    "benchmarks/steane_single_d3_fixed_ps_100k_accepted/batches/6014cddf8a9ef614e361d429ccc2696590cc3f40edf35a0b5132c8d5adbb59a6.csv": "0fb2478b7b9a9f88e05b10de4d3fb1f5e3d1a2238b4b538f4896d4b8eae720dd",
+    "benchmarks/steane_single_d3_fixed_ps_100k_accepted/batches/6476e359cb57694f4b1d44e4ffcb8934f21ddd037a61163206e98498c6445b23.csv": "957edd76dd6220433bd2e8c43a5dfa1c39bf55ce985692ea893f6b15017354b5",
+    "benchmarks/steane_single_d3_fixed_ps_100k_accepted/batches/68877a0912780c1e0432fcb006bc232ec6df5aa3516037c12c8a317c1416d0b7.csv": "9274c773460e37d10c8d179b42c3076c8e811ee0c540d148028916db7ca6eab2",
+    "benchmarks/steane_single_d3_fixed_ps_100k_accepted/batches/6a124df9ef3f9e24f9dccc009792c7623ec635dba76025c00766207039dee4c6.csv": "e77e7d5c5cac351f0cf41ab34587581d5fde3c4c3b27e68c79401de124217b0f",
+    "benchmarks/steane_single_d3_fixed_ps_100k_accepted/batches/6c7180b6e533f0a844e16583b8f93922cb47d1691253bc0577f06723ba920282.csv": "a1b74188515a9ae9d4d6bcaa78df0c7c001b84a7f9036558eee0d3b2f065597e",
+    "benchmarks/steane_single_d3_fixed_ps_100k_accepted/batches/76bedf890df1addeee2add54083af39a7fa9ae3abc183eafde7fce714f797cbd.csv": "78dd95d2a5bd2b163aac979f1d979337a6c4318a55bfb614a68339fc99ee1f0a",
+    "benchmarks/steane_single_d3_fixed_ps_100k_accepted/batches/779ef2be3fc7242e9ec8790ecf04c469da31d3fd1032a682a17c4422b38c2e94.csv": "ef45c6c9ff60d9ac1c3d6c28257de0b7d105158742f63d1a486a3e92a236a1ab",
+    "benchmarks/steane_single_d3_fixed_ps_100k_accepted/batches/8f99a775b7c8eda146d369e06f44fa47ab448fe8206ee2eb4fe317d211915b2d.csv": "d53e02c64b976519df81c105870f84624b4c5917ee2ebf1d1f65f432cb934617",
+    "benchmarks/steane_single_d3_fixed_ps_100k_accepted/batches/8fee43a741928bfe555e83dee07f01ad93937bda5e796500dd009f7bb01a3cab.csv": "9f15cc1601e48d05358f3b8be35b76a12c3c7ce245c26ef4f5973c64d0bd5e5d",
+    "benchmarks/steane_single_d3_fixed_ps_100k_accepted/batches/96727f5d0ef6050ca01885b5337a96ce184f95ffdd9b574331a81c258a9c7105.csv": "2d620f29292ed94044035edb620bb0536f07504d8f955b4e8e2668b97fc68e02",
+    "benchmarks/steane_single_d3_fixed_ps_100k_accepted/batches/96e5013c067415f033c6d7f7a48c3d52765fec643b1ad9059a2e66eafcd564fa.csv": "32893e4bcd97078389d68b319c0e2d6818520313ef9082703312f246b24d23b5",
+    "benchmarks/steane_single_d3_fixed_ps_100k_accepted/batches/a1959454342e1facc84e03ee6f5ad2eef5b6ac7216c05cebc4dd61a4fc3a7393.csv": "065235db49cb74ffb0eb3a7d144365d6921391e26d13642ed6c6249c93ba5d4d",
+    "benchmarks/steane_single_d3_fixed_ps_100k_accepted/batches/b9e4f8f959c6850d5b7ee159233b01f60b91176c4dc56c669e79963c5f53b576.csv": "3e35afdfa692c71ecd2ed336ac0f0042990a574115d439a6d2d503b4373c6f25",
+    "benchmarks/steane_single_d3_fixed_ps_100k_accepted/batches/cc9414f9423464b98a9d329b9a8ce2485532e714e9100a599a2a2984cfb0ca0d.csv": "0ef1b74eac36c99548483ef950400efb1f343f89222ce62b3f93477073987bab",
+    "benchmarks/steane_single_d3_fixed_ps_100k_accepted/batches/d4038aedc990fc9340bcfa62d05dc438d636b384b1427475d9286885e070aec1.csv": "98d40929bc8a2b0b33e6d777b1821766b08865063808dbed1bb9984c05dbb93e",
+    "benchmarks/steane_single_d3_fixed_ps_100k_accepted/batches/dc2c6345edf95d48872c72bd4a23ea8a87118a2217e6b80f5f4af314c7c63e4e.csv": "2df8059e94fda62558622c4db561b7a60c277e581defc3b4961c13511c386643",
+    "benchmarks/steane_single_d3_fixed_ps_100k_accepted/batches/e456adf7bef200c151e2e0e387d2373bee91d59fc7eba0d2f6cf45c8b00a1f53.csv": "3763b7776483e6f416a97408808d1ba2985cf7f69bf83f6944de7f00d5313117",
+    "benchmarks/steane_single_d3_fixed_ps_100k_accepted/batches/e9d83f4a257f9145883330c8ea4eb2b1875a6308dc06a7cda66708dd9ce10550.csv": "e1a1bc862f99a379f3a0319deb4359c0d952dee3c5d5365f408003753a2f6f6a",
+    "benchmarks/steane_single_d3_fixed_ps_100k_accepted/batches/f16c5aaee670d3273b6afe9bfea4dcdf2d0c5539761415d620e9aca3fb97db49.csv": "9b1e62623e0a8518c8fafd61f8b8b1f90a2209a4893694cfc1b5d1469457185b",
+    "benchmarks/steane_single_d3_fixed_ps_100k_accepted/batches/f94728bab0b7feadd81817d2bb912b754f0b294cc03f50f069306661ec7b2306.csv": "1fb374529f0006f44129da38a7b6f888be16d7b47a99a7a9f296fb8b97d95952",
+    "benchmarks/steane_single_d3_fixed_ps_100k_accepted/config.json": "bd27b370bc0c8b23d07a604a7aa0b9393c62291e5099c7f28b23c26e58c98030",
+    "benchmarks/steane_single_d3_fixed_ps_100k_accepted/diagnostics.json": "06316cda7091bde93db14e86a2e259c154a0201b545fa1d08cf6574ecc304f05",
+    "benchmarks/steane_single_d3_fixed_ps_100k_accepted/run.json": "b7d456cae0b8803b47f136be73fdb28c11aa0e56f0b0648067f87ea81a4e3e64",
+    "benchmarks/steane_single_d3_fixed_ps_100k_accepted/summary.csv": "b8b2413d8500ca835e0c9cb614e765b4dd8428d16d178d818cb6572015506ce8",
+    "benchmarks/steane_single_d3_fixed_ps_100k_accepted/tasks/08aee9886c18588419e689263fd4c60130069508e2586deaa604f4f25d27fc9c.json": "3f2bdb9891346822ca7692a91bf560dac356a44f493b1142f85a14c4f47823a0",
+    "benchmarks/steane_single_d3_fixed_ps_100k_accepted/tasks/09a6ebf72623bf5852f0a450c69204dd08002f3cdc889890d6fd36540784378f.json": "4f7aaca8e62ddfee9af559691c7a48e50ebe86aa24ad08e2bfc096c866f3e539",
+    "benchmarks/steane_single_d3_fixed_ps_100k_accepted/tasks/2a086d175ad0a5f4827fc3c5aa11855eacf9c797d61c49ec8f21481f1f8d9e7b.json": "462749bda331199b30c3675c5bb2776e1eae5e9998670f318e4165d9b5b2e75c",
+    "benchmarks/steane_single_d3_fixed_ps_100k_accepted/tasks/2ad152e1546b6d4e29c4eb2ed11f9be620960d9ac33d5d97af31208724c32daf.json": "d3547f17e79eb7c3ef1a14a2047ab370bbca51faa51bde5996e09277c8340da3",
+    "benchmarks/steane_single_d3_fixed_ps_100k_accepted/tasks/3714192e6003245c7fb89cd354f1a3a359dff454192ae3d5d07db27364d04c94.json": "58bfdd6db3b0d19281f3379a5d1c3c98cff67dca740d4fb727100cf0c5016a2c",
+    "benchmarks/steane_single_d3_fixed_ps_100k_accepted/tasks/3d082febd1a7376a0bf2b2a84d33b0659b8a21583ab1ae2c28e3a3ca38141795.json": "b35a936fd54592964e8bc09d19cee9425713e7810c509bd6a0228fc5612840e4",
+    "benchmarks/steane_single_d3_fixed_ps_100k_accepted/tasks/3e7131a6833072466a73a552a4701f2ce13710c13561c34f86d0478e4d3f8cf8.json": "8e3b505850881bb0c29e41af619aca1a095d831179c432da803f7d3717d8463a",
+    "benchmarks/steane_single_d3_fixed_ps_100k_accepted/tasks/40d99bf5436a1647e93ae10f0c1caba08424255e92983c14d438b1772b3caa1b.json": "74be2d6ec2ac96521df37feda7c4e4975335f0208d5085136592976c65030899",
+    "benchmarks/steane_single_d3_fixed_ps_100k_accepted/tasks/436c781c1a4ad7e56b4dd8318943f6d24bd8d504002b18bd856fd2f1e5e41e90.json": "54419e7181efcc45dff3ee1be7af147732dd8d4e0d13b918b64864de5bd37816",
+    "benchmarks/steane_single_d3_fixed_ps_100k_accepted/tasks/4e9f0dde8dc1cf27e3bcee89c478ba7a5b67bbbfc71d69c3979c7f1bd65b6e62.json": "ba8209ac31a992104d487bcc4b8d5d36bbebe1c4e2ec79a09da45d32e21ed799",
+    "benchmarks/steane_single_d3_fixed_ps_100k_accepted/tasks/57b1d48a3b72b575d97e3487dacc44a86b6fb19ae9ac7e942d47bd46d2c5f683.json": "87624a6df013f98c3aae0aefdc0355204838d140a9030929553c574a7f7cc58b",
+    "benchmarks/steane_single_d3_fixed_ps_100k_accepted/tasks/5e407e77dadffdd62746bc062f796757d045158a4b5e3b766c3e17732fd84651.json": "5fec370ec6fc5f525b59469e525ac1445e14269f860d8335430b38f1d4ddd07d",
+    "benchmarks/steane_single_d3_fixed_ps_100k_accepted/tasks/6014cddf8a9ef614e361d429ccc2696590cc3f40edf35a0b5132c8d5adbb59a6.json": "d34ab7ed49b08c66230da39846d934c65b41a03c703b4fd72ce125dfcecf0ab0",
+    "benchmarks/steane_single_d3_fixed_ps_100k_accepted/tasks/6476e359cb57694f4b1d44e4ffcb8934f21ddd037a61163206e98498c6445b23.json": "7bdfdac747f85a02d62adcf0831e0499c972c602cbcb5cae41a32a68da58d03b",
+    "benchmarks/steane_single_d3_fixed_ps_100k_accepted/tasks/68877a0912780c1e0432fcb006bc232ec6df5aa3516037c12c8a317c1416d0b7.json": "288c78e5f31569308f677764258f4710f8787d8885bf322a83de325519f4bae7",
+    "benchmarks/steane_single_d3_fixed_ps_100k_accepted/tasks/6a124df9ef3f9e24f9dccc009792c7623ec635dba76025c00766207039dee4c6.json": "73882449317e58657439ea53e87be9aa2405f8a7d21bfc0a627fa8e885ede070",
+    "benchmarks/steane_single_d3_fixed_ps_100k_accepted/tasks/6c7180b6e533f0a844e16583b8f93922cb47d1691253bc0577f06723ba920282.json": "05981e9a6df662be6e27532534384de4ad66f3889cf1d4aa20b8eacbfd9f01e1",
+    "benchmarks/steane_single_d3_fixed_ps_100k_accepted/tasks/76bedf890df1addeee2add54083af39a7fa9ae3abc183eafde7fce714f797cbd.json": "065b78452ed24f12b131ececbfa0741a8363e23749366a25c6b6b05975335e51",
+    "benchmarks/steane_single_d3_fixed_ps_100k_accepted/tasks/779ef2be3fc7242e9ec8790ecf04c469da31d3fd1032a682a17c4422b38c2e94.json": "bacc77caa1fb6f3a31c498e89ed51ee552638b3c98de368f535e0f6a1a755d23",
+    "benchmarks/steane_single_d3_fixed_ps_100k_accepted/tasks/8f99a775b7c8eda146d369e06f44fa47ab448fe8206ee2eb4fe317d211915b2d.json": "5c525b215c19281f378e7d1b33a3fc70ca01cf23633d8bbee51466579bb1b07c",
+    "benchmarks/steane_single_d3_fixed_ps_100k_accepted/tasks/8fee43a741928bfe555e83dee07f01ad93937bda5e796500dd009f7bb01a3cab.json": "190eae7a80b1895082b1859b8bcd9f2c6a3a05ff19794572c355febd13890260",
+    "benchmarks/steane_single_d3_fixed_ps_100k_accepted/tasks/96727f5d0ef6050ca01885b5337a96ce184f95ffdd9b574331a81c258a9c7105.json": "c91374cb4bf3ff3505cb76705f29863fb79c66b3e944e2e1e5572700d11e7c8a",
+    "benchmarks/steane_single_d3_fixed_ps_100k_accepted/tasks/96e5013c067415f033c6d7f7a48c3d52765fec643b1ad9059a2e66eafcd564fa.json": "b4fc110065cc1fe22275ff9251162774ee7a7364627bbc02989c906ac244bcad",
+    "benchmarks/steane_single_d3_fixed_ps_100k_accepted/tasks/a1959454342e1facc84e03ee6f5ad2eef5b6ac7216c05cebc4dd61a4fc3a7393.json": "ff6e40b78c8470eb7267b0a77ea9e9869c20aa7b3ed72a8f6a1d9b07182ec32a",
+    "benchmarks/steane_single_d3_fixed_ps_100k_accepted/tasks/b9e4f8f959c6850d5b7ee159233b01f60b91176c4dc56c669e79963c5f53b576.json": "47619dbba3999529cb33ea984eef6ffe5afefa1ef36050eec61bac8e5d52dc66",
+    "benchmarks/steane_single_d3_fixed_ps_100k_accepted/tasks/cc9414f9423464b98a9d329b9a8ce2485532e714e9100a599a2a2984cfb0ca0d.json": "37fab329d614f5bde8426ab38a7ded497dcc218633e3e313c62e90f220d682ca",
+    "benchmarks/steane_single_d3_fixed_ps_100k_accepted/tasks/d4038aedc990fc9340bcfa62d05dc438d636b384b1427475d9286885e070aec1.json": "f5249b5f37ea5619c7481ae199bb922f3a5c90bc94c75ced9e01d382e08171d3",
+    "benchmarks/steane_single_d3_fixed_ps_100k_accepted/tasks/dc2c6345edf95d48872c72bd4a23ea8a87118a2217e6b80f5f4af314c7c63e4e.json": "b011bf19b305dd7f5610372584f8a01f04bf3582dc7b31aa585f37eef8c0e26a",
+    "benchmarks/steane_single_d3_fixed_ps_100k_accepted/tasks/e456adf7bef200c151e2e0e387d2373bee91d59fc7eba0d2f6cf45c8b00a1f53.json": "ba6bfec9b2077e23e9b428f6044fc4fb16611a3ad6a2bb50b0c405a68f144125",
+    "benchmarks/steane_single_d3_fixed_ps_100k_accepted/tasks/e9d83f4a257f9145883330c8ea4eb2b1875a6308dc06a7cda66708dd9ce10550.json": "76f35a88648020ecfb3349fd20e0b2d6725589c762f22f5f4ef6f75f43aeea2d",
+    "benchmarks/steane_single_d3_fixed_ps_100k_accepted/tasks/f16c5aaee670d3273b6afe9bfea4dcdf2d0c5539761415d620e9aca3fb97db49.json": "a343008f91c1ba73a280a1c080712d331aff1b73276f69256440bf3050d69758",
+    "benchmarks/steane_single_d3_fixed_ps_100k_accepted/tasks/f94728bab0b7feadd81817d2bb912b754f0b294cc03f50f069306661ec7b2306.json": "4ff0dc242605aa91be005b3729d7a8df4de98d13f094e13c486c260c020b2cee"
+  },
+  "adaptive_methods_to_rerun": [
+    "adaptive_history",
+    "adaptive_order_two",
+    "adaptive_probability_10",
+    "adaptive_probability_25",
+    "adaptive_no_flags"
+  ],
+  "additional_obsolete_artifacts_removed": [
+    {
+      "path": "build/se_postselected_32_20_4/policy_a53b33d3ca6e1db8.npz",
+      "bytes": 15016
+    },
+    {
+      "path": "build/flag_recovery_presentation.log",
+      "bytes": 217
+    },
+    {
+      "path": "build/flag_recovery_sampling.log",
+      "bytes": 35760
+    },
+    {
+      "path": "build/flag_recovery_controls.log",
+      "bytes": 548
+    },
+    {
+      "path": "build/flag_recovery_build.log",
+      "bytes": 565
+    },
+    {
+      "path": "build/flag_recovery_tests.log",
+      "bytes": 98
+    },
+    {
+      "path": "build/flag_recovery_final_tests.log",
+      "bytes": 678
+    },
+    {
+      "path": "build/history_attribution_report.log",
+      "bytes": 1871
+    },
+    {
+      "path": "build/history_attribution_tests.log",
+      "bytes": 98
+    },
+    {
+      "path": "build/history_attribution_run.log",
+      "bytes": 1032
+    },
+    {
+      "path": "build/history_attribution_resume.log",
+      "bytes": 119
+    },
+    {
+      "path": "build/history_attribution_ambiguity.log",
+      "bytes": 93
+    },
+    {
+      "path": "build/probability_25_production.log",
+      "bytes": 35761
+    },
+    {
+      "path": "build/probability_25_export.log",
+      "bytes": 294
+    },
+    {
+      "path": "build/probability_reference_tests.log",
+      "bytes": 100
+    },
+    {
+      "path": "build/probability_10_export.log",
+      "bytes": 293
+    },
+    {
+      "path": "build/probability_finalization.log",
+      "bytes": 432
+    },
+    {
+      "path": "build/probability_tests.log",
+      "bytes": 99
+    },
+    {
+      "path": "build/probability_controls.log",
+      "bytes": 731
+    },
+    {
+      "path": "build/probability_initial_tests.log",
+      "bytes": 2352
+    },
+    {
+      "path": "build/probability_build.log",
+      "bytes": 582
+    },
+    {
+      "path": "build/probability_10_production.log",
+      "bytes": 35761
+    },
+    {
+      "path": "build/probability_final_tests.log",
+      "bytes": 758
+    },
+    {
+      "path": "build/order_two_tests.log",
+      "bytes": 98
+    },
+    {
+      "path": "build/order_two_export_tests.log",
+      "bytes": 100
+    },
+    {
+      "path": "build/order_two_final_tests.log",
+      "bytes": 678
+    },
+    {
+      "path": "build/order_two_controls.log",
+      "bytes": 892
+    },
+    {
+      "path": "build/order_two_export_audit.log",
+      "bytes": 194
+    },
+    {
+      "path": "build/order_two_build.log",
+      "bytes": 4743
+    },
+    {
+      "path": "build/order_two_presentation.log",
+      "bytes": 86
+    },
+    {
+      "path": "build/order_two_regression_tests.log",
+      "bytes": 678
+    },
+    {
+      "path": "build/order_two_production.log",
+      "bytes": 37560
+    },
+    {
+      "path": "build/order_two_export.log",
+      "bytes": 373
+    },
+    {
+      "path": "build/order_two_plot_preview.log",
+      "bytes": 27
+    },
+    {
+      "path": "build/order_two_export_compact.log",
+      "bytes": 279
+    },
+    {
+      "path": "build/order_two_measurement_controls.log",
+      "bytes": 268
+    },
+    {
+      "path": "build/normal_shots_history.log",
+      "bytes": 18074
+    },
+    {
+      "path": "build/normal_shots_steane.log",
+      "bytes": 18073
+    },
+    {
+      "path": "build/normal_shots_no_flags.log",
+      "bytes": 18075
+    },
+    {
+      "path": "build/normal_shots_validation.log",
+      "bytes": 205
+    },
+    {
+      "path": "build/normal_shots_tests.log",
+      "bytes": 113
+    },
+    {
+      "path": "build/normal_shots_presentation.log",
+      "bytes": 85
+    },
+    {
+      "path": "build/bounded_production.log",
+      "bytes": 35183
+    },
+    {
+      "path": "build/bounded_engine_integration_tests.log",
+      "bytes": 125
+    },
+    {
+      "path": "build/bounded_controls.log",
+      "bytes": 222
+    },
+    {
+      "path": "build/bounded_build.log",
+      "bytes": 1085
+    },
+    {
+      "path": "build/bounded_presentation.log",
+      "bytes": 85
+    },
+    {
+      "path": "build/bounded_scope_tests.log",
+      "bytes": 109
+    },
+    {
+      "path": "build/bounded_steane_production.log",
+      "bytes": 17529
+    },
+    {
+      "path": "build/bounded_regression_tests.log",
+      "bytes": 666
+    }
+  ]
+}

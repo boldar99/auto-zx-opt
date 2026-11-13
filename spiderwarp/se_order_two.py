@@ -1,6 +1,6 @@
 """Exact order-two recovery from observable adaptive syndrome histories.
 
-Keep the existing controller on every order-one-compatible record. Additional
+Keep the standard controller on every accepted base record. Additional
 records accept only when all r+s<=2 explanations agree modulo stabilizers.
 The circuit model is the existing certificate's physical gate/reset/readout
 locations (no implicit idle faults); production sampling also includes memory.
@@ -100,13 +100,16 @@ class OrderTwoEvidence:
 def compile_order_two(parent, *, verify=True, progress=None):
     """Compile all bounded records, including parent-rejected observations.
 
-    On order-one records, quantum actions and corrections are unchanged. Other
+    On accepted base records, quantum actions and corrections are unchanged. Other
     records finish the first two readings and, on a d4/d4 path, may use one d2
     in the basis that separates the most uniquely correctable outcome groups.
     This choice uses exact classes, with no noise probabilities or output labels.
     """
+    if parent.policy.contract.correctable == 1:
+        from spiderwarp.se_postselection import postselect_order_one
+        parent = postselect_order_one(parent, verify=False)
     old = parent.policy
-    if (old.contract.input_scope != 'total-order' or old.contract.correctable != 1
+    if (old.contract.input_scope != 'total-order' or old.contract.correctable != 0
             or old.contract.logical_order != 1 or old.contract.fault_order != 2):
         raise ValueError('Order-two rescue requires the total-order-one parent with order-two analysis')
     if set(parent.gadgets) != {'Z_d4', 'X_d4', 'Z_d2', 'X_d2'}:
@@ -133,8 +136,8 @@ def compile_order_two(parent, *, verify=True, progress=None):
 
     @lru_cache(maxsize=None)
     def exhausted(state, names):
-        # Every compatible explanation has spent total order two. Further
-        # observations in this bounded analysis are ideal, so no pair expansion.
+        # A base-rejected record may still have a single-fault explanation.
+        # Include its remaining fault budget if an additional d2 is executed.
         correction = evidence.correction(state)
         if correction is not None:
             stats['rescued_contexts'] += 1
@@ -144,10 +147,8 @@ def compile_order_two(parent, *, verify=True, progress=None):
             return 0
         choices = []
         for name in ('Z_d2', 'X_d2'):
-            groups = defaultdict(list)
-            for item in state:
-                groups[evidence.read(item[1], name)].append(item)
-            children = {syndrome: evidence.correction(group) for syndrome, group in groups.items()}
+            groups = evidence.transition(state, name)
+            children = {outcome: evidence.correction(group) for outcome, group in groups.items()}
             keep = {s: c for s, c in children.items() if c is not None}
             choices.append((len(keep), name, keep))
         count, name, keep = max(choices, key=lambda item: (item[0], item[1] == 'Z_d2'))
@@ -157,8 +158,8 @@ def compile_order_two(parent, *, verify=True, progress=None):
         stats['extra_followups'] += 1
         stats['rescued_contexts'] += len(keep)
         return intern(PolicyNode('extract', action=name, children={
-            (0, syndrome): intern(PolicyNode('accept', frame=correction))
-            for syndrome, correction in sorted(keep.items())}))
+            outcome: intern(PolicyNode('accept', frame=correction))
+            for outcome, correction in sorted(keep.items())}))
 
     def visit(index, frame, state, names, prefix):
         stats['contexts'] += 1
@@ -169,14 +170,12 @@ def compile_order_two(parent, *, verify=True, progress=None):
         if protected and node.kind == 'accept':
             stats['protected_accepts'] += 1
             return intern(PolicyNode('accept', frame=frame ^ node.frame))
-        if protected and node.kind == 'reject':
-            raise ValueError(f'Parent rejected an order-one-compatible record: {prefix}')
-        if not protected and len(names) >= 2:
+        if len(names) >= 2 and (not protected or node.kind == 'reject'):
             result = exhausted(state, names)
             if result and len(witnesses) < 32:
                 witnesses.append(dict(record=prefix, state=state))
             return result
-        if protected:
+        if protected and node.kind == 'extract':
             name = node.action
         else:
             assert names == ('Z_d4',)
@@ -193,7 +192,7 @@ def compile_order_two(parent, *, verify=True, progress=None):
         return intern(PolicyNode('extract', action=name, children=children)) if children else 0
 
     root = visit(old.root, 0, evidence.initial, (), ())
-    contract = replace(old.contract, accept_clean_through=1)
+    contract = old.contract
     decoder = FixedCSSDecoder(space, contract)
     policy = AdaptivePolicy(old.actions.copy(), contract, decoder, tuple(nodes), root,
                             AdaptiveVerificationReport(contract, decoder.fingerprint),
@@ -202,9 +201,10 @@ def compile_order_two(parent, *, verify=True, progress=None):
     derived = AdaptiveSEProtocol(parent.code, policy)
     if verify:
         derived.verify()
-    provenance = dict(method='exact-order-two-uniqueness', version=1,
+    provenance = dict(method='exact-order-two-uniqueness', version=2,
         incoming_order='max(w_X,w_Z)', analyzed_orders=[[2, 0], [1, 1], [0, 2]],
-        acceptance='Preserve order-one records; otherwise one final Pauli class modulo stabilizers',
+        acceptance='Preserve standard flag-conditioned base; otherwise one final Pauli class modulo stabilizers',
+        base_rule='No flags: incoming CSS order <=1; flags: history recovery',
         fault_model=derived.verification.noise_model,
         additional_rescues_certified_through=2, all_accepted_order_two_correct=False,
         memory_noise_in_certificate=False, parent_rejected_records_considered=True,

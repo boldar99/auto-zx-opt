@@ -54,7 +54,7 @@ def build_order_two(parent):
     protocol.save_bundle(path)
     emit_protocol(protocol, path, 'hugr')
     provenance.update(protocol_hash=read_manifest(path)[1]['protocol_hash'],
-                      parent_protocol_hash=read_manifest(ROOT / 'build/se_32_20_4')[1]['protocol_hash'],
+                      parent_protocol_hash=read_manifest(ROOT / 'build' / study.BUNDLES['adaptive_history'])[1]['protocol_hash'],
                       verification=asdict(protocol.verification), inspection=inspect(protocol))
     write(path / 'experiment.json', provenance)
     write(OUT / 'order_two_build_validation.json', provenance)
@@ -62,61 +62,55 @@ def build_order_two(parent):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--only', choices=('adaptive_history', 'adaptive_syndrome', 'adaptive_no_flags', 'adaptive_order_two',
+    parser.add_argument('--only', choices=('adaptive_history', 'adaptive_no_flags', 'adaptive_order_two',
                                          'adaptive_probability_10', 'adaptive_probability_25'))
     args = parser.parse_args(argv)
     if args.only and args.only.startswith('adaptive_probability_'):
         import_module('analysis.32_20_4_bounded_comparison.build_probability').main([])
         return
-    parent = load_protocol(ROOT / 'build/se_32_20_4')
+    base_path = ROOT / 'build' / study.BUNDLES['adaptive_history']
     if args.only == 'adaptive_order_two':
-        build_order_two(parent)
+        build_order_two(load_protocol(base_path))
         return
-    assert parent.policy.contract.input_scope == 'total-order'
-    assert parent.policy.contract.correctable == 1
-    assert parent.policy.contract.accept_clean_through == 1
-    assert parent.policy.contract.accepted_filter_order == 1
-    assert set(parent.gadgets) == {'X_d2', 'X_d4', 'Z_d2', 'Z_d4'}
-    validation_path = OUT / 'build_validation.json'
+    template = load_protocol(ROOT / 'build/se_32_20_4')
     import json
+    validation_path = OUT / 'build_validation.json'
     audits = json.loads(validation_path.read_text())['methods'] if args.only and validation_path.exists() else {}
-    for key, compiler in (
-            ('adaptive_history', lambda: postselect_order_one(parent, progress=print)),
-            ('adaptive_syndrome', lambda: compile_css_candidate(parent, 'css', progress=print)),
-            ('adaptive_no_flags', lambda: compile_css_candidate(parent, 'css-no-flags', progress=print))):
-        if args.only and args.only != key:
-            continue
-        path = ROOT / 'build' / study.BUNDLES[key]
-        protocol = compiler()
-        checks = inspect(protocol)
-        checks['order_one_guard'] = verify_order_one_guard(protocol)
+    if not args.only or args.only == 'adaptive_history':
+        base = postselect_order_one(template, progress=print)
+        checks = inspect(base)
+        checks['order_one_guard'] = verify_order_one_guard(base)
+        base.save_bundle(base_path)
+        emit_protocol(base, base_path, 'hugr')
+        checks.update(protocol_hash=read_manifest(base_path)[1]['protocol_hash'],
+                      verification=asdict(base.verification))
+        audits['adaptive_history'] = checks
+        write(base_path / 'experiment.json', dict(
+            method='standard-flag-conditioned-order-one',
+            no_flags='Treat measured CSS syndromes as incoming errors; accept and correct iff max(w_X,w_Z)<=1',
+            raised_flags='Fault-history recovery, including propagated hook corrections',
+            single_internal_fault_acceptance_guarantee=False,
+            accepted_order_one_logical_protection=True,
+            parent_hash=read_manifest(ROOT / 'build/se_32_20_4')[1]['protocol_hash']))
+        print('Standard r+s<=1:', checks['protocol_hash'], flush=True)
+    else:
+        base = load_protocol(base_path)
+    if not args.only or args.only == 'adaptive_no_flags':
+        protocol = compile_css_candidate(base, 'css-no-flags', progress=print)
+        path = ROOT / 'build' / study.BUNDLES['adaptive_no_flags']
         protocol.save_bundle(path)
         emit_protocol(protocol, path, 'hugr')
-        checks.update(protocol_hash=read_manifest(path)[1]['protocol_hash'], bundle=str(path.relative_to(ROOT)),
-                      verification=asdict(protocol.verification))
-        write(path / 'experiment.json', dict(
-            input_scope='r+s<=2; r=max(w_X,w_Z)', acceptance='Reject if no compatible r+s<=1 history; reject unsafe ambiguous frames',
-            mandatory_acceptance=('All total-order-one histories' if key in {'adaptive_history', 'adaptive_syndrome'}
-                                  else 'Clean input only; additional syndrome PS may reject single-fault records'),
-            flow=('Z_d4 -> X_d4; reject any flag immediately; no d2 follows'
-                  if key == 'adaptive_no_flags' else
-                  'Z_d4; first flags zero -> X_d4; raised first flags -> X_d2; second d4 flag or unresolved correction -> one d2 follow-up'),
-            accepted_correction_scope='r+s<=1; order-two histories are used for detection, not an extra correction requirement',
-            no_d1=True, no_order_two_rescues=True, baseline_excluded=True,
-            additional_syndrome_guard=key == 'adaptive_no_flags',
-            all_flags_zero=key == 'adaptive_no_flags',
-            flag_zero_is_not_actual_fault_zero=key == 'adaptive_no_flags',
-            parent_hash=read_manifest(ROOT / 'build/se_32_20_4')[1]['protocol_hash']))
-        audits[key] = checks
-        print(key, checks['protocol_hash'], checks['paths'], flush=True)
-    assert audits['adaptive_syndrome']['protocol_hash'] == audits['adaptive_history']['protocol_hash']
-    assert audits['adaptive_no_flags']['protocol_hash'] != audits['adaptive_history']['protocol_hash']
-    write(OUT / 'build_validation.json', dict(complete=True, methods=audits,
-          user_steering='History/no-flag cohort; no d1 or retired rescues; full-order-two V2 is built and certified separately',
-          allowed_distance_paths=[[4, 4, 2], [4, 4], [4, 2]],
-          sample_floor=study.SHOT_FLOOR, sample_cap=study.SHOT_CAP, matching_attempted_counts=True))
+        audits['adaptive_no_flags'] = dict(inspection=inspect(protocol),
+            protocol_hash=read_manifest(path)[1]['protocol_hash'],
+            parent_protocol_hash=read_manifest(base_path)[1]['protocol_hash'],
+            verification=asdict(protocol.verification))
+        write(path / 'experiment.json', audits['adaptive_no_flags'])
+    if audits:
+        write(OUT / 'build_validation.json', dict(complete=True, methods=audits,
+            base_rule='No flags: incoming CSS order <=1; raised flags: fault-history recovery',
+            allowed_distance_paths=[[4, 4, 2], [4, 4], [4, 2]]))
     if not args.only:
-        build_order_two(parent)
+        build_order_two(base)
         import_module('analysis.32_20_4_bounded_comparison.build_probability').main([])
 
 

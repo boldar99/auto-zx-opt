@@ -1,9 +1,8 @@
-"""Compile observable order-one compatibility into an adaptive SE graph.
+"""Standard r+s<=1 postselection: incoming decoding when quiet, flagged recovery.
 
-The derived program follows the original actions and Pauli frames until its
-observations have no explanation with incoming CSS order plus internal faulty
-locations <= 1. Such an edge rejects immediately. No runtime fault enumerator,
-noise-event oracle, or ideal final readout is needed by the saved program.
+With no raised flags, measured CSS syndromes describe incoming errors and must
+have component order at most one. Raised flags use fault-history recovery with
+no cap on propagated hook-correction weight. All decisions are observable.
 """
 from __future__ import annotations
 
@@ -117,7 +116,7 @@ def verify_order_one_guard(protocol):
 
 
 def postselect_order_one(parent, *, verify=True, progress=None):
-    """Prune a saved controller without resynthesis or new quantum operations.
+    """Compile the standard flag-conditioned base without new quantum operations.
 
     Shared graph nodes are paired with their compatible syndrome state before
     pruning; inspecting terminal node IDs alone would lose history information.
@@ -164,12 +163,89 @@ def postselect_order_one(parent, *, verify=True, progress=None):
     policy = AdaptivePolicy(old.actions.copy(), contract, decoder, tuple(nodes), root, report,
                             peak_qubit_limit=old.peak_qubit_limit)
     compact_policy(policy)
-    derived = AdaptiveSEProtocol(parent.code, policy)
+    derived = _condition_unflagged_inputs(AdaptiveSEProtocol(parent.code, policy))
+    policy = derived.policy
     if progress:
-        progress(f"Compiled order-one guard: {len(old.nodes):,} -> {len(policy.nodes):,} nodes")
+        progress(f"Compiled standard flag-conditioned order-one guard: {len(old.nodes):,} -> {len(policy.nodes):,} nodes")
     if verify:
         derived.verify()
         guard = verify_order_one_guard(derived)
         if progress:
             progress(f"Independent FT and guard checks passed: {guard}")
+    return derived
+
+
+def _condition_unflagged_inputs(parent):
+    """Restrict flag-free records and preserve every flagged recovery branch.
+
+    ``parent`` is the saved order-one history controller. The accepted-input
+    radius remains CSS one, but some internal single faults are postselected.
+    The independent contract therefore requires clean mandatory acceptance and
+    logical protection of every accepted history through total order one.
+    """
+    old = parent.policy
+    if old.contract.logical_order != 1 or old.contract.correctable not in {0, 1}:
+        raise ValueError('Supply the order-one history controller')
+    space = old.decoder.space
+    nodes = list(old.nodes)
+    interned = {(n.kind, n.action, n.frame, n.next,
+                 tuple(sorted(n.children.items()))): i for i, n in enumerate(nodes)}
+
+    def intern(node):
+        key = (node.kind, node.action, node.frame, node.next,
+               tuple(sorted(node.children.items())))
+        if key not in interned:
+            interned[key] = len(nodes)
+            nodes.append(node)
+        return interned[key]
+
+    @lru_cache(None)
+    def visit(index, frame, readings):
+        node = old.nodes[index]
+        if node.kind == 'reject':
+            return 0
+        if node.kind == 'frame':
+            child = visit(node.next, frame ^ node.frame, readings)
+            return intern(replace(node, next=child)) if child else 0
+        if node.kind == 'accept':
+            if tuple(old.actions[name].gadget.basis for name, _ in readings) != ('Z', 'X'):
+                raise ValueError('Flag-free inputs must finish with Z then X')
+            sx, sz = (syndrome for _, syndrome in readings)
+            if old.decoder.weights['X'][sx] > 1 or old.decoder.weights['Z'][sz] > 1:
+                return 0
+            correction = (old.decoder.physical['X'][sx]
+                          ^ old.decoder.physical['Z'][sz])
+            return intern(PolicyNode('accept', frame=frame ^ correction))
+        if node.kind != 'extract':
+            raise ValueError('Unknown history node')
+        # A quiet pair is interpreted directly, rather than using an extra
+        # reading to rescue a record without an incoming CSS-one explanation.
+        if len(readings) == 2:
+            sx, sz = (syndrome for _, syndrome in readings)
+            if old.decoder.weights['X'][sx] <= 1 and old.decoder.weights['Z'][sz] <= 1:
+                raise ValueError('Parent unexpectedly remeasures a CSS-one input')
+            return 0
+        expected = ('Z', 'X')[len(readings)]
+        if old.actions[node.action].gadget.basis != expected:
+            raise ValueError('Unexpected flag-free extraction path')
+        component = 'X' if old.actions[node.action].gadget.basis == 'Z' else 'Z'
+        offset = space.component_syndrome(frame, component)
+        children = {}
+        for (flags, syndrome), child in node.children.items():
+            # The original continuation includes its ordinary recovery checks,
+            # order-one compatibility guard and unrestricted hook correction.
+            target = child if flags else visit(
+                child, frame, readings + ((node.action, syndrome ^ offset),))
+            if target:
+                children[flags, syndrome] = target
+        return intern(replace(node, children=children))
+
+    root = visit(old.root, 0, ())
+    contract = replace(old.contract, correctable=0, accept_clean_through=0)
+    decoder = FixedCSSDecoder(space, contract)
+    report = AdaptiveVerificationReport(contract, decoder.fingerprint)
+    policy = AdaptivePolicy(old.actions.copy(), contract, decoder, tuple(nodes),
+                            root, report, peak_qubit_limit=old.peak_qubit_limit)
+    compact_policy(policy)
+    derived = AdaptiveSEProtocol(parent.code, policy)
     return derived

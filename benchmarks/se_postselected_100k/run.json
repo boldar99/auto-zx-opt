@@ -2,7 +2,7 @@
   "status": "complete",
   "method": "adaptive_history",
   "display_name": "Adaptive PS(r+s\u22641)",
-  "protocol_hash": "62da3175473f60675125c331b7cc2ac9c5bdee5ed71e23f7fe04e8da439cfe44",
+  "protocol_hash": "84bc3315c7b9365c882ecb2d77197fe63e42c43f65f6c94322745026d0f765f6",
   "engine": {
     "model": "stim-adaptive-initial-data-idles-accepted-cost-v2",
     "sources": {
@@ -97,8 +97,10 @@
     ]
   ],
   "accepted_correction_order": 1,
-  "mandatory_acceptance": "r+s<=1",
+  "mandatory_acceptance": "Standard flag-conditioned base; all noiseless CSS-one inputs",
+  "base_rule": "No flags: incoming CSS syndromes with r_syn<=1; flags: history recovery",
+  "single_internal_fault_acceptance_guarantee": false,
   "attempted_shots": 9329148,
   "actual_attempted_shots": 9329148,
-  "wall_seconds": 594.0746661659941
+  "wall_seconds": 1492.7243587920093
 }

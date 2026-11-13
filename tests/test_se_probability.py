@@ -45,12 +45,12 @@ def test_exclusive_alternatives_do_not_create_fictitious_posterior_support():
 
 @pytest.fixture(scope='module')
 def parent():
-    return load_protocol(ROOT / 'build/se_32_20_4')
+    return load_protocol(ROOT / 'build/se_postselected_32_20_4')
 
 
 def test_mandatory_records_and_routes_are_complete(parent):
     model = ProbabilityRescueModel(parent)
-    assert len(model.mandatory) == 2375
+    assert len(model.mandatory) == 2371
     assert model.third_routes
     for (names, observation), frame in model.mandatory.items():
         assert model.valid(names, observation)
@@ -76,7 +76,14 @@ def test_every_css_one_and_single_fault_replays_the_parent_exactly(compiled, par
     for position, name in enumerate(('Z_d4', 'X_d4')):
         for effect in parent.gadgets[name].single_fault_effects:
             faults = (0,) * position + (effect,)
-            assert replay(compiled, 0, faults) == replay(parent, 0, faults)
+            old = replay(parent, 0, faults)
+            new = replay(compiled, 0, faults)
+            if old[0]:
+                assert new == old
+            elif new[0]:
+                # A base-rejected single-fault record is an additional rescue,
+                # with its MAP correction checked separately against epsilon.
+                assert new[1] == 0
     assert compiled.verification.verified
     assert compiled.policy.contract == parent.policy.contract
     assert compiled.verification.max_extractions <= 3

@@ -4,26 +4,26 @@
     "10": {
       "export": {
         "nodes_checked": 23918,
-        "transitions_checked": 242149,
+        "transitions_checked": 242147,
         "missing_edges_reject": true
       },
       "confidence": {
-        "additional_records": 294509,
-        "mandatory_records": 2375,
+        "additional_records": 294511,
+        "mandatory_records": 2371,
         "independently_rescored": 1000,
-        "max_estimated_error": 0.09990084103749607,
+        "max_estimated_error": 0.09916200230618996,
         "pointwise_posterior_matches_global_convolution": true
       }
     },
     "25": {
       "export": {
         "nodes_checked": 26241,
-        "transitions_checked": 312810,
+        "transitions_checked": 312808,
         "missing_edges_reject": true
       },
       "confidence": {
-        "additional_records": 346138,
-        "mandatory_records": 2375,
+        "additional_records": 346140,
+        "mandatory_records": 2371,
         "independently_rescored": 1000,
         "max_estimated_error": 0.25,
         "pointwise_posterior_matches_global_convolution": true

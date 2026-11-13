@@ -8,6 +8,7 @@ from spiderwarp.noise_model import CustomErrorModel
 from spiderwarp.se_native import run_native
 from spiderwarp.se_protocol_io import load_protocol
 from spiderwarp.se_protocol_simulation import ProtocolSampler, _StateExperiment
+from spiderwarp.se_postselection import OrderOneEvidence
 
 study = import_module('analysis.32_20_4_bounded_comparison.study')
 
@@ -27,6 +28,32 @@ class InjectFirst:
             self.sim.do_circuit(self.injected)
         else:
             self.sim.do_circuit(circuit)
+
+
+def accepted_records(protocol):
+    """Retain only order-one-compatible records of the recovery template."""
+    evidence = OrderOneEvidence(protocol)
+    records = {}
+
+    def visit(index, frame, state, record):
+        if not state:
+            return
+        node = protocol.policy.nodes[index]
+        if node.kind == 'accept':
+            records[record] = frame ^ node.frame
+        elif node.kind == 'frame':
+            visit(node.next, frame ^ node.frame, evidence.translate(state, node.frame), record)
+        elif node.kind == 'extract':
+            component = 'X' if protocol.gadgets[node.action].basis == 'Z' else 'Z'
+            offset = evidence.space.component_syndrome(frame, component)
+            groups = evidence.transition(state, node.action)
+            for outcome, child in node.children.items():
+                flags, syndrome = outcome
+                visit(child, frame, groups.get(outcome, frozenset()),
+                      record + ((node.action, flags, syndrome ^ offset),))
+
+    visit(protocol.policy.root, 0, evidence.initial, ())
+    return records
 
 
 def main(argv=None):
@@ -96,7 +123,7 @@ def main(argv=None):
             else:
                 assert followup_accept > 0
             if key == 'adaptive_history':
-                assert fault_reject == 0 and second_accept == len(second.single_fault_effects)
+                assert fault_reject == 2 and second_accept == len(second.single_fault_effects) - 2
             clean = ProtocolSampler(protocol, noise_model=CustomErrorModel(), prepared_state=basis,
                                     cycles=10).sample(100, 20261113)
             assert clean.accepted == 100 and clean.logical_errors == 0
@@ -125,8 +152,24 @@ def main(argv=None):
                 native_clean_shots=sum(r['native_clean']['shots'] for r in records),
                 native_noisy_shots=sum(r['native_gate_only_noisy']['shots'] for r in records),
                 native_noise_scope='Gate-only backend controls; differs from production scheduled-memory noise',
-                history_method_requires_single_fault_acceptance=True,
+                history_method_requires_single_fault_acceptance=False,
                 zero_flag_experiment_can_postselect_single_faults=True))
+    base = load_protocol(study.ROOT / 'build' / study.BUNDLES['adaptive_history'])
+    template = load_protocol(study.ROOT / 'build/se_32_20_4')
+    before, after = accepted_records(template), accepted_records(base)
+    flagged = lambda records: {r: f for r, f in records.items() if any(step[1] for step in r)}
+    assert flagged(before) == flagged(after) and len(flagged(after)) == 1282
+    quiet = {r: f for r, f in after.items() if not any(step[1] for step in r)}
+    assert len(quiet) == 1089 and len(after) == 2371
+    audit = import_module('analysis.32_20_4_bounded_comparison.probability_controls')
+    source = (study.ROOT / 'build' / study.BUNDLES['adaptive_history'] / 'steane_se_protocol.py').read_text()
+    export = audit.audit_export(base, audit.emitted_bodies(source))
+    study.write(study.OUT / 'standard_base_controls.json', dict(complete=True,
+        base_accepted_records=len(after), quiet_accepted_records=len(quiet),
+        flagged_accepted_records=len(flagged(after)), flagged_paths_and_frames_preserved=True,
+        removed_unflagged_records=sorted(set(before) - set(after)), export=export,
+        all_noiseless_css_one_inputs_accepted_correct=True,
+        single_internal_fault_acceptance_guarantee=False))
 
 
 if __name__ == '__main__':

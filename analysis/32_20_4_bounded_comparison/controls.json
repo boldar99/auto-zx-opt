@@ -7,10 +7,10 @@
         "accepted_inputs_correct": 1089,
         "postselected_inputs": 0,
         "first_fault_classes": 1005,
-        "accepted_faults_correct": 1005,
-        "postselected_faults": 0,
+        "accepted_faults_correct": 1003,
+        "postselected_faults": 2,
         "second_fault_classes": 1005,
-        "accepted_second_faults_correct": 1005,
+        "accepted_second_faults_correct": 1003,
         "accepted_d2_followup_replays": 771,
         "rejected_d2_followup_replays": 0,
         "noiseless_ten_cycle_shots": 100,
@@ -45,12 +45,12 @@
             "selene-sim": "0.2.18"
           },
           "experiment": {
-            "protocol_hash": "62da3175473f60675125c331b7cc2ac9c5bdee5ed71e23f7fe04e8da439cfe44",
+            "protocol_hash": "84bc3315c7b9365c882ecb2d77197fe63e42c43f65f6c94322745026d0f765f6",
             "prepared_state": "0",
             "cycles": 3,
             "incoming_x": 1,
             "incoming_z": 131072,
-            "source_sha256": "84692f6783dcf9d14dde63d5197b793abc1ed4a1d5721e8a360e55e7569ab7bb",
+            "source_sha256": "6b278b299641e5cbbef609c0ce60e4f43327f32980c945a32d63f63e3e2263a0",
             "versions": {
               "spiderwarp": "0.1.0",
               "numpy": "2.2.6",
@@ -59,8 +59,8 @@
               "hugr": "0.16.0",
               "selene-sim": "0.2.18"
             },
-            "compile_hash": "ae7267903a094c81ba5aec64b807d0aafc68462107bdc51fe42880d59f004e3b",
-            "hugr_sha256": "52add1a0cc224f4d4f849a5a7453216bc984b88d9f38ede588a52998b0b2dd09"
+            "compile_hash": "7b9c63b69f592bcae8fc5686aabecac762af6b0154d703b8514782874013f71a",
+            "hugr_sha256": "7ca3cceca29750f120a5cc0c27d1bba32f88886b26e19aa9a5cfb49c61f7f48d"
           }
         },
         "native_gate_only_noisy": {
@@ -77,14 +77,14 @@
           "cycles": 1,
           "prepared_state": "0",
           "shots": 100,
-          "accepted": 72,
+          "accepted": 71,
           "logical_errors": 7,
-          "ler": 0.09722222222222222,
+          "ler": 0.09859154929577464,
           "ler_interval_95": [
-            0.047896319973655774,
-            0.1873504579512686
+            0.048582823723969326,
+            0.18980722240592854
           ],
-          "survival": 0.72,
+          "survival": 0.71,
           "versions": {
             "spiderwarp": "0.1.0",
             "numpy": "2.2.6",
@@ -94,12 +94,12 @@
             "selene-sim": "0.2.18"
           },
           "experiment": {
-            "protocol_hash": "62da3175473f60675125c331b7cc2ac9c5bdee5ed71e23f7fe04e8da439cfe44",
+            "protocol_hash": "84bc3315c7b9365c882ecb2d77197fe63e42c43f65f6c94322745026d0f765f6",
             "prepared_state": "0",
             "cycles": 1,
             "incoming_x": 0,
             "incoming_z": 0,
-            "source_sha256": "773533d7527057e726a330d4ee6e3149c5cfceaa185de5a50c65f0e93fe74725",
+            "source_sha256": "cfe49a01466cbff687543aa126245ea32ff095343efca32e3e3f2294ce1d484e",
             "versions": {
               "spiderwarp": "0.1.0",
               "numpy": "2.2.6",
@@ -108,8 +108,8 @@
               "hugr": "0.16.0",
               "selene-sim": "0.2.18"
             },
-            "compile_hash": "cb449422ca39e1888f9fa1633ecd8a1ce422f8d82d29bc7d01737c9430d16ad9",
-            "hugr_sha256": "555c48317730f72b1b1329f1ffafdb47f2d318c5bf4e22214906283e5d654753"
+            "compile_hash": "5ad1afc7f1f0b3d4528364544bd1890c43b0921183b9cc2825cedcdc62f907dc",
+            "hugr_sha256": "be481c52852918524526728e88172ba32a0e736b9cfac4263a715182e6f4bdef"
           }
         }
       },
@@ -118,10 +118,10 @@
         "accepted_inputs_correct": 1089,
         "postselected_inputs": 0,
         "first_fault_classes": 1005,
-        "accepted_faults_correct": 1005,
-        "postselected_faults": 0,
+        "accepted_faults_correct": 1003,
+        "postselected_faults": 2,
         "second_fault_classes": 1005,
-        "accepted_second_faults_correct": 1005,
+        "accepted_second_faults_correct": 1003,
         "accepted_d2_followup_replays": 771,
         "rejected_d2_followup_replays": 0,
         "noiseless_ten_cycle_shots": 100,
@@ -156,12 +156,12 @@
             "selene-sim": "0.2.18"
           },
           "experiment": {
-            "protocol_hash": "62da3175473f60675125c331b7cc2ac9c5bdee5ed71e23f7fe04e8da439cfe44",
+            "protocol_hash": "84bc3315c7b9365c882ecb2d77197fe63e42c43f65f6c94322745026d0f765f6",
             "prepared_state": "+",
             "cycles": 3,
             "incoming_x": 1,
             "incoming_z": 131072,
-            "source_sha256": "05b0661e8ee879d50fd9f9306bcde032e61395811dde8291e2f73154eacc2f90",
+            "source_sha256": "495bb868ce6afd8a576601cffdb863250ca08c8ab28f8c30e9800e749f558f43",
             "versions": {
               "spiderwarp": "0.1.0",
               "numpy": "2.2.6",
@@ -170,8 +170,8 @@
               "hugr": "0.16.0",
               "selene-sim": "0.2.18"
             },
-            "compile_hash": "a78c04650cf1e0be47e00f0764641940b6e724cbcb88c593568bd82aff2401bc",
-            "hugr_sha256": "ce5b8e8e8f005034717badbd7f64607c6ba832c9968b83b3f2e2541ba63e5d2e"
+            "compile_hash": "4fddb956f719a2e92575069c04b3e3f350b3fb33481376f00e72d204fcc7e07d",
+            "hugr_sha256": "b13391f6bbfc68782655f1046a924ab9a630cbaa675996a114011a775ec5ae65"
           }
         },
         "native_gate_only_noisy": {
@@ -205,12 +205,12 @@
             "selene-sim": "0.2.18"
           },
           "experiment": {
-            "protocol_hash": "62da3175473f60675125c331b7cc2ac9c5bdee5ed71e23f7fe04e8da439cfe44",
+            "protocol_hash": "84bc3315c7b9365c882ecb2d77197fe63e42c43f65f6c94322745026d0f765f6",
             "prepared_state": "+",
             "cycles": 1,
             "incoming_x": 0,
             "incoming_z": 0,
-            "source_sha256": "c39598f6c709952f6d1b572eae4920d892a12cb9966f21239f333c43e1dd22e6",
+            "source_sha256": "9f5929d5404aa428e4264ef818c4d3fbda946e00024feaba35f0a22b59dcb071",
             "versions": {
               "spiderwarp": "0.1.0",
               "numpy": "2.2.6",
@@ -219,8 +219,8 @@
               "hugr": "0.16.0",
               "selene-sim": "0.2.18"
             },
-            "compile_hash": "a998551fa24ab68fda7702668a81f1c0ba7389cea77d5b4d3e7d50601203cf88",
-            "hugr_sha256": "c510420007421ae3900740bd1ba2bc04b8a1e5a7493924894983a27406371c70"
+            "compile_hash": "d2ffc74bd4f8c27bbfd0fccb2163ae484571ac10cbc9114119924b7a28c89566",
+            "hugr_sha256": "fd752cc50f3c99da17b757d97195235602cabea101404617f7cda88ac5a17bd5"
           }
         }
       }
@@ -269,12 +269,12 @@
             "selene-sim": "0.2.18"
           },
           "experiment": {
-            "protocol_hash": "131e76ee8a48727bc49c57fe1e91192578cd7627931903ad0644f87982874c88",
+            "protocol_hash": "0475d94b4983ba212d8830c2bf5f496b7e39b68a8f158c4d45e3e833b2d531bc",
             "prepared_state": "0",
             "cycles": 3,
             "incoming_x": 1,
             "incoming_z": 131072,
-            "source_sha256": "4881c5ae8aea856e0476b02389fc7804cae8493a26cb6f059700cba60d305e00",
+            "source_sha256": "592885ca3ab168f1c56c7c8e458c022fa0a7542e49f0d358e8f9863241b62972",
             "versions": {
               "spiderwarp": "0.1.0",
               "numpy": "2.2.6",
@@ -283,8 +283,8 @@
               "hugr": "0.16.0",
               "selene-sim": "0.2.18"
             },
-            "compile_hash": "75bf9681fdbbb2ec4bdb31b1333a914b842d57a67632b05c68fa0853ced58cad",
-            "hugr_sha256": "7a471c96a228df3e7ba23e316a9091fc584ed412020bd0699784df6a8bd76258"
+            "compile_hash": "3a06d0d8a5860a28a9dbe92d54834593b2da39b9873f54ab433aec4da486a5de",
+            "hugr_sha256": "5c444297cb92fd00b7dc298a48d002d3c43f242934f43e7ee3e0d1d62411526f"
           }
         },
         "native_gate_only_noisy": {
@@ -318,12 +318,12 @@
             "selene-sim": "0.2.18"
           },
           "experiment": {
-            "protocol_hash": "131e76ee8a48727bc49c57fe1e91192578cd7627931903ad0644f87982874c88",
+            "protocol_hash": "0475d94b4983ba212d8830c2bf5f496b7e39b68a8f158c4d45e3e833b2d531bc",
             "prepared_state": "0",
             "cycles": 1,
             "incoming_x": 0,
             "incoming_z": 0,
-            "source_sha256": "45d0c1d6b405049f511b7d3be10f07072d5fbe2ddc8df100cfe1aa87d54dd24e",
+            "source_sha256": "17083ada25ff0e3a9ef995446074aeb324fb8bd6b9f129b2f2d03ad51c77fab2",
             "versions": {
               "spiderwarp": "0.1.0",
               "numpy": "2.2.6",
@@ -332,8 +332,8 @@
               "hugr": "0.16.0",
               "selene-sim": "0.2.18"
             },
-            "compile_hash": "cafc9034da5db9da9569b9f92303992bc89594db766990610a7d881d336bc9b5",
-            "hugr_sha256": "c504746a4408ff08ff6a158d20bb6e9775d7000400f4c1b0eeae2f64c138e595"
+            "compile_hash": "9971ce57fb27c451d0595bd39fcc69a6f46d03748199d6941ec100b9948313be",
+            "hugr_sha256": "83632fbbec90c8b3b3c4f13434f150c75c3c10fb15f349053b708cec6c3d4f1f"
           }
         }
       },
@@ -380,12 +380,12 @@
             "selene-sim": "0.2.18"
           },
           "experiment": {
-            "protocol_hash": "131e76ee8a48727bc49c57fe1e91192578cd7627931903ad0644f87982874c88",
+            "protocol_hash": "0475d94b4983ba212d8830c2bf5f496b7e39b68a8f158c4d45e3e833b2d531bc",
             "prepared_state": "+",
             "cycles": 3,
             "incoming_x": 1,
             "incoming_z": 131072,
-            "source_sha256": "258e13c24fd6cbb70e5865daebad9dcf5deb74d5d993ba15b3c04cbbd358fb2a",
+            "source_sha256": "d6770a1ce6f7b1f1c683af60de577deb342f10c4eb8cd2d666802b5ea62ebe76",
             "versions": {
               "spiderwarp": "0.1.0",
               "numpy": "2.2.6",
@@ -394,8 +394,8 @@
               "hugr": "0.16.0",
               "selene-sim": "0.2.18"
             },
-            "compile_hash": "6f14bdaa1c82301cd21d29ce6a1780990c65655766723e7c8849228f9d161903",
-            "hugr_sha256": "a3695a1eb9cf7dba9add7177e2817c4d96053ff5570c238b7a08fea76eb0d423"
+            "compile_hash": "a1e25f58ccc760c54ed97123632432583c55ba29cad09effee4eef78d879f114",
+            "hugr_sha256": "ef728511613a91228cc107f922577eaa002fbc13a38a1db83872bdf908e48525"
           }
         },
         "native_gate_only_noisy": {
@@ -429,12 +429,12 @@
             "selene-sim": "0.2.18"
           },
           "experiment": {
-            "protocol_hash": "131e76ee8a48727bc49c57fe1e91192578cd7627931903ad0644f87982874c88",
+            "protocol_hash": "0475d94b4983ba212d8830c2bf5f496b7e39b68a8f158c4d45e3e833b2d531bc",
             "prepared_state": "+",
             "cycles": 1,
             "incoming_x": 0,
             "incoming_z": 0,
-            "source_sha256": "d319597ec4b6e63310380a5194e4d3f6d3ea491019c40e40b6b177e047b886ab",
+            "source_sha256": "4d367d72450939d364da1d05df6270c2e0b4a80b219441324462f6f639ad563e",
             "versions": {
               "spiderwarp": "0.1.0",
               "numpy": "2.2.6",
@@ -443,8 +443,8 @@
               "hugr": "0.16.0",
               "selene-sim": "0.2.18"
             },
-            "compile_hash": "5d85c6b582ad1a3f5c01f5ccd0e8c3e8c44759ad11d9a4da64b2e8caaa84eb15",
-            "hugr_sha256": "30e7c452318089ed2ccc98402eaf4b0634d1b455e18924b0151619728e13f3c6"
+            "compile_hash": "5292172cc72e99a3ac98ff369a97956874ae46757220b31c4308a1c0ce32d256",
+            "hugr_sha256": "c492425f4bf0f5d07e71d3f7fc0d53e74993a0ed69891d39880613a9e5f8c1f2"
           }
         }
       }
@@ -454,6 +454,6 @@
   "native_clean_shots": 32,
   "native_noisy_shots": 400,
   "native_noise_scope": "Gate-only backend controls; differs from production scheduled-memory noise",
-  "history_method_requires_single_fault_acceptance": true,
+  "history_method_requires_single_fault_acceptance": false,
   "zero_flag_experiment_can_postselect_single_faults": true
 }

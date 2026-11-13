@@ -51,7 +51,7 @@ def test_legacy_arbitrary_contract_is_explicitly_distinct(engine):
     assert legacy.safe_frame(CompatibleSet(second.logical, (0, 0, 0), legacy.sectors)) == 0
 
 
-@pytest.mark.parametrize('folder', ('se_postselected_32_20_4', 'adaptive_css_32_20_4'))
+@pytest.mark.parametrize('folder', ('se_postselected_32_20_4',))
 def test_rebuilt_controllers_never_execute_three_d4s(folder):
     path = Path(__file__).resolve().parents[1] / 'build' / folder
     if not (path / 'protocol.json').exists():

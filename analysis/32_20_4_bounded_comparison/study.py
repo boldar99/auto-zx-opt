@@ -21,7 +21,6 @@ BUNDLES = {
     'adaptive_order_two': 'adaptive_order_two_32_20_4',
     'adaptive_probability_10': 'adaptive_probability_10_32_20_4',
     'adaptive_probability_25': 'adaptive_probability_25_32_20_4',
-    'adaptive_syndrome': 'adaptive_css_32_20_4',
     'adaptive_no_flags': 'adaptive_css_no_flags_32_20_4',
     'steane_fixed_ps': 'steane_single_d3_fixed_ps',
 }
@@ -61,7 +60,9 @@ def sweep(key, *, jobs=8, shots=SHOT_FLOOR, max_shots=SHOT_CAP):
     else:
         record.update(no_d1=True, max_extractions_per_cycle=3, inferred_order_two_rejected=True,
                       allowed_distance_paths=[[4, 4, 2], [4, 4], [4, 2]], accepted_correction_order=1,
-                      mandatory_acceptance=('r+s<=1' if key == 'adaptive_history' else 'Clean input; syndrome PS may reject some faults'))
+                      mandatory_acceptance='Standard flag-conditioned base; all noiseless CSS-one inputs',
+                      base_rule='No flags: incoming CSS syndromes with r_syn<=1; flags: history recovery',
+                      single_internal_fault_acceptance_guarantee=False)
         if key == 'adaptive_no_flags':
             record.update(observed_flag_postselection='Reject any nonzero measured flag immediately',
                           flag_zero_is_not_actual_fault_zero=True,
@@ -70,14 +71,14 @@ def sweep(key, *, jobs=8, shots=SHOT_FLOOR, max_shots=SHOT_CAP):
                           incoming_correction='CSS component weights <=1; unique through CSS component weights <=2')
         elif key == 'adaptive_order_two':
             record.update(inferred_order_two_rejected=False,
-                          mandatory_acceptance='r+s<=1',
+                          mandatory_acceptance='Standard flag-conditioned base',
                           additional_acceptance='One final Pauli class modulo stabilizers among all r+s<=2 histories',
                           additional_rescue_orders=[[2, 0], [1, 1], [0, 2]],
                           all_accepted_order_two_correct=False,
                           exact_rescue_certificate_includes_memory=False)
         elif key.startswith('adaptive_probability_'):
             record.update(inferred_order_two_rejected=False,
-                          mandatory_acceptance='r+s<=1',
+                          mandatory_acceptance='Standard flag-conditioned base',
                           epsilon=int(key.rsplit('_', 1)[1]) / 100,
                           additional_acceptance='Estimated wrong MAP Pauli-class probability <= epsilon',
                           probability_model='Default hardware noise plus incoming iid Pauli prior, frozen before production',

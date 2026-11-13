@@ -93,7 +93,7 @@ def save_comparison(directories, labels, directory="benchmarks/steane_comparison
 
 
 def main(argv=None):
-    """Run the current bounded, no-d1, half-budget comparison."""
+    """Run the current bounded, no-d1 comparison with matched full budgets."""
     from importlib import import_module
     return import_module('analysis.32_20_4_bounded_comparison.study').main(argv)
 

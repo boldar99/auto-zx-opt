@@ -14,7 +14,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 @pytest.fixture(scope='module')
 def parent():
-    return load_protocol(ROOT / 'build/se_32_20_4')
+    return load_protocol(ROOT / 'build/se_postselected_32_20_4')
 
 
 @pytest.fixture(scope='module')
@@ -110,12 +110,35 @@ def test_all_css_one_and_single_gadget_faults_preserve_parent(compiled, parent):
             faults = (0,) * position + (effect,)
             new, residual, names = replay(compiled, 0, faults)
             accepted, old_residual, old_names = replay(parent, 0, faults)
-            assert new and accepted
-            assert residual == old_residual and names == old_names
+            if accepted:
+                assert new and residual == old_residual and names == old_names
+            elif new:
+                assert residual == 0
     assert compiled.verification.verified
     assert compiled.policy.contract == parent.policy.contract
     assert compiled.verification.max_extractions <= 3
     assert compiled.verification.worst_case_cnots <= 433
+
+
+def test_base_rejected_single_fault_followup_includes_remaining_fault_budget(compiled, parent):
+    cases = checked = 0
+    for position, name in enumerate(('Z_d4', 'X_d4')):
+        for effect in parent.gadgets[name].single_fault_effects:
+            faults = [0, 0]
+            faults[position] = effect
+            if replay(parent, 0, faults)[0]:
+                continue
+            _, _, names = replay(compiled, 0, faults)
+            assert len(names) == 3
+            cases += 1
+            # A fault in this extra measurement is a second physical location,
+            # not an ideal observation after an already exhausted budget.
+            for following in compiled.gadgets[names[-1]].single_fault_effects:
+                accepted, residual, _ = replay(compiled, 0, faults + [following])
+                if accepted:
+                    assert residual == 0
+                checked += 1
+    assert cases == 4 and checked > 0
 
 
 @pytest.mark.parametrize('basis', ('0', '+'))

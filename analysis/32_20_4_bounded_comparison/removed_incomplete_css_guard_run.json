@@ -1,5 +1,0 @@
-{
-  "reason": "Noiseless 4096-syndrome regression exposed missing stable-input ambiguity PS in the optional CSS variant",
-  "path": "benchmarks/adaptive_css_50k",
-  "files": 69
-}
