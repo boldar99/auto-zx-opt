@@ -1,6 +1,857 @@
 # SpiderWarp project handoff
 
-Last updated: 2026-11-12
+Last updated: 2026-11-13
+
+## Matched-budget comparison and experiment review (2026-11-13)
+
+**Current update: sampling extensions in progress; final count/figure audits pending.**
+This section supersedes earlier active-comparison descriptions that included
+0.1x Steane PS curves. The user asked for a summary of everything tried, better
+names, equal samples in the plots, promising untried ideas, and this handoff update.
+The chosen error assumption remains **each CSS component weight <=2**, modulo
+stabilizers. The data code is [[32,20,4]], with Steane-style extraction; it is
+not the seven-qubit Steane code. Keep the per-cycle Steane ladder and failed-EC-
+filter aggressive-recovery ablation excluded from the main analysis.
+
+### Display names and dataset identity
+
+Names describe the decision rule. RUS retries a discarded ancilla before data
+coupling; PS discards a data trajectory. The descending ancilla sequence is
+**d4 -> d2 -> d1, reset to d4 for each fresh ancilla**, including confirmation
+reads. All display names come from `spiderwarp/se_comparison_names.py`.
+Protocol IDs, circuit assets, source/HUGR hashes and bundle paths are unchanged.
+
+| Display name | Previous label / ID | Full results directory |
+|---|---|---|
+| **Adaptive baseline** | Adaptive original | `benchmarks/se_100k/` |
+| **Adaptive history PS** | Adaptive strict PS | `benchmarks/se_postselected_100k/` |
+| **Adaptive syndrome PS** | Adaptive CSS PS / css | `benchmarks/adaptive_css_100k/` |
+| **Adaptive verified recovery** | Adaptive CSS rescue PS / css-recover-safe | `benchmarks/adaptive_css_recover_safe_100k/` |
+| **Steane d4 RUS** | Steane RUS d4 | `benchmarks/steane_rus_d4_100k/` |
+| **Steane descending RUS** | Steane ladder / ancilla | `benchmarks/steane_rus_ladder_ancilla_100k/` |
+| **Steane d4 RUS + syndrome PS** | Steane d4 PS | `benchmarks/steane_css_ps_d4_100k/` |
+| **Steane descending RUS + syndrome PS** | Steane ladder / ancilla PS | `benchmarks/steane_css_ps_ladder_ancilla_100k/` |
+
+Adaptive plots append `(60 qubits)` to these names; Steane plots append
+`(66 qubits)`. The selected adaptive controllers still use the same quantum
+circuits, at most four extractions and a 589-CNOT worst-case bound. No circuit
+reuse, allocation or scheduling optimization was introduced in this update.
+
+### Equal attempted samples at every plotted configuration
+
+All eight displayed methods must have **32 matching configurations and
+9,329,148 attempted trajectories each**: 100k floor, 1M cap, inverse-square
+allocation, seed 20261112. Counts are compared **per configuration**, including
+p, N, basis, full noise profile, sweep role and seed; matching totals alone is
+insufficient. Every default-noise repetition point has **100,000 attempts per
+basis/method**. Accepted counts intentionally differ because acceptance rate is
+measured. Wilson 95% intervals use each method's actual accepted/failure counts.
+
+Only the two Steane syndrome-PS datasets were undersampled. The extension script
+`analysis/32_20_4_syndrome_uniqueness/full_steane_ps.py` creates separate `_100k`
+folders, reuses every archived `_10k` task and batch, and adds **8,396,230 attempts
+per mode** (16,792,460 total). Each contains 932,918 old plus 8,396,230 new shots.
+Original 1k batches are preserved; additional batches use up to 10k shots with
+deterministic task offsets. `seed_provenance.json` preserves old run/validation
+metadata and all archived raw hashes. The saved sampler engine identity matches.
+The archived quick directories and every older full dataset remain unchanged.
+
+`se_comparison` always requires equal budgets. It defaults to the full Steane PS
+folders and refuses incomplete/unequal runs instead of silently including the
+quick data. `--steane-postselected-results` is the explicit-path option; the old
+`--quick-postselected-results` flag is an alias subject to the same count check.
+The lower-level `save_comparison(...require_equal_budgets=False)` remains only
+for explicit historical/diagnostic work; canonical plots never use that escape.
+
+The main table contains **256 count rows** (8 x 32). Both notebooks expose an
+Attempts column in their 32-row default-noise endpoint tables, five main figure
+pairs and the focused LER/acceptance tradeoff (four adaptive + two Steane PS).
+Figures state equal attempts, and the focused figure states 100,000 per point.
+Archived pilots are discovery evidence, not extra curves in the main comparison.
+
+### What has actually been tried
+
+1. **Original adaptive and Steane controls.** The original verified adaptive
+   controller, d4-only ancilla RUS, descending per-ancilla RUS, and historical
+   per-cycle descending RUS were fully benchmarked. The user excluded the
+   per-cycle variant. Steane confirms two consecutive syndromes per CSS basis
+   and includes persistent data memory during every serial preparation/retry.
+2. **Flag-based rejection and risk diagnostics.** Zero d4 flags, zero flags
+   everywhere, two flagged extractions, sums of local minimum fault orders and
+   learned raw-mask risk thresholds were tested with discovery plus independent
+   holdout records. They gave worse LER/yield tradeoffs than joint flag/syndrome
+   history inference. For example, zero d4 flags retains about 66% at N=1 with
+   LER 0.0772% / 0.7383% on the independent holdout. Conditional risk given a
+   raised d4 flag in an accepted original trajectory is 5.0757% / 9.5649%.
+   These are conditional associations, not isolated causal fault probabilities.
+   See `analysis/32_20_4_branch_assessment/` for counts, intervals and patterns.
+3. **History PS.** Reject when no observation-compatible explanation with
+   r+s<=1 exists. r is the maximum CSS component order; s counts faulty
+   locations, not raised flag bits. This uses the full raw flag/syndrome
+   record and is the strongest measured low-LER adaptive rule.
+4. **Syndrome uniqueness / Steane data PS.** Exhaustive enumeration proves
+   none of this code's weight-two CSS-component syndromes is uniquely
+   correctable: all 31 have 16 stabilizer-inequivalent classes. Per component,
+   accept identity plus the 32 one-error syndromes; reject the rest after
+   adjusting for the cumulative frame. Both Steane RUS families were tested
+   with that data rejection, first at 0.1x and now extended to full budgets.
+5. **Ten adaptive pilots.** Fixed 10k attempts per logical basis at N=1/N=10,
+   400,000 discovery shots total, seed 2026111301. Full production uses independent
+   seed 20261112. The pilot N=10 results are below; they are not the final
+   production LERs. Adapter pilot resource costs are not production gate counts.
+
+| Pilot name | Internal ID | N=10 conditional LER, 0 / + | Acceptance, 0 / + |
+|---|---|---|---|
+| Syndrome PS | `css` | 11.039% / 22.255% | 33.97% / 33.97% |
+| Syndrome PS + flagged-history check | `css-flag` | 0.199% / 1.127% | 15.09% / 15.09% |
+| Syndrome PS + X/Z reversal | `css-flag-reversed` | 0.129% / 1.482% | 15.52% / 15.52% |
+| Syndrome PS + final d2 checks | `css-flag-check` | 1.604% / 0.535% | 1.87% / 1.87% |
+| Separate CSS histories | `css-separated` | 0.207% / 1.519% | 14.48% / 14.48% |
+| Separate CSS histories + frame update | `css-separated-retarget` | 0.448% / 2.073% | 17.85% / 17.85% |
+| Bounded recovery | `css-recover` | 0.685% / 3.493% | 45.23% / 45.23% |
+| Exact recovery without the EC filter constraint | `css-recover-exact` | 0.608% / 2.017% | 36.20% / 36.20% |
+| Bounded recovery without d1 | `css-recover-no-d1` | 0.518% / 2.507% | 36.69% / 36.69% |
+| Verified recovery | `css-recover-safe` | 0.481% / 1.951% | 35.37% / 35.37% |
+
+The syndrome baseline and verified recovery were promoted to full 9,329,148-shot
+sweeps. The aggressive exact-recovery rule also has a full research sweep but
+fails the original arbitrary-input EC filter and is excluded. Verification
+caught record Z_d4(flags136,syndrome50), X_d1(flags0,syndrome57), history(-1,1,3648).
+Verified recovery repairs this by preserving the original frame syndrome;
+it independently verifies the **same strict-PS contract** as history PS.
+Other pilots were not promoted. In particular, two full final d2 checks gave
+only ~1.9% ten-cycle acceptance, and simple X/Z reversal had no consistent gain.
+
+At full production/default noise, history PS has N=10 LER **0.09027% / 0.91315%**,
+AR **25.480% / 25.516%**; verified recovery gives **0.37422% / 1.98086%**,
+AR **35.808% / 35.641%**. It yields about 40% more accepted outputs at higher
+conditional error, not universal dominance. Syndrome PS gives
+**9.92418% / 22.85487%**, AR **33.897% / 33.879%**, so is inferior here.
+Full counts and intervals for all methods are in the regenerated notebooks,
+`benchmarks/steane_comparison/comparison.csv`, and
+`analysis/32_20_4_adaptive_improvements/default_endpoints.csv`.
+
+The full-budget Steane syndrome-PS endpoint results (100,000 attempts per
+basis/point) are:
+
+| Method | Cycles | Failure / accepted, 0 / + | Conditional LER, 0 / + | Acceptance, 0 / + |
+|---|---|---|---|---|
+| Steane d4 RUS + syndrome PS | 1 | 107/97628 / 216/97601 | 0.10960% / 0.22131% | 97.628% / 97.601% |
+| Steane d4 RUS + syndrome PS | 10 | 138/76439 / 1830/76715 | 0.18054% / 2.38545% | 76.439% / 76.715% |
+| Steane descending RUS + syndrome PS | 1 | 267/97746 / 266/97719 | 0.27316% / 0.27221% | 97.746% / 97.719% |
+| Steane descending RUS + syndrome PS | 10 | 562/76766 / 2059/76820 | 0.73209% / 2.68029% | 76.766% / 76.820% |
+
+Steane d4 syndrome PS retains much more yield than history PS with higher
+ten-cycle conditional LER. Neither dominates the LER/acceptance frontier.
+Descending RUS has higher ten-cycle LER than d4 RUS here; the full intervals
+are in the summaries. These new counts supersede archived quick-run estimates.
+
+6. **Noise-source and correctness investigations.** Channel ablations implicate
+   both two-qubit faults and memory, with nonadditive interactions. Original
+   N=1 phase LER was 3.635%; memory off gives 2.019%, two-qubit faults off 0.982%,
+   and initialization faults off 2.880%. Most measured memory effect was during
+   d4. These ablations are not realizable schedule improvements. Independent
+   low-order physical replay found no original low-order logical bug; it also
+   found silent two-fault logical witnesses with clean records. Verified recovery's
+   stronger contract has 7,333,909 checked transitions over all 4,096 arbitrary
+   input syndrome sectors. The aggressive ablation's filter failure is documented
+   separately; do not generalize its disqualification to the original controller.
+
+### Ranked ideas not yet implemented or sampled for this code
+
+These are hypotheses, not established gains. Freeze selection before full
+production, use independent holdout records and retain the declared fault
+contract. An actual fault count is never an allowed runtime input.
+
+1. **Noise-weighted logical-risk postselection over complete histories.**
+   Weight actual gate/reset/readout/memory mechanisms, sum degeneracy within
+   stabilizer/logical classes, and admit or reject using estimated logical risk
+   (or the likelihood gap between classes). Protect mandatory low-order
+   acceptance/filter cases, and tune additional rescues on separate data.
+   This is my first classical experiment: no extra gates, direct LER/AR control.
+   Under the current mandatory one-fault acceptance contract, thresholds mainly
+   choose extra rescues. Rejecting mandatory histories needs an explicitly
+   relaxed acceptance contract; do not promise a lower error floor for free.
+   Raw flag-mask threshold learning *was* tried; calibrated full-history
+   logical-class likelihoods were not. General precedent:
+   [Smith, Brown & Bartlett, exclusive decoders](https://arxiv.org/abs/2405.03766).
+2. **Retain residual-error uncertainty across cycles.** Data and the hard Pauli
+   frame currently persist, while compatibility inference restarts. Carry a
+   small belief/set of likely residual errors into a sliding two-cycle decoder.
+   Existing later readings may resolve timing ambiguity without extra qubits;
+   delayed rejection can cost more gates, so measure accepted error and total
+   work together. Temporal decoding precedent:
+   [AlphaQubit](https://www.nature.com/articles/s41586-024-08148-8).
+3. **Targeted verification chosen by expected information gain.** On rare risky
+   branches, select an X/Z check only if competing hypotheses predict different
+   current syndromes. Phase-heavy paths are a natural target. This differs from
+   the already-failed blanket pair of final d2 rounds. Choose enough verification
+   to preserve mandatory acceptance under a single fault, and formally verify
+   every changed path. Ordinary stabilizer-only checks can never separate
+   already identical current syndromes from different logical classes; do not
+   suggest a lookahead can resolve that algebraic ambiguity. Related work:
+   [Adaptive Syndrome Extraction](https://arxiv.org/abs/2502.14835).
+4. **Schedule/circuit optimization for accepted logical faults and idle time.**
+   Optimize gate ordering and protection against measured malignant pairs and
+   memory exposure rather than CNOT count alone. Reverify under the 60-qubit
+   cap and resimulate the actual schedule. Simple X/Z reversal was tested;
+   noise-aware internal rescheduling/resynthesis was not. This is my first
+   circuit-level experiment. Related scheduling work:
+   [AlphaSyndrome](https://arxiv.org/abs/2601.12509). No performance numbers
+   from other codes are predictions for [[32,20,4]].
+5. **Force just one distance drop with observable rejection.** The user's earlier
+   d4 -> d1-only / d4 -> d2-only controllers remain unimplemented. Existing paths
+   include some such transitions but do not impose either as a whole policy.
+   Synthesize them with ambiguity-based rejection and reverify; d1 has no flags,
+   so postselecting every *actual* subsequent fault is not an observable rule.
+
+A generator-basis change alone is only a syndrome relabeling and cannot improve
+transversal Steane cost; it would require actual verified circuit resynthesis.
+Likewise spin echo does not remove the current stochastic Markovian memory
+channel. Neither should be advertised as a free simulated improvement.
+
+### Reproduction, provenance and validation for this update
+
+Use `/opt/homebrew/Caskroom/miniforge/base/envs/qec/bin/python` (qec env) from the
+repository root. The extension script is resumable and preserves archived pilots.
+
+```sh
+python analysis/32_20_4_syndrome_uniqueness/full_steane_ps.py --mode d4 --jobs 8
+python analysis/32_20_4_syndrome_uniqueness/full_steane_ps.py --mode ladder-ancilla --jobs 8
+python analysis/32_20_4_adaptive_improvements/finalize.py
+```
+
+`audit_full_steane_ps.py` independently checks full target counts, intervals,
+cycle accounting, unchanged sampler identity, source regeneration/HUGR reload,
+archived hashes and raw-prefix reuse, followed by real zero-work resumes.
+Circuit controls are inherited by explicit provenance from the unchanged
+archived controls; this update does not claim a new native noise-model LER.
+The finalizer checks old datasets, refreshes count audits/five main figure pairs,
+the focused tradeoff pair and all tagged comparison outputs in both notebooks.
+The notebooks preserve earlier expensive demo outputs. Seven focused budget,
+resume and plotting regression tests pass (`build/matched_comparison_tests.log`);
+the pre-existing Matplotlib/NumPy scalar-conversion deprecation warnings remain.
+Previous adaptive 74+21 regressions and physical/native/export audits remain
+valid for the unchanged protocols and are recorded separately as prior tests.
+
+## Adaptive CSS PS improvement study: complete (2026-11-13)
+
+Historical checkpoint before equal-budget Steane PS extension; see newest section.
+
+The user authorized adaptive improvements, pilot selection for low LER / decent
+acceptance, and original-size production under **CSS component weights <=2**.
+All work is complete. Keep the per-cycle Steane ladder excluded. Original raw
+production data and quantum circuit assets remain unchanged; no reuse or
+allocation optimization was introduced.
+
+Ten fixed candidate rules were piloted on 10k shots per logical basis at N=1
+and N=10: **400,000 discovery shots**, seed 2026111301. Results and definitions
+are in `analysis/32_20_4_adaptive_improvements/`, including `all_pilots.csv`,
+`pilot*.{csv,json}`, `selection_report.json`, and reproducible scripts. No
+runtime decision uses the prepared-state label, hidden fault counts or final
+ideal logical readout. Full production uses independent seed 20261112 and
+fixed original budgets, rather than stopping on observed failures.
+
+Selected methods:
+
+1. **Adaptive CSS PS** (`css`): preserve the original actions/frames and reject
+   when the new input-relative correction syndrome is ambiguous through the
+   CSS weight-two bound. This conservative baseline allows single-fault
+   postselection. It is worse than the strict history filter in this noise model.
+2. **Adaptive CSS rescue PS** (`css-recover-safe`): retain strict order-one
+   records. An otherwise rejected record can be rescued only when *all* full
+   Pauli explanations with incoming CSS components <=1 and at most one internal
+   faulty location identify the same final data class modulo stabilizers.
+   The rescue must preserve the original frame syndrome. This retains the
+   original arbitrary-input filters and only adds observation-conditioned
+   logical/stabilizer frame updates. It provides a useful acceptance/LER tradeoff.
+
+Both full selected sweeps have **32 completed configurations and 9,329,148
+attempted shots each** (100k floor, 1M cap, inverse-square allocation, 10k batches,
+8 workers, seed20261112). At exact default noise p_2q=0.0008, entries below are
+logical 0 / logical +; LER means conditional endpoint block LER, not LER/N.
+
+| Method | Cycles | Conditional LER, 0 / + | Acceptance, 0 / + |
+|---|---|---|---|
+| Strict history PS | 1 | 0.04510% / 0.41579% | 90.905% / 91.151% |
+| Strict history PS | 10 | 0.09027% / 0.91315% | 25.480% / 25.516% |
+| CSS-only PS | 1 | 1.30374% / 2.83046% | 92.043% / 92.317% |
+| CSS-only PS | 10 | 9.92418% / 22.85487% | 33.897% / 33.879% |
+| Verified CSS rescue PS | 1 | 0.09645% / 0.47056% | 92.278% / 92.444% |
+| Verified CSS rescue PS | 10 | 0.37422% / 1.98086% | 35.808% / 35.641% |
+
+The rescue yields about 40% more accepted outputs after ten cycles, with higher
+conditional error. Strict PS remains the low-LER choice. No universal dominance
+is claimed. Each default-noise repetition point has 100,000 attempts per basis.
+Raw rescue counts: N=1 89/92278 and 435/92444; N=10 134/35808 and 706/35641.
+All Wilson intervals and the N=3/5/7 points are in the summary CSVs/notebooks.
+
+The new methods retain the original **60-qubit cap, 589-CNOT worst-case bound,
+at most four extractions, and quantum circuit assets**. No new optimality claim
+is made. The verified rescue has exactly the strict-PS contract:
+correctable=1, logical_order=1, fault_order=2, accept_clean_through=1. Its
+independent checker covers **7,333,909 transitions / all 4,096 arbitrary input
+syndrome sectors**. The CSS-only baseline verifies clean mandatory acceptance
+and logical preservation of accepted r+s<=1 histories (correctable=0,
+logical_order=1, fault_order=1, accept_clean_through=0); 154 of 1,005 representative
+first-gadget single-fault responses are postselected in that conservative rule.
+
+Artifacts (standalone Guppy + compiled/reloaded HUGR + ordinary protocol bundle):
+
+- `build/adaptive_css_32_20_4/`: 54,711 nodes; hash
+  `08ebce8890734f155dc0724418347b4a7519ec995127e4149dbccb22b9fa11c7`;
+  HUGR 6,196,004 bytes; independent contract check 17,227 transitions.
+- `build/adaptive_css_recover_safe_32_20_4/`: 104,623 nodes; hash
+  `c0254535e1e1468c29a81bfbc0214170c1336b29c2a4e66ff6ceb4001dd3e936`;
+  HUGR 4,881,838 bytes; full strict-PS contract verified as above.
+
+Datasets: `benchmarks/adaptive_css_100k/` and
+`benchmarks/adaptive_css_recover_safe_100k/`. Each has a complete `run.json`,
+local `validation.json`, raw batches/tasks, diagnostics, summary, and standalone
+figures. The saved ordinary DAGs execute through the existing sampler/loader;
+no new simulation engine or runtime fault enumerator is used.
+
+An aggressive exact-recovery ablation (`css-recover-exact`) was also sampled
+at full size: `benchmarks/adaptive_css_recover_exact_100k/` (9,329,148 attempts).
+It preserves accepted r+s<=1 logical behavior but **fails the original arbitrary
+input CSS filter**: record Z_d4(flags136, syndrome50), X_d1(flags0, syndrome57),
+history(-1,1,3648). See `stronger_contract.json`. It is excluded from the main
+comparison. Its full source/HUGR and physical controls are retained for research.
+Executable-wrapper compilation was stopped after it was disqualified; no native
+execution claim is made for this ablation. In total this study added 27,987,444
+full-run attempts plus 400,000 pilot attempts. The selected pair accounts for
+18,658,296 of the full-run attempts.
+
+Other negative pilots: X/Z role reversal did not improve the overall tradeoff;
+extra final d2 checks had only 1.87% ten-cycle acceptance; independent projected
+CSS histories and looser rescue rules did not justify promotion. The successful
+repair was the syndrome-preserving restriction, not additional quantum rounds.
+
+Validation:
+
+- 74 broader regression tests passed, followed by 21 final candidate tests after
+  adding verified rescue. Tests include fresh noisy adapter-vs-compiled equality
+  in both bases at N=1/3, ten noiseless cycles, exact compact-vs-full Pauli evidence,
+  original-parent preservation, and all 4,096 ideal input syndrome sectors.
+- Each selected controller matches the explicit reference rule on **400,000
+  previously saved observation records**, including **4,000 nonzero incoming-frame
+  checks per method**. New logical error rates come from fresh quantum sampling;
+  they are not inferred from old boolean logical-failure traces.
+- All 1,089 CSS-order-one physical inputs per basis/method accept correctly.
+  The verified rescue accepts/corrects all 1,005 distinct first-gadget single-fault
+  response cases per basis and passes 251 additional input-one-plus-fault rescue
+  cases per basis. Four thousand noiseless five-cycle reference shots across the
+  selected pair all accept correctly.
+- Native controls: CSS baseline has 8 clean split-input shots over three cycles
+  and a 100-shot noisy branch check (64 accepted). Verified rescue has 8 clean
+  split-input shots over one native cycle and a 100-shot noisy branch check
+  (66 accepted). Clean controls have zero logical errors. Repeated frame behavior
+  is also covered by reference tests and 400k-trace replay. Native gate noise
+  includes preparation/readout and excludes memory; it is not the production model.
+- Source regeneration, hashes and serialized HUGR reload passed. Every stored
+  edge/frame was checked: 1,194,645 CSS edges and 307,039 verified-rescue edges,
+  plus representative missing-observation rejection at 21,651 / 21,315 nodes.
+- Real full-size resumes schedule zero new shots; raw task/batch hashes are
+  unchanged. Counts, cycle accounting, matched noise/configurations/seeds, fixed
+  budgets and 95% Wilson intervals are checked. Old tracked raw datasets plus
+  the prior strict-PS and Steane-PS raw hashes remain unchanged.
+
+The canonical comparison now contains **eight methods** (six full-budget methods,
+plus two clearly labeled 0.1x Steane PS runs). It has 256 count rows and five
+PNG/PDF figure pairs in `benchmarks/steane_comparison/figures/`, all visually
+checked. The per-cycle ladder and failed-contract ablation are excluded.
+Both notebooks have refreshed 32-row endpoint tables, five comparison figures,
+and the new four-panel **LER-versus-acceptance** figure at N=1 and N=10:
+`analysis/32_20_4_adaptive_improvements/figures/acceptance_error_tradeoff.{png,pdf}`.
+Survival remains linear and data-fitted; LER/N remains an endpoint normalization,
+not a first-failure hazard. Do not infer ten-cycle AR from independent N=1 AR.
+
+Reproduce/resume with the qec Python environment:
+
+```sh
+python analysis/32_20_4_adaptive_improvements/production.py --variant css --jobs 8
+python analysis/32_20_4_adaptive_improvements/production.py --variant css-recover-safe --jobs 8
+python -m spiderwarp.se_comparison --plot-only
+python analysis/32_20_4_adaptive_improvements/report.py
+```
+
+`finalize.py` performs all completed-data audits/zero-work resumes, regenerates
+figures/report, and refreshes tagged comparison cells in both notebooks. It
+preserves earlier heavy demo outputs. Other audit scripts are `controls.py`,
+`audit_exports.py`, and `replay.py`. Logs are `build/adaptive_*` and the final
+study certificate is `analysis/32_20_4_adaptive_improvements/validation.json`.
+Matplotlib's existing NumPy scalar-conversion deprecation warnings remain in
+boundary plotting tests. No work remains from this request.
+
+## CSS syndrome uniqueness and quick Steane data postselection (2026-11-13)
+
+The user asked for 0.1x sampling, correction only when unique modulo stabilizers,
+and removal of **Steane ladder / cycle** from the analysis. They explicitly
+selected **CSS component weights <=2**, rather than total Pauli weight <=2.
+The per-cycle ladder remains available in code and its historical raw data is
+preserved, but it is excluded from the default comparison, notebook tables,
+artifact tables and plotted curves. Default Steane comparison modes are now
+`d4` and `ladder-ancilla`.
+
+Exhaustive results for the exact current code matrices are saved in
+`analysis/32_20_4_syndrome_uniqueness/{summary.json,syndromes.csv}`; reproduce with
+`python analysis/32_20_4_syndrome_uniqueness/analyze.py`. The calculation checks
+stabilizer equivalence against an independently enumerated group of all 4,096
+stabilizers, whose minimum nonidentity physical weight is 16.
+
+- Per CSS component, all 31 syndromes requiring weight two have **16 distinct
+  logical classes** of weight-two explanations. None is uniquely correctable.
+- Example (zero-based indices): X0 X1 and X2 X3 share syndrome 32, while their
+  product X0 X1 X2 X3 is a nontrivial logical operator.
+- Under the selected CSS bound, all 4,096 joint syndromes are attainable from
+  529^2 input patterns. Only 1,089 are unique (identity or one error per
+  component); all 3,007 requiring CSS order two are ambiguous. Consequently,
+  there is no new syndrome-only CSS-order-two input class to add to the
+  optimized controller. Flags/restricted circuit fault histories are extra
+  information and must be checked separately; no adaptive contract was widened.
+- Under the different total-Pauli-weight<=2 assumption, 2,976 joint syndromes
+  requiring physical weight two are unique (mixed Pauli pairs), while 93 are
+  ambiguous with 16 logical classes each. This includes mixed pairs that the
+  selected CSS model must reject, so do not conflate the two statements.
+
+`SteaneQECProtocol(..., postselection="unique-css-2")` and CLI
+`build-steane --postselection unique-css-2` now add data postselection after
+two consecutive identical readouts in each CSS basis. The cumulative Pauli
+frame is removed from the confirmed syndrome before testing its correction
+domain. Ambiguous syndromes reject the data immediately; flagged ancillas
+still retry before data coupling. Domains are obtained by checking all
+component errors through weight two modulo stabilizers, rather than merely
+counting syndrome bits or assuming minimum-weight correction is unique.
+Standalone Guppy emits the same acceptance tables and early returns, and
+the tables/rule are included in each new protocol manifest hash. Original
+non-postselected manifest identities and generated sources remain unchanged.
+
+Both quick runs are complete; reproduce/resume with:
+
+```sh
+python analysis/32_20_4_syndrome_uniqueness/quick_steane_ps.py --jobs 8
+python -m spiderwarp.se_comparison --plot-only
+```
+
+New bundles: `build/steane_css_ps_{d4,ladder_ancilla}/`.
+Separate quick data: `benchmarks/steane_css_ps_{d4,ladder_ancilla}_10k/`.
+Each uses the same 32 configurations/noise/seed, 10k-shot floor, 100k cap,
+inverse-square allocation and 1k-shot batches, totaling 932,918 attempts
+(integer rounding makes this slightly above exactly one tenth of 9,329,148).
+The comparison auto-includes complete quick datasets and labels their 0.1x
+budgets; original full-budget datasets are reused at full precision. The
+count audit therefore checks matched noise/seeds/configurations while reporting
+unequal shot budgets explicitly. Existing production data must remain unchanged.
+
+Both runs reached all 32 targets, totaling **1,865,836 new attempted shots**.
+At exact default hardware noise (p_2q=0.0008), each row below has 10,000 attempts
+per basis. Entries list logical 0 / logical +; LER is conditional block error,
+not LER divided by N.
+
+| Steane CSS-PS mode | N | Conditional LER, 0 / + | Survival, 0 / + |
+|---|---|---|---|
+| d4 RUS | 1 | 0.11270% / 0.22550% | 97.600% / 97.560% |
+| d4 RUS | 10 | 0.13060% / 2.36302% | 76.570% / 77.020% |
+| Ladder / ancilla | 1 | 0.30659% / 0.34768% | 97.850% / 97.790% |
+| Ladder / ancilla | 10 | 0.97113% / 2.62065% | 77.230% / 77.080% |
+
+Raw N=1 failure/accepted counts: d4 11/9760 and 22/9756; ladder 30/9785 and
+34/9779. N=10: d4 10/7657 and 182/7702; ladder 75/7723 and 202/7708.
+Full Wilson intervals and resource counts are in each summary CSV and the
+refreshed comparison notebooks. These quick estimates have wider intervals;
+for example, d4 N=1 logical-0 LER has a 0.06295–0.20172% interval.
+
+All five comparison PNG/PDF pairs now contain the six retained methods, with
+0.1x shots labeled on the two new curves and a shared zero-failure CI marker
+guide. Both notebooks have refreshed 24-row endpoint tables and all five
+embedded figures; all plots were visually checked. The per-cycle ladder is
+absent from active CSV rows, figure models, notebook tables and artifact links.
+Historical sections below document past runs and do not describe the current
+selected comparison.
+
+Validation is complete. `validate_controls.py` checks all 1,089 CSS-order-one
+inputs and all 992 pure weight-two inputs per basis/mode: **4,356 accepted and
+correct**, **3,968 rejected**. Four thousand noiseless five-cycle reference
+shots all accept correctly. Native three-cycle HUGR controls cover both modes
+and bases: 16 split-CSS-input shots accept correctly, while 16 ambiguous-pair
+shots reject. Source regeneration/hashes and both serialized HUGRs were checked.
+Real resumes schedule zero new shots and preserve all raw task/batch hashes.
+New run manifests point to local `validation.json`; the combined validation
+links both audits and explicitly records unequal shot budgets. Original raw
+production datasets remain unchanged. Engine fingerprints conservatively
+change because the optional Steane controller code changed; old artifacts'
+non-postselected manifests and generated sources retain their exact identities.
+
+Six initial CSS-PS tests and 59 broader regressions passed; five final focused
+budget/plot regressions passed after the last legend update. Matplotlib still
+emits NumPy scalar-conversion deprecation warnings in boundary plotting tests.
+Logs are `build/steane_css_ps_{10k,tests,regressions,final_plot_tests,controls,final_audit}.log`.
+The final audit script is
+`analysis/32_20_4_syndrome_uniqueness/finalize.py`; it refreshes notebook outputs
+from the already-regenerated comparison figures and performs zero-work resumes.
+
+## Implemented order-one postselection: full benchmark complete (2026-11-12)
+
+The user authorized implementing the history-based method, running the full
+benchmark, and updating plots. `spiderwarp/se_postselection.py` now compiles the
+guard into a separate ordinary `AdaptiveSEProtocol` decision graph: reject as
+soon as no r+s<=1 explanation remains. Quantum circuits and surviving actions/
+frames are preserved from `build/se_32_20_4/`. The default/original is retained.
+The revised contract has `accept_clean_through=1`, preserving mandatory
+acceptance/logical correctness through r+s<=1 and the original CSS filters.
+There is no new reuse optimization, fault oracle, or ideal readout in the guard.
+
+The CLI build is complete:
+
+```sh
+python -m spiderwarp.se_experiment build-postselected build/se_32_20_4 \
+    --out build/se_postselected_32_20_4 --emit hugr
+```
+
+The new bundle is `build/se_postselected_32_20_4/`, including standalone Guppy,
+compiled/reloaded HUGR (195,837 bytes), `protocol.json`, `export.json`, and
+`postselection.json` tying it to its parent. It has 976 nodes (original 83,787),
+60 peak qubits, a 589-CNOT worst-case bound, and at most four extractions.
+No new optimality claim is made. Reachable extraction labels are d4 and d2;
+d1 is pruned before execution. The independent standard checker passed
+4,452,310 transitions / all 4,096 arbitrary input syndrome sectors. The
+independent full-Pauli-history guard check covers 1,254 states and 3,430
+non-reject edges. Ordinary loading/compilation/native/sweep interfaces work
+without a new bundle schema or runtime interpreter.
+
+`analysis/32_20_4_postselected_validation/replay_compiled.py` confirms all
+400,000 existing discovery/validation observation records reproduce the
+analysis's acceptance exactly, preserve surviving frames/actions, and abort
+rejected traces no later. It includes 4,000 nonzero incoming-frame checks.
+The physical audit passes all 8,208 low-order cases again on the actual new
+controller; its JSON is in the same directory. Native split-input controls in
+both bases pass; a 100-shot noisy native check exercised both accept/reject
+branches (52 accepted). Native noise remains a distinct gate-only model.
+
+The full production run is COMPLETE:
+
+```sh
+python -m spiderwarp.se_experiment sweep build/se_postselected_32_20_4 \
+    --config benchmarks/se_postselected_100k/config.json \
+    --shots 100000 --allocation inverse-square --max-shots 1000000 \
+    --batch-size 10000 --jobs 8 --seed 20261112 \
+    --results benchmarks/se_postselected_100k
+```
+
+Log: `build/se_postselected_100k.log`. Exact settings/targets are in
+`benchmarks/se_postselected_100k/run.json`; configuration JSON is copied from
+the original production sweep. All 32 configurations reached their prescribed
+targets: **9,329,148 attempted shots**, 12,047,242 cycles started, and 10,844,180
+cycles completed. Every default-noise repetition point has 100k attempts per
+basis; low-noise points have up to one million. A real production resume
+scheduled zero additional shots and left all task/raw-batch hashes unchanged.
+The original adaptive and three Steane production datasets remain unchanged.
+
+At the exact default hardware model (p_2q=0.0008), the new controller gives:
+
+| Cycles | Basis | Logical failures / accepted | Conditional block LER (95% Wilson) | Survival |
+|---|---|---|---|---|
+| 1 | 0 | 41 / 90,905 | 0.04510% (0.03325–0.06118%) | 90.905% |
+| 1 | + | 379 / 91,151 | 0.41579% (0.37606–0.45971%) | 91.151% |
+| 10 | 0 | 23 / 25,480 | 0.09027% (0.06016–0.13542%) | 25.480% |
+| 10 | + | 233 / 25,516 | 0.91315% (0.80360–1.03748%) | 25.516% |
+
+These are failures of any of the 20 logical readouts, conditional on all cycles
+accepting, with one ideal final decode. The N=1 original adaptive LER was
+1.7846% / 3.6352%; the new rule reduces it by about 39.6x / 8.7x. Survival is
+the tradeoff: do not infer N=10 survival from independent N=1 acceptance.
+LER/N is an endpoint normalization, not a first-failure hazard. Mean executed
+CNOTs per attempted trajectory are 442.51 / 442.62 at N=1 and 2615.16 / 2624.34
+at N=10; dividing by requested N includes early aborts and is not the cost per
+accepted output.
+
+The complete five-method comparison is regenerated with:
+
+```sh
+python -m spiderwarp.se_comparison --plot-only
+```
+
+This automatically includes completed `benchmarks/se_postselected_100k/`,
+accounts for its rejections and 60-qubit count, and audits matched noise,
+seeds, shot budgets and configurations against all four existing datasets.
+`benchmarks/steane_comparison/figures/` contains five PNG/PDF pairs:
+physical_error, physical_survival, cycles, survival and cnot_cost. Shared
+legends leave the data visible; survival remains linear with bounds fitted to
+the measured range. Both comparison notebooks have refreshed tables and all
+five embedded figures. Standalone PS figures are in its own `figures/`.
+
+Validation is recorded in `benchmarks/se_postselected_100k/validation.json`
+and linked from `benchmarks/steane_comparison/validation.json`. The standalone
+export audit checks 5,505,024 legal observation inputs, all stored transitions/
+frames, and unknown-outcome rejection, regenerates the source identically and
+reloads the HUGR. A separate deterministic rebuild reproduces protocol hash
+`369e501c3fd7d6bc0fac687fb89c7e76870a44044bafe7ebaafe2519d681e58a`.
+The full regression run passed 185 tests; five final plotting/resume regressions
+also passed after the final layout/boundary fix. Full logs are
+`build/se_postselected_tests.log` and `build/se_postselected_final_plot_tests.log`.
+Matplotlib emits existing NumPy scalar-conversion deprecation warnings in the
+boundary plotting tests. Silent two-fault logical errors with clean observation
+records still exist, as saved in the physical audit; the guard rejects observed
+incompatibility with order one, not every actual pair of faults.
+
+## Flag-pattern risk and selective two-order postselection (2026-11-12)
+
+The latest user asked why zero d4 flags differs from zero flags everywhere,
+requested flag-pattern -> logical-error probabilities, asked whether something
+is incorrect, and suggested always postselecting at two observed faults.
+
+### Clarification of r, s and the two zero-flag filters
+
+`r` is incoming CSS error order at the cycle boundary; `s` counts faulty
+locations during the cycle. Observing a syndrome does not set r=1. A nonzero
+syndrome with zero d4 flags can be explained by r=1,s=0 or r=0,s=1; the policy
+retains compatible histories. Evidence of one spent order permits d2, which
+can subsequently raise flags. An actual replayed accepted logical-0 failure is:
+
+```text
+action     flags    raw syndrome
+Z_d4       0        0
+X_d4       0        0
+Z_d4       0        9
+X_d2       36       11
+```
+
+Before X_d2, its order-at-most-one explanations have (r,s)=(0,1), rather than
+(1,0): the syndrome changed during QEC. This path satisfies "all d4 flags zero"
+and violates "all flags zero". The default contract can accept r=1,s=1, but
+logical preservation is guaranteed only through r+s<=1, not at r+s=2.
+
+### Discovery, independent validation and saved data
+
+`analysis/32_20_4_branch_assessment/patterns.py` exactly replays the same 100k
+production shots per basis as discovery, then samples **100k fresh independent
+default-noise N=1 shots per basis** for validation. All 20 discovery batches
+again match saved production counts. Seed lists and the protocol hash are in
+`patterns_assessment.json`; the four compressed trace files preserve observed
+flags/syndromes and outcomes. New validation shots are not appended to production.
+
+Outputs:
+
+- `pattern_risk.csv`: discovery and validation risks for action/mask, stage/mask,
+  and full flag-record patterns, including sample counts and Wilson intervals.
+- `flag_pattern_summary.csv`: validation action/mask table with both bases side
+  by side, hexadecimal masks, LSB-first bits, bit counts, minimum local fault
+  order, accepted counts, failures and confidence intervals.
+- `conditional_risk.csv`: risks given raised d4 flags and given no order-0/1
+  explanation. All logical risks are conditional on original policy acceptance.
+- `postselection_policies.csv`: discovery/validation LER and survival for each
+  fixed or learned pruning rule. One common rule is used in both logical bases.
+- `figures/postselection_tradeoff.{png,pdf}` and
+  `figures/common_d4_mask_risk.{png,pdf}`: visually checked tradeoff and mask-risk
+  figures. Mask risk counts each trajectory once per encountered action/mask;
+  rows for different masks can overlap and must not be summed as disjoint groups.
+
+In the independent validation set, a raised d4 flag anywhere in an accepted
+cycle gives logical-0 risk **1,703/33,552 = 5.0757%** (95% CI 4.8459–5.3158%)
+and logical-+ risk **3,185/33,299 = 9.5649%** (9.2536–9.8854%). No raised d4
+flag gives **51/66,026 = 0.0772%** / **489/66,230 = 0.7383%**. These agree with
+the earlier discovery estimates 5.1243% / 9.3335% versus 0.1027% / 0.7339%.
+
+Example common d4 masks, using independent validation (failures / accepted):
+
+| Action / hexadecimal mask | Logical 0 | Logical + |
+|---|---:|---:|
+| Z_d4 / 0x4f2 | 6/164 = 3.66% | 30/174 = 17.24% |
+| X_d4 / 0x428 | 32/206 = 15.53% | 11/173 = 6.36% |
+| Z_d4 / 0x120 | 5/274 = 1.82% | 39/292 = 13.36% |
+| Z_d4 / 0x008 | 31/803 = 3.86% | 87/853 = 10.20% |
+
+Individual rarer masks can show 50–100% empirical risk with only 5–10 samples;
+use the counts and intervals. The aggregate action/mask risk depends on stage
+and earlier syndrome/flag context. Blacklisting raw masks alone loses that
+information. Learned blacklists were fit on discovery only: at least 100
+accepted discovery cases per basis, thresholding the maximum of the two bases'
+Wilson lower bounds. Threshold-family comparisons remain exploratory.
+
+### Highest-potential measured rule: reject when r+s<=1 is ruled out
+
+`LowOrderEvidence` tracks explanations of the measured raw flags/syndromes
+with r+s<=1. It uses only observations available to the controller: **no hidden
+noise-event counts or final ideal/logical readout**. Reject once no such
+explanation remains. This means observable evidence for order at least two,
+or an observation outside that bounded model, rather than an exact physical
+fault counter. Incoming r=1 and clean-input s=1 explanations are both retained.
+
+| Postselection rule, independent validation | Logical-0 failures / accepted (LER) | Logical-+ failures / accepted (LER) | Survival 0 / + |
+|---|---:|---:|---:|
+| Original acceptance | 1,754/99,578 (1.7614%) | 3,674/99,529 (3.6914%) | 99.578% / 99.529% |
+| Every d4 flag zero | 51/66,026 (0.0772%) | 489/66,230 (0.7383%) | 66.026% / 66.230% |
+| Flags alone certify >=2 internal faults | 842/95,805 (0.8789%) | 2,342/95,872 (2.4428%) | 95.805% / 95.872% |
+| Full history has no r+s<=1 explanation | **43/90,848 (0.0473%)** | **381/90,825 (0.4195%)** | **90.848% / 90.825%** |
+| Learned raw-mask blacklist, 5% threshold | 1,207/86,643 (1.3931%) | 2,509/86,721 (2.8932%) | 86.643% / 86.721% |
+
+The full-history rule's LER intervals are 0.0351–0.0637% / 0.3795–0.4637%.
+Rejected originally accepted histories without an order-0/1 explanation have
+conditional risks 1,711/8,730 = 19.599% / 3,293/8,704 = 37.833%. The theoretical
+history rule was not fitted to logical outcomes. Its discovery results were
+0.0616% / 0.4291% at 90.901% / 90.895% survival; the holdout supports the gain.
+
+The weaker flag-only evidence rule sums the minimum internal fault order for
+each raw mask across extractions. Two raised **bits** do not imply two faulty
+locations. A physical one-location witness in Z_d4 raises mask 0x006 (two bits):
+the two-qubit Pauli alternative Z58 X59 at operation offset 159. All 15
+nonidentity alternatives at a two-qubit gate count as one event. A second
+flagged extraction does require another internal event because validated
+fault-free gadget flags are independent of incoming data errors; individual
+multi-bit masks may also certify two events if no one-fault response produces
+that mask. Full syndrome history adds substantially more information.
+
+### Audit and next implementation step
+
+`audit_patterns.py` checked the compact syndrome-state compatibility calculation
+against the full Pauli-history engine on **2,000 distinct prefixes**. It also
+physically replayed **3,015 distinct single-fault responses per logical basis**
+across every stage of the clean path, and **1,089 incoming CSS-weight-at-most-one
+cases per basis**: **8,208 cases**, all accepted, logically correct, and kept
+by the proposed order-0/1 compatibility rule. No low-order discrepancy was found.
+This does not replace a full certificate for a new exported controller.
+
+`patterns_audit.json` also saves physical **silent two-fault logical-error
+witnesses** in both bases. X1 X2 (or Z1 Z2) after their last gates in the final
+Z_d4 leaves every observation equal to the clean path but fails ideal logical
+decoding. Thus even perfect observable postselection cannot catch every actual
+two-fault history while accepting the clean record. This is consistent with
+the existing logical-order-one contract, not evidence of a new single-fault bug.
+
+The highest-priority next controller is the full-history rejection rule above,
+keeping the current circuits, 60-qubit cap and existing one-fault acceptance/
+logical guarantees. The current contract **mandates clean-input s=2 acceptance**;
+relaxing `accept_clean_through` from 2 to 1 is the natural contract to investigate
+for this rule. That contract change alone does not force rejection: the
+history-based PS predicate must also be explicitly enforced. Rebuild/check/export
+that postselected controller and
+measure N=10 yield/LER and early-abort CNOT cost. This turn measured posthoc
+pruning only: **no new protocol/Guppy/HUGR or repeated-cycle results are claimed**.
+The more aggressive zero-flag modes require further acceptance relaxation.
+
+## Adaptive improvement proposals and flag-path diagnosis (2026-11-12)
+
+The user proposed restricting recovery to **d4 -> d1** or **d4 -> d2**, with
+postselection on further fault indications, and asked about keeping only
+trivial d4 flags. They also asked which mechanisms primarily cause the current
+high LER. The restricted controllers are **proposals to evaluate**, not newly
+built or certified protocols. This update adds a diagnostic replay only; the
+current adaptive controller, circuits, allocations, exports and production
+counts are unchanged. The earlier restriction against implementing an adaptive
+qubit-reuse change still applies.
+
+### Measured effect of flag postselection
+
+`analysis/32_20_4_branch_assessment/replay.py` replays the **existing** default-
+noise N=1 production batches, using their exact saved per-batch seeds. All 20
+batches reproduce acceptance and logical-error counts exactly: 100k original
+shots per basis. These are the same observations, not 200k independent new
+samples. Reproduce with:
+
+```sh
+/opt/homebrew/Caskroom/miniforge/base/envs/qec/bin/python \
+    analysis/32_20_4_branch_assessment/replay.py
+```
+
+`assessment.json` saves the matched batch counts/seeds, input hashes, group
+statistics, paths, versions and interpretation; `comparison.csv` contains the
+counts and 95% Wilson intervals. This is postselection on the existing policy's
+trajectories and returned frames. Original policy rejections remain rejected.
+It is not a forced d4-only or restricted-ladder experiment, and it does not
+estimate gate savings from aborting a rejected trajectory earlier.
+
+| Keep condition | Logical-0 failures / accepted (LER) | Logical-+ failures / accepted (LER) | Survival 0 / + |
+|---|---:|---:|---:|
+| Current adaptive acceptance | 1,777 / 99,575 (1.7846%) | 3,618 / 99,527 (3.6352%) | 99.575% / 99.527% |
+| Additionally, every executed d4 has zero flags | 68 / 66,224 (0.1027%) | 484 / 65,949 (0.7339%) | 66.224% / 65.949% |
+| Additionally, every extraction has zero flags | 53 / 66,194 (0.0801%) | 484 / 65,929 (0.7341%) | 66.194% / 65.929% |
+| Only existing d4-only paths, with all flags zero | 48 / 65,960 (0.0728%) | 477 / 65,673 (0.7263%) | 65.960% / 65.673% |
+
+The d4-zero-flag filter therefore gives a large conditional-LER improvement,
+at the cost of rejecting roughly a third of attempts. Its LER intervals are
+0.0810–0.1301% (logical 0) and 0.6716–0.8020% (logical +); use CSV values as
+authoritative if quoting additional precision. Repeated-cycle survival has
+**not** been measured for these filters. The one-cycle yield loss may compound
+strongly across cycles; do not present these as new N=10 results or as ancilla
+RUS with free retries of the data block.
+
+### Where failures concentrate
+
+On accepted paths with at least one raised d4 flag, the LER is 5.1243%
+(logical 0) / 9.3335% (logical +), compared with 0.1027% / 0.7339% when no d4
+flag is raised. Those flagged-d4 paths contain **1,709/1,777 = 96.17%** of
+logical-0 failures and **3,134/3,618 = 86.62%** of logical-+ failures. This is
+path association, not identification of the physical locations of the faults.
+
+Blaming only d1 recovery would miss most failures: d1-using paths contain
+13.45% / 17.74% of failures. Paths using d2 but no d1 contain 40.35% / 20.45%;
+d4-only paths contain 46.20% / 61.80%. Simply pruning existing paths containing
+d1 gives LER 1.5660% / 3.0332% at survival 98.214% / 98.113%; pruning d2 gives
+1.2818% / 3.2928% at 81.913% / 81.632%. **These pruning proxies do not implement
+the user's forced d4 -> d2 or d4 -> d1 proposals.**
+
+Particularly harmful observed path classes are saved in `assessment.json`:
+for logical 0, `Z4;X4!` contributes 754 failures and `Z4!;X2!` contributes 474;
+for logical +, `Z4;X4;Z4!` contributes 1,072, and `Z4!` contributes 445.
+`!` means a nonzero raw flag mask at that extraction, not a number of physical
+faults. Audit these terminal decisions by their full flag/syndrome histories.
+
+### Noise channel evidence and next experiments
+
+The existing fixed-circuit ablations in
+`analysis/32_20_4_noise_assessment/comparison.csv` identify two-qubit noise as
+the strongest measured sensitivity, with Z-biased memory substantial for
+logical +:
+
+| Noise case | N=1 logical 0 / + | N=10 logical 0 / + |
+|---|---:|---:|
+| Full default model | 1.785% / 3.635% | 20.841% / 42.019% |
+| Two-qubit noise removed | 0.206% / 0.982% | 3.215% / 14.421% |
+| Memory noise removed | 1.460% / 2.019% | 16.778% / 23.951% |
+| Initialization noise removed | 1.065% / 2.880% | not measured |
+
+N=1 modified cases have 100k attempts per basis; N=10 modified cases have
+20k, versus the saved 100k full-noise baseline. These sensitivities are not an
+additive attribution: mixed faults and changed postselection interact.
+
+About 90% of executions and 90.5–90.7% of live-idle exposure occur in d4.
+Removing memory only in d1/d2 barely changes logical-0 LER and reduces logical-+
+LER from 3.635% to 3.375%. Exposure dominance does not prove that the same
+fraction of logical failures originates at d4 fault locations.
+
+Recommended evaluation order:
+
+1. Implement explicit postselected modes for zero d4 flags and zero flags at
+   every stage; reproduce the replay's N=1 survivor statistics, then measure
+   N=10 survival, LER and actual early-abort CNOT cost. Keep these separate from
+   the current certified acceptance policy.
+2. Build the two requested restricted ladders, allowing at most the specified
+   distance drop and defining rejection from **observable** flags/syndromes or
+   compatible histories. Do not use a simulator's hidden physical fault count.
+   A d1 gadget has no flags: additional faults there can be silent, so d4 -> d1
+   needs a justified history restriction or another diagnostic to implement
+   "postselect on further faults." A raised flag alone does not justify d1
+   under the current distance ladder; d1 requires zero remaining fault budget.
+3. Split two-qubit-noise ablations by d4 versus recovery stages, and then by
+   data-touching versus ancilla-only gates. This distinguishes physical fault
+   origin from the branch associations measured here.
+4. Hold circuits fixed and test extra syndrome confirmation, first/final basis
+   ordering under Z-biased memory, and noise-weighted choices among permitted
+   terminal frames. The current policy minimizes worst-case CNOT count; it
+   does not minimize stochastic LER. Conventional Steane also confirms each
+   CSS syndrome twice consecutively, a control not isolated by the comparison.
+5. Consider depth/live-idle optimization under the existing 60-qubit cap after
+   these controls. Current adaptive d2 is 92 layers in X / 86 in Z versus 83
+   for d4, so a lower distance label does not guarantee a shorter noisy wait.
+
+Stricter postselection changes the acceptance contract: the current checker
+requires acceptance through r+s<=1 and for clean-input s=2. Rejecting flagged
+single-fault or two-fault histories cannot retain that exact certificate.
+Keep guarantees about accepted outputs distinct from guarantees of acceptance.
+The current contract guarantees logical preservation through total order one;
+accepted order-two histories need not preserve the logical state. This is a
+plausible contributor to the gap, not a fault-pair attribution established by
+the replay. Zero flags do not certify that no faults occurred.
 
 ## Steane RUS comparison (2026-11-12)
 
@@ -98,10 +949,33 @@ claimed for the conventional RUS baselines.
 
 ## Resume checkpoint
 
-- The three Steane RUS comparisons above are complete, including standalone
+- The newest matched-budget section supersedes the earlier mixed-budget checkpoint
+  below. Use the centralized new display names and full `_100k` Steane PS datasets.
+  Equal attempts are checked per configuration; accepted counts differ by AR.
+- Prior analysis had eight methods: original adaptive, strict PS, new CSS-only
+  PS, verified CSS rescue PS, d4 Steane, per-ancilla Steane, and both Steane CSS-PS
+  quick runs. The new adaptive selected pair each has 9,329,148 full-budget shots.
+  The per-cycle ladder and the failed-contract aggressive-rescue ablation are
+  excluded. CSS component weights <=2 is the chosen input model. Strict PS has
+  the lowest LER; verified rescue trades higher LER for ~40% more accepted outputs
+  at N=10 while preserving the strict-PS contract, 60-qubit cap and 589-CNOT bound.
+  The full study is complete; see the newest section and its validation/report.
+- Latest result: the full-history r+s<=1 postselected controller is implemented,
+  independently verified, and exported as standalone Guppy/HUGR in
+  `build/se_postselected_32_20_4/`. Its complete 32-configuration/9,329,148-shot
+  benchmark is `benchmarks/se_postselected_100k/`. At default noise it gives
+  N=1 LER **0.04510% / 0.41579%**, survival **90.905% / 91.151%**; at N=10,
+  LER **0.09027% / 0.91315%**, survival **25.480% / 25.516%**. See the newest
+  section for raw counts, Wilson intervals, guarantees and all validation.
+- The latest user proposals and exact flag-path replay are documented above.
+  Strict d4 -> d1 / d4 -> d2 controllers are pending experiments. Rejecting
+  raised d4 flags on existing N=1 trajectories gives LER 0.1027% / 0.7339%
+  at survival 66.224% / 65.949%; repeated-cycle behavior is not yet measured.
+- The three historical Steane RUS comparisons above are complete, including standalone
   Guppy/HUGR, matched production counts, controls, the final audit, and populated
   comparison notebook/figures. Use `python -m spiderwarp.se_comparison --plot-only`
-  to regenerate the combined views without sampling.
+  to regenerate the current eight-method views without sampling; the per-cycle
+  ladder is excluded by default.
 - The build/load/simulate workflow is implemented and has been run. The current
   verified protocol bundle, standalone Guppy source, and compiled/reloaded HUGR
   are in `build/se_32_20_4/`. The controller remains the verified 589-CNOT,
@@ -112,7 +986,8 @@ claimed for the conventional RUS baselines.
   `default_noise_model()`; physical-p sweeps scale that model. Keep seed
   20261112 and the saved `run.json` command when resuming.
 - The latest plot preference is **linear survival with a tight data-dependent
-  range**, approximately 0.895–1.0 for this dataset. Do not restore a logarithmic
+  range**: approximately 0.895–1.0 for the original alone, and 0.2–1.0 for the
+  combined plot including PS. Do not restore a logarithmic
   survival axis or force 0–1 limits. Regenerate with
   `python -m spiderwarp.se_experiment plot benchmarks/se_100k`.
 - Noise-source assessment is complete; the data and confidence intervals are in
@@ -124,10 +999,13 @@ claimed for the conventional RUS baselines.
   consider depth/live-idle minimization under the existing 60-qubit cap, rather
   than minimizing qubit count. d1/d2-only changes are unlikely to remove most
   of the observed logical error rate.
-- New comparison validation passed: a 164-test full regression collection,
-  44 focused tests, four additional native retry regressions, and two final
-  plot-layout checks. `git diff --check` passed. Details and native control
-  counts are in `benchmarks/steane_comparison/validation.json`.
+- Prior adaptive-PS validation passed: 185 full regression tests and five final focused
+  plotting/resume tests, plus reference/native controls, the independent FT
+  and guard checks, 400k exact trace replays, 8,208 physical low-order cases,
+  4,000 incoming-frame checks and the complete standalone export audit.
+  Details are in the two production/comparison validation JSON files. Prior
+  Steane-specific native retry and export checks are retained in the comparison
+  validation history.
 
 ## Noise-source and reuse assessment (2026-11-12)
 

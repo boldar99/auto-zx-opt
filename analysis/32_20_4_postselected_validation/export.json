@@ -1,0 +1,10 @@
+{
+  "source_regenerates_identically": true,
+  "all_stored_transitions_and_frames_match": true,
+  "legal_input_acceptance_checks": 5505024,
+  "unique_acceptance_tables": 104,
+  "unknown_outcomes_reject": true,
+  "hugr_reloaded": true,
+  "source_sha256": "830bed57a80212790b93fadff0619ac69af5f28835464263a98d68c2afaf9ab3",
+  "hugr_sha256": "b9474418d3d8245c3046084e3d755a314e8c44a288eafa7d8f617e884b826897"
+}

@@ -1,0 +1,87 @@
+{
+  "seed": 2026111301,
+  "shots_per_point": 10000,
+  "configurations": [
+    [
+      "css-recover-safe",
+      "0",
+      1
+    ],
+    [
+      "css-recover-safe",
+      "+",
+      1
+    ],
+    [
+      "css-recover-safe",
+      "0",
+      10
+    ],
+    [
+      "css-recover-safe",
+      "+",
+      10
+    ]
+  ],
+  "results": [
+    {
+      "variant": "css-recover-safe",
+      "basis": "0",
+      "cycles": 1,
+      "shots": 10000,
+      "accepted": 9285,
+      "logical_errors": 8,
+      "ler": 0.0008616047388260636,
+      "low": 0.0004366589827367193,
+      "high": 0.001699394141719685,
+      "survival": 0.9285,
+      "mean_cnots": 445.2552
+    },
+    {
+      "variant": "css-recover-safe",
+      "basis": "+",
+      "cycles": 1,
+      "shots": 10000,
+      "accepted": 9285,
+      "logical_errors": 51,
+      "ler": 0.005492730210016155,
+      "low": 0.004180365334325701,
+      "high": 0.007214108270365546,
+      "survival": 0.9285,
+      "mean_cnots": 445.2552
+    },
+    {
+      "variant": "css-recover-safe",
+      "basis": "0",
+      "cycles": 10,
+      "shots": 10000,
+      "accepted": 3537,
+      "logical_errors": 17,
+      "ler": 0.004806333050607859,
+      "low": 0.0030030664355760075,
+      "high": 0.007684070862375063,
+      "survival": 0.3537,
+      "mean_cnots": 2946.5776
+    },
+    {
+      "variant": "css-recover-safe",
+      "basis": "+",
+      "cycles": 10,
+      "shots": 10000,
+      "accepted": 3537,
+      "logical_errors": 69,
+      "ler": 0.019508057675996608,
+      "low": 0.015444241858360373,
+      "high": 0.02461444488892358,
+      "survival": 0.3537,
+      "mean_cnots": 2946.5776
+    }
+  ],
+  "selection": "Discovery only; selected candidates get independent production samples",
+  "no_oracle": true,
+  "rules": {
+    "css-recover-safe": "Full-Pauli incoming CSS<=1 / internal-fault<=1 rescue; exact and syndrome-preserving restrictions named by the variant"
+  },
+  "acceptance_inputs": "Measured flags/syndromes and existing Pauli frame only; no prepared-state label or final ideal readout",
+  "pilot_resource_note": "Adapters decide at the parent endpoint; compiled graphs can abort rejected branches earlier. Pilot CNOT counts are not used for selection."
+}

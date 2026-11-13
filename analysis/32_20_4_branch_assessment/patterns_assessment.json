@@ -1,0 +1,2660 @@
+{
+  "methodology": "100k saved production discovery shots per basis; 100k independent validation shots per basis",
+  "protocol_hash": "07022f2f0e2794e443d17093c8bca92c13537a1c7b5e3046cf52bd455d739e62",
+  "versions": {
+    "spiderwarp": "0.1.0",
+    "numpy": "2.2.6",
+    "stim": "1.17.dev1792124270",
+    "guppylang": "0.21.16",
+    "hugr": "0.16.0",
+    "selene-sim": "0.2.18"
+  },
+  "minimum_training_accepted_per_basis": 100,
+  "risk_thresholds": [
+    0.01,
+    0.02,
+    0.05,
+    0.1,
+    0.2,
+    0.5
+  ],
+  "learned_rule": "Reject a nonzero action/mask if worst-basis discovery Wilson lower bound exceeds threshold; same rule for both bases",
+  "logical_metric": "P(any logical readout wrong | original policy accepted and rule keeps trajectory)",
+  "compatibility_rule": "Reject if no raw-observation explanation with r+s<=1; physical data syndromes tracked, no hidden fault counts",
+  "flag_evidence_rule": "Sum minimum internal orders for raw masks across separate gadgets; reject sum>=2 or out-of-model masks",
+  "caveats": [
+    "Rules prune current accepted paths; no forced switching or new certificate",
+    "At least two flagged bits need not mean two faulty locations",
+    "Order bounds apply to the exact gate-fault model; unflagged higher-order faults can remain indistinguishable",
+    "Rare masks have wide intervals; learned masks use discovery only; threshold-family comparison is exploratory",
+    "Both bases use one common rejection rule; their errors are not a measured joint arbitrary-state LER"
+  ],
+  "learned_bad_masks": {
+    "learned_bad_masks_0.01": [
+      {
+        "action": "X_d2",
+        "flag_mask": 2,
+        "mask_hex": "0x002"
+      },
+      {
+        "action": "X_d2",
+        "flag_mask": 4,
+        "mask_hex": "0x004"
+      },
+      {
+        "action": "X_d2",
+        "flag_mask": 8,
+        "mask_hex": "0x008"
+      },
+      {
+        "action": "X_d4",
+        "flag_mask": 4,
+        "mask_hex": "0x004"
+      },
+      {
+        "action": "X_d4",
+        "flag_mask": 8,
+        "mask_hex": "0x008"
+      },
+      {
+        "action": "X_d4",
+        "flag_mask": 16,
+        "mask_hex": "0x010"
+      },
+      {
+        "action": "X_d4",
+        "flag_mask": 24,
+        "mask_hex": "0x018"
+      },
+      {
+        "action": "X_d4",
+        "flag_mask": 32,
+        "mask_hex": "0x020"
+      },
+      {
+        "action": "X_d4",
+        "flag_mask": 64,
+        "mask_hex": "0x040"
+      },
+      {
+        "action": "X_d4",
+        "flag_mask": 96,
+        "mask_hex": "0x060"
+      },
+      {
+        "action": "X_d4",
+        "flag_mask": 128,
+        "mask_hex": "0x080"
+      },
+      {
+        "action": "X_d4",
+        "flag_mask": 256,
+        "mask_hex": "0x100"
+      },
+      {
+        "action": "X_d4",
+        "flag_mask": 320,
+        "mask_hex": "0x140"
+      },
+      {
+        "action": "X_d4",
+        "flag_mask": 384,
+        "mask_hex": "0x180"
+      },
+      {
+        "action": "X_d4",
+        "flag_mask": 512,
+        "mask_hex": "0x200"
+      },
+      {
+        "action": "X_d4",
+        "flag_mask": 601,
+        "mask_hex": "0x259"
+      },
+      {
+        "action": "X_d4",
+        "flag_mask": 1024,
+        "mask_hex": "0x400"
+      },
+      {
+        "action": "X_d4",
+        "flag_mask": 1064,
+        "mask_hex": "0x428"
+      },
+      {
+        "action": "X_d4",
+        "flag_mask": 1536,
+        "mask_hex": "0x600"
+      },
+      {
+        "action": "Z_d2",
+        "flag_mask": 2,
+        "mask_hex": "0x002"
+      },
+      {
+        "action": "Z_d2",
+        "flag_mask": 4,
+        "mask_hex": "0x004"
+      },
+      {
+        "action": "Z_d2",
+        "flag_mask": 8,
+        "mask_hex": "0x008"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 1,
+        "mask_hex": "0x001"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 4,
+        "mask_hex": "0x004"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 8,
+        "mask_hex": "0x008"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 16,
+        "mask_hex": "0x010"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 17,
+        "mask_hex": "0x011"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 32,
+        "mask_hex": "0x020"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 33,
+        "mask_hex": "0x021"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 64,
+        "mask_hex": "0x040"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 96,
+        "mask_hex": "0x060"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 128,
+        "mask_hex": "0x080"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 136,
+        "mask_hex": "0x088"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 144,
+        "mask_hex": "0x090"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 256,
+        "mask_hex": "0x100"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 257,
+        "mask_hex": "0x101"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 288,
+        "mask_hex": "0x120"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 296,
+        "mask_hex": "0x128"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 305,
+        "mask_hex": "0x131"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 320,
+        "mask_hex": "0x140"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 384,
+        "mask_hex": "0x180"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 417,
+        "mask_hex": "0x1a1"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 512,
+        "mask_hex": "0x200"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 521,
+        "mask_hex": "0x209"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 601,
+        "mask_hex": "0x259"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 605,
+        "mask_hex": "0x25d"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 769,
+        "mask_hex": "0x301"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 816,
+        "mask_hex": "0x330"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 872,
+        "mask_hex": "0x368"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 1024,
+        "mask_hex": "0x400"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 1048,
+        "mask_hex": "0x418"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 1064,
+        "mask_hex": "0x428"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 1080,
+        "mask_hex": "0x438"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 1145,
+        "mask_hex": "0x479"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 1266,
+        "mask_hex": "0x4f2"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 1281,
+        "mask_hex": "0x501"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 1458,
+        "mask_hex": "0x5b2"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 1536,
+        "mask_hex": "0x600"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 1640,
+        "mask_hex": "0x668"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 1800,
+        "mask_hex": "0x708"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 1840,
+        "mask_hex": "0x730"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 1896,
+        "mask_hex": "0x768"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 1913,
+        "mask_hex": "0x779"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 2017,
+        "mask_hex": "0x7e1"
+      }
+    ],
+    "learned_bad_masks_0.02": [
+      {
+        "action": "X_d2",
+        "flag_mask": 2,
+        "mask_hex": "0x002"
+      },
+      {
+        "action": "X_d2",
+        "flag_mask": 4,
+        "mask_hex": "0x004"
+      },
+      {
+        "action": "X_d2",
+        "flag_mask": 8,
+        "mask_hex": "0x008"
+      },
+      {
+        "action": "X_d4",
+        "flag_mask": 4,
+        "mask_hex": "0x004"
+      },
+      {
+        "action": "X_d4",
+        "flag_mask": 8,
+        "mask_hex": "0x008"
+      },
+      {
+        "action": "X_d4",
+        "flag_mask": 16,
+        "mask_hex": "0x010"
+      },
+      {
+        "action": "X_d4",
+        "flag_mask": 24,
+        "mask_hex": "0x018"
+      },
+      {
+        "action": "X_d4",
+        "flag_mask": 32,
+        "mask_hex": "0x020"
+      },
+      {
+        "action": "X_d4",
+        "flag_mask": 64,
+        "mask_hex": "0x040"
+      },
+      {
+        "action": "X_d4",
+        "flag_mask": 96,
+        "mask_hex": "0x060"
+      },
+      {
+        "action": "X_d4",
+        "flag_mask": 128,
+        "mask_hex": "0x080"
+      },
+      {
+        "action": "X_d4",
+        "flag_mask": 256,
+        "mask_hex": "0x100"
+      },
+      {
+        "action": "X_d4",
+        "flag_mask": 320,
+        "mask_hex": "0x140"
+      },
+      {
+        "action": "X_d4",
+        "flag_mask": 384,
+        "mask_hex": "0x180"
+      },
+      {
+        "action": "X_d4",
+        "flag_mask": 512,
+        "mask_hex": "0x200"
+      },
+      {
+        "action": "X_d4",
+        "flag_mask": 601,
+        "mask_hex": "0x259"
+      },
+      {
+        "action": "X_d4",
+        "flag_mask": 1024,
+        "mask_hex": "0x400"
+      },
+      {
+        "action": "X_d4",
+        "flag_mask": 1064,
+        "mask_hex": "0x428"
+      },
+      {
+        "action": "X_d4",
+        "flag_mask": 1536,
+        "mask_hex": "0x600"
+      },
+      {
+        "action": "Z_d2",
+        "flag_mask": 2,
+        "mask_hex": "0x002"
+      },
+      {
+        "action": "Z_d2",
+        "flag_mask": 4,
+        "mask_hex": "0x004"
+      },
+      {
+        "action": "Z_d2",
+        "flag_mask": 8,
+        "mask_hex": "0x008"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 1,
+        "mask_hex": "0x001"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 4,
+        "mask_hex": "0x004"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 8,
+        "mask_hex": "0x008"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 16,
+        "mask_hex": "0x010"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 17,
+        "mask_hex": "0x011"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 32,
+        "mask_hex": "0x020"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 33,
+        "mask_hex": "0x021"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 64,
+        "mask_hex": "0x040"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 96,
+        "mask_hex": "0x060"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 128,
+        "mask_hex": "0x080"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 136,
+        "mask_hex": "0x088"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 144,
+        "mask_hex": "0x090"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 256,
+        "mask_hex": "0x100"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 257,
+        "mask_hex": "0x101"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 288,
+        "mask_hex": "0x120"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 296,
+        "mask_hex": "0x128"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 305,
+        "mask_hex": "0x131"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 320,
+        "mask_hex": "0x140"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 384,
+        "mask_hex": "0x180"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 417,
+        "mask_hex": "0x1a1"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 512,
+        "mask_hex": "0x200"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 521,
+        "mask_hex": "0x209"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 601,
+        "mask_hex": "0x259"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 605,
+        "mask_hex": "0x25d"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 769,
+        "mask_hex": "0x301"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 816,
+        "mask_hex": "0x330"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 872,
+        "mask_hex": "0x368"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 1024,
+        "mask_hex": "0x400"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 1048,
+        "mask_hex": "0x418"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 1064,
+        "mask_hex": "0x428"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 1080,
+        "mask_hex": "0x438"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 1145,
+        "mask_hex": "0x479"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 1266,
+        "mask_hex": "0x4f2"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 1281,
+        "mask_hex": "0x501"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 1458,
+        "mask_hex": "0x5b2"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 1536,
+        "mask_hex": "0x600"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 1800,
+        "mask_hex": "0x708"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 1840,
+        "mask_hex": "0x730"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 1896,
+        "mask_hex": "0x768"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 1913,
+        "mask_hex": "0x779"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 2017,
+        "mask_hex": "0x7e1"
+      }
+    ],
+    "learned_bad_masks_0.05": [
+      {
+        "action": "X_d2",
+        "flag_mask": 4,
+        "mask_hex": "0x004"
+      },
+      {
+        "action": "X_d2",
+        "flag_mask": 8,
+        "mask_hex": "0x008"
+      },
+      {
+        "action": "X_d4",
+        "flag_mask": 4,
+        "mask_hex": "0x004"
+      },
+      {
+        "action": "X_d4",
+        "flag_mask": 8,
+        "mask_hex": "0x008"
+      },
+      {
+        "action": "X_d4",
+        "flag_mask": 16,
+        "mask_hex": "0x010"
+      },
+      {
+        "action": "X_d4",
+        "flag_mask": 32,
+        "mask_hex": "0x020"
+      },
+      {
+        "action": "X_d4",
+        "flag_mask": 64,
+        "mask_hex": "0x040"
+      },
+      {
+        "action": "X_d4",
+        "flag_mask": 96,
+        "mask_hex": "0x060"
+      },
+      {
+        "action": "X_d4",
+        "flag_mask": 128,
+        "mask_hex": "0x080"
+      },
+      {
+        "action": "X_d4",
+        "flag_mask": 256,
+        "mask_hex": "0x100"
+      },
+      {
+        "action": "X_d4",
+        "flag_mask": 320,
+        "mask_hex": "0x140"
+      },
+      {
+        "action": "X_d4",
+        "flag_mask": 512,
+        "mask_hex": "0x200"
+      },
+      {
+        "action": "X_d4",
+        "flag_mask": 601,
+        "mask_hex": "0x259"
+      },
+      {
+        "action": "X_d4",
+        "flag_mask": 1024,
+        "mask_hex": "0x400"
+      },
+      {
+        "action": "X_d4",
+        "flag_mask": 1064,
+        "mask_hex": "0x428"
+      },
+      {
+        "action": "X_d4",
+        "flag_mask": 1536,
+        "mask_hex": "0x600"
+      },
+      {
+        "action": "Z_d2",
+        "flag_mask": 2,
+        "mask_hex": "0x002"
+      },
+      {
+        "action": "Z_d2",
+        "flag_mask": 4,
+        "mask_hex": "0x004"
+      },
+      {
+        "action": "Z_d2",
+        "flag_mask": 8,
+        "mask_hex": "0x008"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 8,
+        "mask_hex": "0x008"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 32,
+        "mask_hex": "0x020"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 64,
+        "mask_hex": "0x040"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 136,
+        "mask_hex": "0x088"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 144,
+        "mask_hex": "0x090"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 256,
+        "mask_hex": "0x100"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 288,
+        "mask_hex": "0x120"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 296,
+        "mask_hex": "0x128"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 320,
+        "mask_hex": "0x140"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 417,
+        "mask_hex": "0x1a1"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 512,
+        "mask_hex": "0x200"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 605,
+        "mask_hex": "0x25d"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 816,
+        "mask_hex": "0x330"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 872,
+        "mask_hex": "0x368"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 1048,
+        "mask_hex": "0x418"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 1064,
+        "mask_hex": "0x428"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 1266,
+        "mask_hex": "0x4f2"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 1800,
+        "mask_hex": "0x708"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 1896,
+        "mask_hex": "0x768"
+      }
+    ],
+    "learned_bad_masks_0.1": [
+      {
+        "action": "X_d2",
+        "flag_mask": 4,
+        "mask_hex": "0x004"
+      },
+      {
+        "action": "X_d2",
+        "flag_mask": 8,
+        "mask_hex": "0x008"
+      },
+      {
+        "action": "X_d4",
+        "flag_mask": 320,
+        "mask_hex": "0x140"
+      },
+      {
+        "action": "X_d4",
+        "flag_mask": 1064,
+        "mask_hex": "0x428"
+      },
+      {
+        "action": "Z_d2",
+        "flag_mask": 4,
+        "mask_hex": "0x004"
+      },
+      {
+        "action": "Z_d2",
+        "flag_mask": 8,
+        "mask_hex": "0x008"
+      },
+      {
+        "action": "Z_d4",
+        "flag_mask": 136,
+        "mask_hex": "0x088"
+      }
+    ],
+    "learned_bad_masks_0.2": [
+      {
+        "action": "X_d2",
+        "flag_mask": 4,
+        "mask_hex": "0x004"
+      },
+      {
+        "action": "X_d2",
+        "flag_mask": 8,
+        "mask_hex": "0x008"
+      },
+      {
+        "action": "Z_d2",
+        "flag_mask": 4,
+        "mask_hex": "0x004"
+      },
+      {
+        "action": "Z_d2",
+        "flag_mask": 8,
+        "mask_hex": "0x008"
+      }
+    ],
+    "learned_bad_masks_0.5": []
+  },
+  "seeds": {
+    "+": {
+      "discovery": [
+        {
+          "seed": 43999593602241353,
+          "shots": 10000
+        },
+        {
+          "seed": 693577482920655882,
+          "shots": 10000
+        },
+        {
+          "seed": 251525662956824131,
+          "shots": 10000
+        },
+        {
+          "seed": 813467724686814130,
+          "shots": 10000
+        },
+        {
+          "seed": 676251058712915517,
+          "shots": 10000
+        },
+        {
+          "seed": 27661763575592439,
+          "shots": 10000
+        },
+        {
+          "seed": 860816151536013344,
+          "shots": 10000
+        },
+        {
+          "seed": 426739930911789553,
+          "shots": 10000
+        },
+        {
+          "seed": 541122283072164383,
+          "shots": 10000
+        },
+        {
+          "seed": 876238171621361198,
+          "shots": 10000
+        }
+      ],
+      "validation": [
+        {
+          "seed": 106502433651067242,
+          "shots": 10000
+        },
+        {
+          "seed": 719829720891169009,
+          "shots": 10000
+        },
+        {
+          "seed": 402334871742432028,
+          "shots": 10000
+        },
+        {
+          "seed": 1102038253745570802,
+          "shots": 10000
+        },
+        {
+          "seed": 213890197920543822,
+          "shots": 10000
+        },
+        {
+          "seed": 991240018131027751,
+          "shots": 10000
+        },
+        {
+          "seed": 872848556342657543,
+          "shots": 10000
+        },
+        {
+          "seed": 854329411535665042,
+          "shots": 10000
+        },
+        {
+          "seed": 937546848296952870,
+          "shots": 10000
+        },
+        {
+          "seed": 176864022280880805,
+          "shots": 10000
+        }
+      ]
+    },
+    "0": {
+      "discovery": [
+        {
+          "seed": 1021255407790146803,
+          "shots": 10000
+        },
+        {
+          "seed": 558706283619301623,
+          "shots": 10000
+        },
+        {
+          "seed": 104054361032787706,
+          "shots": 10000
+        },
+        {
+          "seed": 968930545496193415,
+          "shots": 10000
+        },
+        {
+          "seed": 866700679849040536,
+          "shots": 10000
+        },
+        {
+          "seed": 726916523845701816,
+          "shots": 10000
+        },
+        {
+          "seed": 110764852487719525,
+          "shots": 10000
+        },
+        {
+          "seed": 773190030561950090,
+          "shots": 10000
+        },
+        {
+          "seed": 320020504010933963,
+          "shots": 10000
+        },
+        {
+          "seed": 455188808850489272,
+          "shots": 10000
+        }
+      ],
+      "validation": [
+        {
+          "seed": 1027101905624573726,
+          "shots": 10000
+        },
+        {
+          "seed": 149862880424558734,
+          "shots": 10000
+        },
+        {
+          "seed": 382519603637361706,
+          "shots": 10000
+        },
+        {
+          "seed": 137771036633198044,
+          "shots": 10000
+        },
+        {
+          "seed": 550593006305235228,
+          "shots": 10000
+        },
+        {
+          "seed": 241985204723606507,
+          "shots": 10000
+        },
+        {
+          "seed": 802900601980440971,
+          "shots": 10000
+        },
+        {
+          "seed": 659414307012238314,
+          "shots": 10000
+        },
+        {
+          "seed": 341872790616043550,
+          "shots": 10000
+        },
+        {
+          "seed": 787339576307515058,
+          "shots": 10000
+        }
+      ]
+    }
+  },
+  "no_d4_flags_with_lower_flag_examples": {
+    "+": [
+      {
+        "accepted": true,
+        "failed": false,
+        "observations": [
+          {
+            "action": "Z_d4",
+            "flags": 0,
+            "syndrome": 0,
+            "low_order_rs_before": [
+              [
+                0,
+                0
+              ],
+              [
+                1,
+                0
+              ]
+            ]
+          },
+          {
+            "action": "X_d4",
+            "flags": 0,
+            "syndrome": 61,
+            "low_order_rs_before": [
+              [
+                0,
+                0
+              ],
+              [
+                0,
+                1
+              ],
+              [
+                1,
+                0
+              ]
+            ]
+          },
+          {
+            "action": "Z_d4",
+            "flags": 0,
+            "syndrome": 61,
+            "low_order_rs_before": [
+              [
+                0,
+                1
+              ],
+              [
+                1,
+                0
+              ]
+            ]
+          },
+          {
+            "action": "X_d2",
+            "flags": 4,
+            "syndrome": 0,
+            "low_order_rs_before": [
+              [
+                0,
+                1
+              ]
+            ]
+          }
+        ]
+      },
+      {
+        "accepted": true,
+        "failed": false,
+        "observations": [
+          {
+            "action": "Z_d4",
+            "flags": 0,
+            "syndrome": 61,
+            "low_order_rs_before": [
+              [
+                0,
+                0
+              ],
+              [
+                1,
+                0
+              ]
+            ]
+          },
+          {
+            "action": "X_d4",
+            "flags": 0,
+            "syndrome": 61,
+            "low_order_rs_before": [
+              [
+                0,
+                1
+              ],
+              [
+                1,
+                0
+              ]
+            ]
+          },
+          {
+            "action": "Z_d4",
+            "flags": 0,
+            "syndrome": 0,
+            "low_order_rs_before": [
+              [
+                0,
+                1
+              ],
+              [
+                1,
+                0
+              ]
+            ]
+          },
+          {
+            "action": "X_d2",
+            "flags": 8,
+            "syndrome": 61,
+            "low_order_rs_before": [
+              [
+                0,
+                1
+              ]
+            ]
+          }
+        ]
+      },
+      {
+        "accepted": true,
+        "failed": false,
+        "observations": [
+          {
+            "action": "Z_d4",
+            "flags": 0,
+            "syndrome": 0,
+            "low_order_rs_before": [
+              [
+                0,
+                0
+              ],
+              [
+                1,
+                0
+              ]
+            ]
+          },
+          {
+            "action": "X_d4",
+            "flags": 0,
+            "syndrome": 9,
+            "low_order_rs_before": [
+              [
+                0,
+                0
+              ],
+              [
+                0,
+                1
+              ],
+              [
+                1,
+                0
+              ]
+            ]
+          },
+          {
+            "action": "Z_d4",
+            "flags": 0,
+            "syndrome": 9,
+            "low_order_rs_before": [
+              [
+                0,
+                1
+              ],
+              [
+                1,
+                0
+              ]
+            ]
+          },
+          {
+            "action": "X_d2",
+            "flags": 17,
+            "syndrome": 2,
+            "low_order_rs_before": [
+              [
+                0,
+                1
+              ]
+            ]
+          }
+        ]
+      },
+      {
+        "accepted": true,
+        "failed": false,
+        "observations": [
+          {
+            "action": "Z_d4",
+            "flags": 0,
+            "syndrome": 0,
+            "low_order_rs_before": [
+              [
+                0,
+                0
+              ],
+              [
+                1,
+                0
+              ]
+            ]
+          },
+          {
+            "action": "X_d4",
+            "flags": 0,
+            "syndrome": 0,
+            "low_order_rs_before": [
+              [
+                0,
+                0
+              ],
+              [
+                0,
+                1
+              ],
+              [
+                1,
+                0
+              ]
+            ]
+          },
+          {
+            "action": "Z_d4",
+            "flags": 0,
+            "syndrome": 9,
+            "low_order_rs_before": [
+              [
+                0,
+                0
+              ],
+              [
+                0,
+                1
+              ]
+            ]
+          },
+          {
+            "action": "X_d2",
+            "flags": 2,
+            "syndrome": 15,
+            "low_order_rs_before": [
+              [
+                0,
+                1
+              ]
+            ]
+          }
+        ]
+      },
+      {
+        "accepted": true,
+        "failed": false,
+        "observations": [
+          {
+            "action": "Z_d4",
+            "flags": 0,
+            "syndrome": 0,
+            "low_order_rs_before": [
+              [
+                0,
+                0
+              ],
+              [
+                1,
+                0
+              ]
+            ]
+          },
+          {
+            "action": "X_d4",
+            "flags": 0,
+            "syndrome": 0,
+            "low_order_rs_before": [
+              [
+                0,
+                0
+              ],
+              [
+                0,
+                1
+              ],
+              [
+                1,
+                0
+              ]
+            ]
+          },
+          {
+            "action": "Z_d4",
+            "flags": 0,
+            "syndrome": 61,
+            "low_order_rs_before": [
+              [
+                0,
+                0
+              ],
+              [
+                0,
+                1
+              ]
+            ]
+          },
+          {
+            "action": "X_d2",
+            "flags": 59,
+            "syndrome": 0,
+            "low_order_rs_before": [
+              [
+                0,
+                1
+              ]
+            ]
+          }
+        ]
+      },
+      {
+        "accepted": true,
+        "failed": false,
+        "observations": [
+          {
+            "action": "Z_d4",
+            "flags": 0,
+            "syndrome": 0,
+            "low_order_rs_before": [
+              [
+                0,
+                0
+              ],
+              [
+                1,
+                0
+              ]
+            ]
+          },
+          {
+            "action": "X_d4",
+            "flags": 0,
+            "syndrome": 0,
+            "low_order_rs_before": [
+              [
+                0,
+                0
+              ],
+              [
+                0,
+                1
+              ],
+              [
+                1,
+                0
+              ]
+            ]
+          },
+          {
+            "action": "Z_d4",
+            "flags": 0,
+            "syndrome": 9,
+            "low_order_rs_before": [
+              [
+                0,
+                0
+              ],
+              [
+                0,
+                1
+              ]
+            ]
+          },
+          {
+            "action": "X_d2",
+            "flags": 32,
+            "syndrome": 0,
+            "low_order_rs_before": [
+              [
+                0,
+                1
+              ]
+            ]
+          }
+        ]
+      }
+    ],
+    "0": [
+      {
+        "accepted": true,
+        "failed": true,
+        "observations": [
+          {
+            "action": "Z_d4",
+            "flags": 0,
+            "syndrome": 0,
+            "low_order_rs_before": [
+              [
+                0,
+                0
+              ],
+              [
+                1,
+                0
+              ]
+            ]
+          },
+          {
+            "action": "X_d4",
+            "flags": 0,
+            "syndrome": 0,
+            "low_order_rs_before": [
+              [
+                0,
+                0
+              ],
+              [
+                0,
+                1
+              ],
+              [
+                1,
+                0
+              ]
+            ]
+          },
+          {
+            "action": "Z_d4",
+            "flags": 0,
+            "syndrome": 9,
+            "low_order_rs_before": [
+              [
+                0,
+                0
+              ],
+              [
+                0,
+                1
+              ]
+            ]
+          },
+          {
+            "action": "X_d2",
+            "flags": 36,
+            "syndrome": 11,
+            "low_order_rs_before": [
+              [
+                0,
+                1
+              ]
+            ]
+          }
+        ]
+      },
+      {
+        "accepted": true,
+        "failed": false,
+        "observations": [
+          {
+            "action": "Z_d4",
+            "flags": 0,
+            "syndrome": 61,
+            "low_order_rs_before": [
+              [
+                0,
+                0
+              ],
+              [
+                1,
+                0
+              ]
+            ]
+          },
+          {
+            "action": "X_d4",
+            "flags": 0,
+            "syndrome": 61,
+            "low_order_rs_before": [
+              [
+                0,
+                1
+              ],
+              [
+                1,
+                0
+              ]
+            ]
+          },
+          {
+            "action": "Z_d4",
+            "flags": 0,
+            "syndrome": 0,
+            "low_order_rs_before": [
+              [
+                0,
+                1
+              ],
+              [
+                1,
+                0
+              ]
+            ]
+          },
+          {
+            "action": "X_d2",
+            "flags": 2,
+            "syndrome": 53,
+            "low_order_rs_before": [
+              [
+                0,
+                1
+              ]
+            ]
+          }
+        ]
+      },
+      {
+        "accepted": true,
+        "failed": true,
+        "observations": [
+          {
+            "action": "Z_d4",
+            "flags": 0,
+            "syndrome": 0,
+            "low_order_rs_before": [
+              [
+                0,
+                0
+              ],
+              [
+                1,
+                0
+              ]
+            ]
+          },
+          {
+            "action": "X_d4",
+            "flags": 0,
+            "syndrome": 9,
+            "low_order_rs_before": [
+              [
+                0,
+                0
+              ],
+              [
+                0,
+                1
+              ],
+              [
+                1,
+                0
+              ]
+            ]
+          },
+          {
+            "action": "Z_d4",
+            "flags": 0,
+            "syndrome": 9,
+            "low_order_rs_before": [
+              [
+                0,
+                1
+              ],
+              [
+                1,
+                0
+              ]
+            ]
+          },
+          {
+            "action": "X_d2",
+            "flags": 6,
+            "syndrome": 42,
+            "low_order_rs_before": [
+              [
+                0,
+                1
+              ]
+            ]
+          }
+        ]
+      },
+      {
+        "accepted": true,
+        "failed": true,
+        "observations": [
+          {
+            "action": "Z_d4",
+            "flags": 0,
+            "syndrome": 0,
+            "low_order_rs_before": [
+              [
+                0,
+                0
+              ],
+              [
+                1,
+                0
+              ]
+            ]
+          },
+          {
+            "action": "X_d4",
+            "flags": 0,
+            "syndrome": 0,
+            "low_order_rs_before": [
+              [
+                0,
+                0
+              ],
+              [
+                0,
+                1
+              ],
+              [
+                1,
+                0
+              ]
+            ]
+          },
+          {
+            "action": "Z_d4",
+            "flags": 0,
+            "syndrome": 61,
+            "low_order_rs_before": [
+              [
+                0,
+                0
+              ],
+              [
+                0,
+                1
+              ]
+            ]
+          },
+          {
+            "action": "X_d2",
+            "flags": 43,
+            "syndrome": 0,
+            "low_order_rs_before": [
+              [
+                0,
+                1
+              ]
+            ]
+          }
+        ]
+      },
+      {
+        "accepted": true,
+        "failed": false,
+        "observations": [
+          {
+            "action": "Z_d4",
+            "flags": 0,
+            "syndrome": 0,
+            "low_order_rs_before": [
+              [
+                0,
+                0
+              ],
+              [
+                1,
+                0
+              ]
+            ]
+          },
+          {
+            "action": "X_d4",
+            "flags": 0,
+            "syndrome": 0,
+            "low_order_rs_before": [
+              [
+                0,
+                0
+              ],
+              [
+                0,
+                1
+              ],
+              [
+                1,
+                0
+              ]
+            ]
+          },
+          {
+            "action": "Z_d4",
+            "flags": 0,
+            "syndrome": 61,
+            "low_order_rs_before": [
+              [
+                0,
+                0
+              ],
+              [
+                0,
+                1
+              ]
+            ]
+          },
+          {
+            "action": "X_d2",
+            "flags": 2,
+            "syndrome": 57,
+            "low_order_rs_before": [
+              [
+                0,
+                1
+              ]
+            ]
+          }
+        ]
+      },
+      {
+        "accepted": true,
+        "failed": false,
+        "observations": [
+          {
+            "action": "Z_d4",
+            "flags": 0,
+            "syndrome": 0,
+            "low_order_rs_before": [
+              [
+                0,
+                0
+              ],
+              [
+                1,
+                0
+              ]
+            ]
+          },
+          {
+            "action": "X_d4",
+            "flags": 0,
+            "syndrome": 0,
+            "low_order_rs_before": [
+              [
+                0,
+                0
+              ],
+              [
+                0,
+                1
+              ],
+              [
+                1,
+                0
+              ]
+            ]
+          },
+          {
+            "action": "Z_d4",
+            "flags": 0,
+            "syndrome": 9,
+            "low_order_rs_before": [
+              [
+                0,
+                0
+              ],
+              [
+                0,
+                1
+              ]
+            ]
+          },
+          {
+            "action": "X_d2",
+            "flags": 2,
+            "syndrome": 13,
+            "low_order_rs_before": [
+              [
+                0,
+                1
+              ]
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "policy_results": [
+    {
+      "split": "discovery",
+      "prepared_state": "+",
+      "rule": "all_d4_flags_zero",
+      "total_shots": 100000,
+      "encountered": 65954,
+      "accepted": 65949,
+      "logical_errors": 484,
+      "p_error_given_accepted": 0.0073390043821741045,
+      "low": 0.006715664008519872,
+      "high": 0.008019735366615278,
+      "p_original_accept": 0.9999241895866816,
+      "survival": 0.65949,
+      "survival_low": 0.6565468343328315,
+      "survival_high": 0.6624209126525168
+    },
+    {
+      "split": "discovery",
+      "prepared_state": "+",
+      "rule": "all_flags_zero",
+      "total_shots": 100000,
+      "encountered": 65932,
+      "accepted": 65929,
+      "logical_errors": 484,
+      "p_error_given_accepted": 0.007341230717893492,
+      "low": 0.006717701861055436,
+      "high": 0.008022167334900148,
+      "p_original_accept": 0.9999544985742886,
+      "survival": 0.65929,
+      "survival_low": 0.6563464251332802,
+      "survival_high": 0.6622213372173131
+    },
+    {
+      "split": "discovery",
+      "prepared_state": "+",
+      "rule": "baseline",
+      "total_shots": 100000,
+      "encountered": 100000,
+      "accepted": 99527,
+      "logical_errors": 3618,
+      "p_error_given_accepted": 0.036351944698423545,
+      "low": 0.03520693587013523,
+      "high": 0.03753274313495047,
+      "p_original_accept": 0.99527,
+      "survival": 0.99527,
+      "survival_low": 0.9948253032509735,
+      "survival_high": 0.9956766470244884
+    },
+    {
+      "split": "discovery",
+      "prepared_state": "+",
+      "rule": "learned_bad_masks_0.01",
+      "total_shots": 100000,
+      "encountered": 77884,
+      "accepted": 77693,
+      "logical_errors": 1978,
+      "p_error_given_accepted": 0.02545917907662209,
+      "low": 0.024374829200645348,
+      "high": 0.026590453100043918,
+      "p_original_accept": 0.9975476349442761,
+      "survival": 0.77693,
+      "survival_low": 0.7743391527566648,
+      "survival_high": 0.7794995717568001
+    },
+    {
+      "split": "discovery",
+      "prepared_state": "+",
+      "rule": "learned_bad_masks_0.02",
+      "total_shots": 100000,
+      "encountered": 78041,
+      "accepted": 77850,
+      "logical_errors": 1984,
+      "p_error_given_accepted": 0.02548490687219011,
+      "low": 0.024401082326009432,
+      "high": 0.026615558399696107,
+      "p_original_accept": 0.9975525685216745,
+      "survival": 0.7785,
+      "survival_low": 0.7759155915618299,
+      "survival_high": 0.7810630123344613
+    },
+    {
+      "split": "discovery",
+      "prepared_state": "+",
+      "rule": "learned_bad_masks_0.05",
+      "total_shots": 100000,
+      "encountered": 86794,
+      "accepted": 86514,
+      "logical_errors": 2398,
+      "p_error_given_accepted": 0.027718057193055458,
+      "low": 0.02664493815655979,
+      "high": 0.028833115593836212,
+      "p_original_accept": 0.9967739705509597,
+      "survival": 0.86514,
+      "survival_low": 0.8630089095049384,
+      "survival_high": 0.8672430381672046
+    },
+    {
+      "split": "discovery",
+      "prepared_state": "+",
+      "rule": "learned_bad_masks_0.1",
+      "total_shots": 100000,
+      "encountered": 98883,
+      "accepted": 98437,
+      "logical_errors": 3410,
+      "p_error_given_accepted": 0.03464144579781993,
+      "low": 0.033517101757967974,
+      "high": 0.03580210922902072,
+      "p_original_accept": 0.9954896190447297,
+      "survival": 0.98437,
+      "survival_low": 0.9835823951836276,
+      "survival_high": 0.9851203924976888
+    },
+    {
+      "split": "discovery",
+      "prepared_state": "+",
+      "rule": "learned_bad_masks_0.2",
+      "total_shots": 100000,
+      "encountered": 99458,
+      "accepted": 99008,
+      "logical_errors": 3485,
+      "p_error_given_accepted": 0.035199175824175824,
+      "low": 0.034069205709825724,
+      "high": 0.03636521259882814,
+      "p_original_accept": 0.9954754770858051,
+      "survival": 0.99008,
+      "survival_low": 0.9894466564954709,
+      "survival_high": 0.9906756925080997
+    },
+    {
+      "split": "discovery",
+      "prepared_state": "+",
+      "rule": "learned_bad_masks_0.5",
+      "total_shots": 100000,
+      "encountered": 100000,
+      "accepted": 99527,
+      "logical_errors": 3618,
+      "p_error_given_accepted": 0.036351944698423545,
+      "low": 0.03520693587013523,
+      "high": 0.03753274313495047,
+      "p_original_accept": 0.99527,
+      "survival": 0.99527,
+      "survival_low": 0.9948253032509735,
+      "survival_high": 0.9956766470244884
+    },
+    {
+      "split": "discovery",
+      "prepared_state": "+",
+      "rule": "reject_flag_evidence_ge2",
+      "total_shots": 100000,
+      "encountered": 96031,
+      "accepted": 95852,
+      "logical_errors": 2340,
+      "p_error_given_accepted": 0.0244126361473939,
+      "low": 0.023454544109198543,
+      "high": 0.025408846869773297,
+      "p_original_accept": 0.9981360185773344,
+      "survival": 0.95852,
+      "survival_low": 0.9572664285269067,
+      "survival_high": 0.9597383451123304
+    },
+    {
+      "split": "discovery",
+      "prepared_state": "+",
+      "rule": "reject_no_order01_explanation",
+      "total_shots": 100000,
+      "encountered": 90895,
+      "accepted": 90895,
+      "logical_errors": 390,
+      "p_error_given_accepted": 0.004290665053083228,
+      "low": 0.0038861874774814044,
+      "high": 0.004737040786388081,
+      "p_original_accept": 1.0,
+      "survival": 0.90895,
+      "survival_low": 0.9071512284141069,
+      "survival_high": 0.9107173535011116
+    },
+    {
+      "split": "discovery",
+      "prepared_state": "+",
+      "rule": "reject_two_flagged_extractions",
+      "total_shots": 100000,
+      "encountered": 97419,
+      "accepted": 97133,
+      "logical_errors": 3072,
+      "p_error_given_accepted": 0.03162673859553396,
+      "low": 0.03054456829784709,
+      "high": 0.03274595429369666,
+      "p_original_accept": 0.9970642277173857,
+      "survival": 0.97133,
+      "survival_low": 0.9702774589816255,
+      "survival_high": 0.9723463305136671
+    },
+    {
+      "split": "validation",
+      "prepared_state": "+",
+      "rule": "all_d4_flags_zero",
+      "total_shots": 100000,
+      "encountered": 66235,
+      "accepted": 66230,
+      "logical_errors": 489,
+      "p_error_given_accepted": 0.007383361014645931,
+      "low": 0.006759338778248844,
+      "high": 0.008064525234396876,
+      "p_original_accept": 0.9999245112100853,
+      "survival": 0.6623,
+      "survival_low": 0.6593626452752525,
+      "survival_high": 0.6652248858284032
+    },
+    {
+      "split": "validation",
+      "prepared_state": "+",
+      "rule": "all_flags_zero",
+      "total_shots": 100000,
+      "encountered": 66213,
+      "accepted": 66208,
+      "logical_errors": 489,
+      "p_error_given_accepted": 0.007385814403093282,
+      "low": 0.006761585487615709,
+      "high": 0.008067204003631614,
+      "p_original_accept": 0.9999244861281017,
+      "survival": 0.66208,
+      "survival_low": 0.6591421861618912,
+      "survival_high": 0.6650053618435338
+    },
+    {
+      "split": "validation",
+      "prepared_state": "+",
+      "rule": "baseline",
+      "total_shots": 100000,
+      "encountered": 100000,
+      "accepted": 99529,
+      "logical_errors": 3674,
+      "p_error_given_accepted": 0.03691386430085704,
+      "low": 0.035760235801604506,
+      "high": 0.03810323831474875,
+      "p_original_accept": 0.99529,
+      "survival": 0.99529,
+      "survival_low": 0.994846197281395,
+      "survival_high": 0.9956957514575425
+    },
+    {
+      "split": "validation",
+      "prepared_state": "+",
+      "rule": "learned_bad_masks_0.01",
+      "total_shots": 100000,
+      "encountered": 78071,
+      "accepted": 77905,
+      "logical_errors": 2012,
+      "p_error_given_accepted": 0.025826326936653616,
+      "low": 0.024735669339796002,
+      "high": 0.026963744788312167,
+      "p_original_accept": 0.9978737303223988,
+      "survival": 0.77905,
+      "survival_low": 0.7764678597880981,
+      "survival_high": 0.7816107018537695
+    },
+    {
+      "split": "validation",
+      "prepared_state": "+",
+      "rule": "learned_bad_masks_0.02",
+      "total_shots": 100000,
+      "encountered": 78209,
+      "accepted": 78042,
+      "logical_errors": 2023,
+      "p_error_given_accepted": 0.025921939468491324,
+      "low": 0.02483021202249253,
+      "high": 0.02706033567513862,
+      "p_original_accept": 0.997864695878991,
+      "survival": 0.78042,
+      "survival_low": 0.7778435383051191,
+      "survival_high": 0.7829749180848199
+    },
+    {
+      "split": "validation",
+      "prepared_state": "+",
+      "rule": "learned_bad_masks_0.05",
+      "total_shots": 100000,
+      "encountered": 86987,
+      "accepted": 86721,
+      "logical_errors": 2509,
+      "p_error_given_accepted": 0.02893186194808639,
+      "low": 0.027836981820099728,
+      "high": 0.03006847380653524,
+      "p_original_accept": 0.9969420718038328,
+      "survival": 0.86721,
+      "survival_low": 0.8650926276464307,
+      "survival_high": 0.8692991609954263
+    },
+    {
+      "split": "validation",
+      "prepared_state": "+",
+      "rule": "learned_bad_masks_0.1",
+      "total_shots": 100000,
+      "encountered": 98878,
+      "accepted": 98441,
+      "logical_errors": 3488,
+      "p_error_given_accepted": 0.035432390975305005,
+      "low": 0.03429554647934071,
+      "high": 0.03660549165926353,
+      "p_original_accept": 0.9955804122251664,
+      "survival": 0.98441,
+      "survival_low": 0.9836233620719901,
+      "survival_high": 0.9851594225362774
+    },
+    {
+      "split": "validation",
+      "prepared_state": "+",
+      "rule": "learned_bad_masks_0.2",
+      "total_shots": 100000,
+      "encountered": 99431,
+      "accepted": 98991,
+      "logical_errors": 3542,
+      "p_error_given_accepted": 0.0357810305987413,
+      "low": 0.03464184373187568,
+      "high": 0.036956245162170914,
+      "p_original_accept": 0.9955748207299534,
+      "survival": 0.98991,
+      "survival_low": 0.9892714781245566,
+      "survival_high": 0.9905108839394723
+    },
+    {
+      "split": "validation",
+      "prepared_state": "+",
+      "rule": "learned_bad_masks_0.5",
+      "total_shots": 100000,
+      "encountered": 100000,
+      "accepted": 99529,
+      "logical_errors": 3674,
+      "p_error_given_accepted": 0.03691386430085704,
+      "low": 0.035760235801604506,
+      "high": 0.03810323831474875,
+      "p_original_accept": 0.99529,
+      "survival": 0.99529,
+      "survival_low": 0.994846197281395,
+      "survival_high": 0.9956957514575425
+    },
+    {
+      "split": "validation",
+      "prepared_state": "+",
+      "rule": "reject_flag_evidence_ge2",
+      "total_shots": 100000,
+      "encountered": 96042,
+      "accepted": 95872,
+      "logical_errors": 2342,
+      "p_error_given_accepted": 0.02442840453938585,
+      "low": 0.02347010239136982,
+      "high": 0.025424816156324522,
+      "p_original_accept": 0.9982299410674497,
+      "survival": 0.95872,
+      "survival_low": 0.9574692747767183,
+      "survival_high": 0.9599354834972736
+    },
+    {
+      "split": "validation",
+      "prepared_state": "+",
+      "rule": "reject_no_order01_explanation",
+      "total_shots": 100000,
+      "encountered": 90825,
+      "accepted": 90825,
+      "logical_errors": 381,
+      "p_error_given_accepted": 0.0041948802642444265,
+      "low": 0.0037950037915340283,
+      "high": 0.004636695286868349,
+      "p_original_accept": 1.0,
+      "survival": 0.90825,
+      "survival_low": 0.9064451043249075,
+      "survival_high": 0.9100235313686684
+    },
+    {
+      "split": "validation",
+      "prepared_state": "+",
+      "rule": "reject_two_flagged_extractions",
+      "total_shots": 100000,
+      "encountered": 97437,
+      "accepted": 97176,
+      "logical_errors": 3096,
+      "p_error_given_accepted": 0.031859718448999756,
+      "low": 0.03077386267219193,
+      "high": 0.032982584815388516,
+      "p_original_accept": 0.9973213461005573,
+      "survival": 0.97176,
+      "survival_low": 0.9707149993019938,
+      "survival_high": 0.9727687571580218
+    },
+    {
+      "split": "discovery",
+      "prepared_state": "0",
+      "rule": "all_d4_flags_zero",
+      "total_shots": 100000,
+      "encountered": 66229,
+      "accepted": 66224,
+      "logical_errors": 68,
+      "p_error_given_accepted": 0.001026818071998067,
+      "low": 0.0008101270292375409,
+      "high": 0.0013013936807896016,
+      "p_original_accept": 0.999924504371197,
+      "survival": 0.66224,
+      "survival_low": 0.659302519992221,
+      "survival_high": 0.6651650157210082
+    },
+    {
+      "split": "discovery",
+      "prepared_state": "0",
+      "rule": "all_flags_zero",
+      "total_shots": 100000,
+      "encountered": 66198,
+      "accepted": 66194,
+      "logical_errors": 53,
+      "p_error_given_accepted": 0.0008006767985013748,
+      "low": 0.0006122396523863757,
+      "high": 0.0010470509891222686,
+      "p_original_accept": 0.9999395752137527,
+      "survival": 0.66194,
+      "survival_low": 0.6590018943678204,
+      "survival_high": 0.6648656643932762
+    },
+    {
+      "split": "discovery",
+      "prepared_state": "0",
+      "rule": "baseline",
+      "total_shots": 100000,
+      "encountered": 100000,
+      "accepted": 99575,
+      "logical_errors": 1777,
+      "p_error_given_accepted": 0.017845844840572434,
+      "low": 0.017041948503195407,
+      "high": 0.018686941356323445,
+      "p_original_accept": 0.99575,
+      "survival": 0.99575,
+      "survival_low": 0.9953273175797667,
+      "survival_high": 0.9961345958191073
+    },
+    {
+      "split": "discovery",
+      "prepared_state": "0",
+      "rule": "learned_bad_masks_0.01",
+      "total_shots": 100000,
+      "encountered": 78202,
+      "accepted": 78049,
+      "logical_errors": 1050,
+      "p_error_given_accepted": 0.013453087163192353,
+      "low": 0.012668469645262982,
+      "high": 0.014285596593704675,
+      "p_original_accept": 0.998043528298509,
+      "survival": 0.78049,
+      "survival_low": 0.777913829546772,
+      "survival_high": 0.7830446214653313
+    },
+    {
+      "split": "discovery",
+      "prepared_state": "0",
+      "rule": "learned_bad_masks_0.02",
+      "total_shots": 100000,
+      "encountered": 78351,
+      "accepted": 78195,
+      "logical_errors": 1056,
+      "p_error_given_accepted": 0.013504699788989065,
+      "low": 0.012719265342588725,
+      "high": 0.014337931661217149,
+      "p_original_accept": 0.9980089596814335,
+      "survival": 0.78195,
+      "survival_low": 0.779379928473749,
+      "survival_high": 0.7844984103720656
+    },
+    {
+      "split": "discovery",
+      "prepared_state": "0",
+      "rule": "learned_bad_masks_0.05",
+      "total_shots": 100000,
+      "encountered": 86980,
+      "accepted": 86743,
+      "logical_errors": 1250,
+      "p_error_given_accepted": 0.01441038469962994,
+      "low": 0.013638534926964825,
+      "high": 0.015225241744480717,
+      "p_original_accept": 0.9972752356863647,
+      "survival": 0.86743,
+      "survival_low": 0.8653140955416453,
+      "survival_high": 0.8695176761984421
+    },
+    {
+      "split": "discovery",
+      "prepared_state": "0",
+      "rule": "learned_bad_masks_0.1",
+      "total_shots": 100000,
+      "encountered": 98834,
+      "accepted": 98441,
+      "logical_errors": 1591,
+      "p_error_given_accepted": 0.016161965034893998,
+      "low": 0.015392919493069469,
+      "high": 0.016968770683996087,
+      "p_original_accept": 0.9960236355909909,
+      "survival": 0.98441,
+      "survival_low": 0.9836233620719901,
+      "survival_high": 0.9851594225362774
+    },
+    {
+      "split": "discovery",
+      "prepared_state": "0",
+      "rule": "learned_bad_masks_0.2",
+      "total_shots": 100000,
+      "encountered": 99430,
+      "accepted": 99034,
+      "logical_errors": 1638,
+      "p_error_given_accepted": 0.016539774218955108,
+      "low": 0.015763994028212033,
+      "high": 0.017353059115403094,
+      "p_original_accept": 0.9960172986020316,
+      "survival": 0.99034,
+      "survival_low": 0.989714665626972,
+      "survival_high": 0.9909276634017801
+    },
+    {
+      "split": "discovery",
+      "prepared_state": "0",
+      "rule": "learned_bad_masks_0.5",
+      "total_shots": 100000,
+      "encountered": 100000,
+      "accepted": 99575,
+      "logical_errors": 1777,
+      "p_error_given_accepted": 0.017845844840572434,
+      "low": 0.017041948503195407,
+      "high": 0.018686941356323445,
+      "p_original_accept": 0.99575,
+      "survival": 0.99575,
+      "survival_low": 0.9953273175797667,
+      "survival_high": 0.9961345958191073
+    },
+    {
+      "split": "discovery",
+      "prepared_state": "0",
+      "rule": "reject_flag_evidence_ge2",
+      "total_shots": 100000,
+      "encountered": 96028,
+      "accepted": 95862,
+      "logical_errors": 859,
+      "p_error_given_accepted": 0.008960797813523607,
+      "low": 0.008383616326896843,
+      "high": 0.00957733235533335,
+      "p_original_accept": 0.9982713375265547,
+      "survival": 0.95862,
+      "survival_low": 0.9573678506715425,
+      "survival_high": 0.959836915285072
+    },
+    {
+      "split": "discovery",
+      "prepared_state": "0",
+      "rule": "reject_no_order01_explanation",
+      "total_shots": 100000,
+      "encountered": 90901,
+      "accepted": 90901,
+      "logical_errors": 56,
+      "p_error_given_accepted": 0.0006160548288797703,
+      "low": 0.0004744846483385767,
+      "high": 0.0007998309652381716,
+      "p_original_accept": 1.0,
+      "survival": 0.90901,
+      "survival_low": 0.9072117548149713,
+      "survival_high": 0.9107768224906735
+    },
+    {
+      "split": "discovery",
+      "prepared_state": "0",
+      "rule": "reject_two_flagged_extractions",
+      "total_shots": 100000,
+      "encountered": 97426,
+      "accepted": 97173,
+      "logical_errors": 1157,
+      "p_error_given_accepted": 0.011906599569839358,
+      "low": 0.011243660242842232,
+      "high": 0.012608128146502508,
+      "p_original_accept": 0.9974031572680804,
+      "survival": 0.97173,
+      "survival_low": 0.9706844712051603,
+      "survival_high": 0.9727392875596421
+    },
+    {
+      "split": "validation",
+      "prepared_state": "0",
+      "rule": "all_d4_flags_zero",
+      "total_shots": 100000,
+      "encountered": 66033,
+      "accepted": 66026,
+      "logical_errors": 51,
+      "p_error_given_accepted": 0.0007724229848847424,
+      "low": 0.0005875823914802449,
+      "high": 0.0010153513197373085,
+      "p_original_accept": 0.9998939923977406,
+      "survival": 0.66026,
+      "survival_low": 0.657318415190638,
+      "survival_high": 0.6631892726385168
+    },
+    {
+      "split": "validation",
+      "prepared_state": "0",
+      "rule": "all_flags_zero",
+      "total_shots": 100000,
+      "encountered": 66016,
+      "accepted": 66011,
+      "logical_errors": 49,
+      "p_error_given_accepted": 0.0007423005256699641,
+      "low": 0.0005615741602136128,
+      "high": 0.0009811313370679594,
+      "p_original_accept": 0.9999242607852642,
+      "survival": 0.66011,
+      "survival_low": 0.6571681065536279,
+      "survival_high": 0.6630395927994608
+    },
+    {
+      "split": "validation",
+      "prepared_state": "0",
+      "rule": "baseline",
+      "total_shots": 100000,
+      "encountered": 100000,
+      "accepted": 99578,
+      "logical_errors": 1754,
+      "p_error_given_accepted": 0.01761433248307859,
+      "low": 0.016815710128183614,
+      "high": 0.018450171757249466,
+      "p_original_accept": 0.99578,
+      "survival": 0.99578,
+      "survival_low": 0.9953587342768269,
+      "survival_high": 0.9961631768172603
+    },
+    {
+      "split": "validation",
+      "prepared_state": "0",
+      "rule": "learned_bad_masks_0.01",
+      "total_shots": 100000,
+      "encountered": 78011,
+      "accepted": 77853,
+      "logical_errors": 990,
+      "p_error_given_accepted": 0.012716272975993217,
+      "low": 0.011952901533107173,
+      "high": 0.01352772960539038,
+      "p_original_accept": 0.9979746446014024,
+      "survival": 0.77853,
+      "survival_low": 0.7759457151143334,
+      "survival_high": 0.7810928864771713
+    },
+    {
+      "split": "validation",
+      "prepared_state": "0",
+      "rule": "learned_bad_masks_0.02",
+      "total_shots": 100000,
+      "encountered": 78175,
+      "accepted": 78014,
+      "logical_errors": 991,
+      "p_error_given_accepted": 0.012702848206732125,
+      "low": 0.011940651027933449,
+      "high": 0.013513032664005905,
+      "p_original_accept": 0.9979405180684362,
+      "survival": 0.78014,
+      "survival_low": 0.7775623744083424,
+      "survival_high": 0.7826961034929394
+    },
+    {
+      "split": "validation",
+      "prepared_state": "0",
+      "rule": "learned_bad_masks_0.05",
+      "total_shots": 100000,
+      "encountered": 86877,
+      "accepted": 86643,
+      "logical_errors": 1207,
+      "p_error_given_accepted": 0.013930727237053195,
+      "low": 0.01317158833542296,
+      "high": 0.01473296557690614,
+      "p_original_accept": 0.9973065368279291,
+      "survival": 0.86643,
+      "survival_low": 0.86430743872511,
+      "survival_high": 0.8685244098412026
+    },
+    {
+      "split": "validation",
+      "prepared_state": "0",
+      "rule": "learned_bad_masks_0.1",
+      "total_shots": 100000,
+      "encountered": 98833,
+      "accepted": 98437,
+      "logical_errors": 1548,
+      "p_error_given_accepted": 0.015725794162764,
+      "low": 0.014967276622513407,
+      "high": 0.01652210738602745,
+      "p_original_accept": 0.9959932411239161,
+      "survival": 0.98437,
+      "survival_low": 0.9835823951836276,
+      "survival_high": 0.9851203924976888
+    },
+    {
+      "split": "validation",
+      "prepared_state": "0",
+      "rule": "learned_bad_masks_0.2",
+      "total_shots": 100000,
+      "encountered": 99418,
+      "accepted": 99019,
+      "logical_errors": 1604,
+      "p_error_given_accepted": 0.016198911320049688,
+      "low": 0.015431176251495224,
+      "high": 0.01700418322217086,
+      "p_original_accept": 0.9959866422579412,
+      "survival": 0.99019,
+      "survival_low": 0.989560031613854,
+      "survival_high": 0.9907823089388319
+    },
+    {
+      "split": "validation",
+      "prepared_state": "0",
+      "rule": "learned_bad_masks_0.5",
+      "total_shots": 100000,
+      "encountered": 100000,
+      "accepted": 99578,
+      "logical_errors": 1754,
+      "p_error_given_accepted": 0.01761433248307859,
+      "low": 0.016815710128183614,
+      "high": 0.018450171757249466,
+      "p_original_accept": 0.99578,
+      "survival": 0.99578,
+      "survival_low": 0.9953587342768269,
+      "survival_high": 0.9961631768172603
+    },
+    {
+      "split": "validation",
+      "prepared_state": "0",
+      "rule": "reject_flag_evidence_ge2",
+      "total_shots": 100000,
+      "encountered": 95980,
+      "accepted": 95805,
+      "logical_errors": 842,
+      "p_error_given_accepted": 0.008788685350451438,
+      "low": 0.00821704846162164,
+      "high": 0.009399712508670858,
+      "p_original_accept": 0.9981767034798916,
+      "survival": 0.95805,
+      "survival_low": 0.9567897705068944,
+      "survival_high": 0.9592750392406684
+    },
+    {
+      "split": "validation",
+      "prepared_state": "0",
+      "rule": "reject_no_order01_explanation",
+      "total_shots": 100000,
+      "encountered": 90848,
+      "accepted": 90848,
+      "logical_errors": 43,
+      "p_error_given_accepted": 0.0004733180697428672,
+      "low": 0.00035143662621905393,
+      "high": 0.0006374421612452097,
+      "p_original_accept": 1.0,
+      "survival": 0.90848,
+      "survival_low": 0.9066771130288058,
+      "survival_high": 0.9102515049947384
+    },
+    {
+      "split": "validation",
+      "prepared_state": "0",
+      "rule": "reject_two_flagged_extractions",
+      "total_shots": 100000,
+      "encountered": 97444,
+      "accepted": 97177,
+      "logical_errors": 1121,
+      "p_error_given_accepted": 0.011535651440155592,
+      "low": 0.010883316354542483,
+      "high": 0.012226603513483609,
+      "p_original_accept": 0.9972599646976725,
+      "survival": 0.97177,
+      "survival_low": 0.9707251754023809,
+      "survival_high": 0.9727785802893727
+    }
+  ],
+  "selection_inputs": "Only measured extraction flags/syndromes; no hidden noise events or final ideal/logical readout"
+}

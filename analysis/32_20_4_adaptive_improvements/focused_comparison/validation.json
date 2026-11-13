@@ -1,0 +1,39 @@
+{
+  "complete": true,
+  "methods": [
+    "Adaptive baseline (60 qubits)",
+    "Adaptive history PS (60 qubits)",
+    "Adaptive syndrome PS (60 qubits)",
+    "Adaptive verified recovery (60 qubits)",
+    "Steane d4 RUS + syndrome PS (66 qubits)",
+    "Steane descending RUS + syndrome PS (66 qubits)"
+  ],
+  "configurations_per_method": 32,
+  "attempted_shots": {
+    "Adaptive baseline (60 qubits)": 9329148,
+    "Adaptive history PS (60 qubits)": 9329148,
+    "Adaptive syndrome PS (60 qubits)": 9329148,
+    "Adaptive verified recovery (60 qubits)": 9329148,
+    "Steane d4 RUS + syndrome PS (66 qubits)": 9329148,
+    "Steane descending RUS + syndrome PS (66 qubits)": 9329148
+  },
+  "equal_noise_seeds_budgets_and_configurations": true,
+  "equal_noise_seeds_and_configurations": true,
+  "equal_shot_budgets": true,
+  "equal_attempted_shots_per_configuration": true,
+  "sampling_note": "Matched fixed budgets",
+  "intervals": "95% Wilson checked against raw counts",
+  "interpretation": "Conditional 20-logical-qubit block LER; endpoint LER/N; survival separate",
+  "timing": "Serial noisy ancilla attempts, including persistent data idles; ideal experiment boundaries",
+  "peak_qubits": {
+    "Adaptive baseline (60 qubits)": 60,
+    "Adaptive history PS (60 qubits)": 60,
+    "Adaptive syndrome PS (60 qubits)": 60,
+    "Adaptive verified recovery (60 qubits)": 60,
+    "Steane d4 RUS + syndrome PS (66 qubits)": 66,
+    "Steane descending RUS + syndrome PS (66 qubits)": 66
+  },
+  "full_acceptance_required": [],
+  "syndrome_confirmation": "Steane: two consecutive readings per CSS basis; adaptive: its existing policy",
+  "certificates": "See each saved adaptive contract/certificate; no adaptive-policy certificate claimed for Steane RUS"
+}

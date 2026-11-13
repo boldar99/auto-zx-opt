@@ -12,7 +12,8 @@ from spiderwarp.se_protocol_simulation import _wilson_interval
 from spiderwarp.noise_model import default_noise_model
 
 
-def plot_results(results, output_dir=None, *, cycle_p=None, compare=None, labels=None):
+def plot_results(results, output_dir=None, *, cycle_p=None, compare=None, labels=None,
+                 physical_survival=False, sample_note=None):
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -53,6 +54,8 @@ def plot_results(results, output_dir=None, *, cycle_p=None, compare=None, labels
     if not groups:
         raise ValueError("No positive-p, positive-cycle results to plot")
 
+    zero_axes = set()
+
     def series(ax, x, totals, scale, label, *, survival=False, resources=False):
         if resources:
             ax.plot(x, [c[3] / c[0] / divisor for c, divisor in zip(totals, scale)],
@@ -69,14 +72,15 @@ def plot_results(results, output_dir=None, *, cycle_p=None, compare=None, labels
         x, y, lo, hi, zero = map(np.asarray, (x, y, lo, hi, zero))
         valid = np.isfinite(y) & ~zero
         line = ax.errorbar(x[valid], y[valid],
-                           yerr=[np.maximum(0, y[valid] - lo[valid]), hi[valid] - y[valid]],
+                           yerr=[np.maximum(0, y[valid] - lo[valid]), np.maximum(0, hi[valid] - y[valid])],
                            fmt="o-", capsize=3, label=label)
         color = line.lines[0].get_color()
         ax.fill_between(x[valid], lo[valid], hi[valid], color=color, alpha=.12)
         if zero.any():
             # At zero failures the point estimate cannot appear on a log axis.
             ax.scatter(x[zero], hi[zero], marker="v", facecolors="none", edgecolors=color,
-                       label=f"{label}: {'zero accepted' if survival else 'zero failures'} (95% CI upper endpoint)")
+                       label="_nolegend_")
+            zero_axes.add(ax)
 
     paths = []
     profile_ids = {key: i + 1 for i, key in enumerate(sorted({k[:3] for k in groups}))}
@@ -85,8 +89,13 @@ def plot_results(results, output_dir=None, *, cycle_p=None, compare=None, labels
         dict(model=i, protocol_hash=key[0], label=names.get(key[0]), engine_hash=key[1], noise_ratios=dict(key[2]))
         for key, i in profile_ids.items()], indent=2) + "\n")
     modes = ("physical_error", "cycles", "survival") + (("cnot_cost",) if compare else ())
+    if physical_survival:
+        modes += ("physical_survival",)
+    shared_legend = len(sources) > 3
     for mode in modes:
-        fig, axes = plt.subplots(1, 2, figsize=(12, 4.7), squeeze=False)
+        physical_mode = mode in {"physical_error", "physical_survival"}
+        legend_rows = (len(sources) + (mode == "physical_error") + 2) // 3
+        fig, axes = plt.subplots(1, 2, figsize=(12, 4.7 + .3*legend_rows if shared_legend else 4.7), squeeze=False)
         plotted = False
         tick_values = set()
         for key, points in groups.items():
@@ -96,7 +105,7 @@ def plot_results(results, output_dir=None, *, cycle_p=None, compare=None, labels
             for (p, n), point in points.items():
                 roles = point["sweeps"]
                 belongs = ((not roles or "physical_error" in roles) and n == 1
-                           if mode == "physical_error" else
+                           if physical_mode else
                            (not roles or "cycles" in roles) and np.isclose(p, cycle_p, rtol=1e-9, atol=0))
                 if belongs:
                     selected.append((p, n, point["counts"]))
@@ -104,29 +113,35 @@ def plot_results(results, output_dir=None, *, cycle_p=None, compare=None, labels
             if not selected:
                 continue
             plotted = True
-            xs = [p if mode == "physical_error" else n for p, n, _ in selected]
-            if mode != "physical_error":
+            xs = [p if physical_mode else n for p, n, _ in selected]
+            if not physical_mode:
                 tick_values.update(xs)
             scales = [p * p if mode == "physical_error" else n if mode in {"cycles", "cnot_cost"} else 1
                       for p, n, _ in selected]
             series(ax, xs, [c for _, _, c in selected], scales,
                    names.get(protocol, f"{protocol[:8]} / model {profile_ids[key[:3]]}"),
-                   survival=mode == "survival", resources=mode == "cnot_cost")
+                   survival=mode in {"survival", "physical_survival"}, resources=mode == "cnot_cost")
         if not plotted:
             plt.close(fig)
             continue
         for i, ax in enumerate(axes[0]):
+            if ax in zero_axes:
+                ax.plot([], [], marker="v", linestyle="none", markerfacecolor="none", color="gray",
+                        label="Zero failures: 95% CI upper endpoint")
             ax.set_title("Logical 0 (Z readout)" if i == 0 else "Logical + (X readout)")
             ax.grid(True, which="both", ls="--", alpha=.4)
-            if mode == "physical_error":
+            if physical_mode:
                 ax.set_xscale("log")
-                ax.set_yscale("log")
-                positive = [float(r["p"]) for r in rows if float(r["p"]) > 0 and int(r["cycles"]) == 1]
-                if positive:
-                    x = np.geomspace(min(positive), max(positive), 100)
-                    ax.plot(x, 1 / x, ":", color="gray", label="p_L = p guide")
                 ax.set_xlabel("Two-qubit error probability p")
-                ax.set_ylabel("Conditional block failure probability / p²")
+                if mode == "physical_error":
+                    ax.set_yscale("log")
+                    positive = [float(r["p"]) for r in rows if float(r["p"]) > 0 and int(r["cycles"]) == 1]
+                    if positive:
+                        x = np.geomspace(min(positive), max(positive), 100)
+                        ax.plot(x, 1 / x, ":", color="gray", label="p_L = p guide")
+                    ax.set_ylabel("Conditional block failure probability / p²")
+                else:
+                    ax.set_ylabel("Probability QEC cycle accepts")
             else:
                 ax.set_xlabel("Number of QEC cycles N")
                 ax.set_xticks(sorted(tick_values))
@@ -135,18 +150,31 @@ def plot_results(results, output_dir=None, *, cycle_p=None, compare=None, labels
                               else "Probability all cycles accept")
                 if mode == "cycles":
                     ax.set_yscale("log")
-                elif mode == "survival":
-                    ax.set_yscale("linear")
-                    # Include the measured confidence intervals and a little
-                    # padding, rather than forcing the entire probability range.
-                    ax.margins(y=.08)
-                    bottom, top = ax.get_ylim()
-                    ax.set_ylim(max(0, bottom), min(1, top))
-            if ax.get_legend_handles_labels()[0]:
+            if mode in {"survival", "physical_survival"}:
+                ax.set_yscale("linear")
+                # Fit the observed confidence intervals with padding, clipped
+                # to probabilities. Stronger PS naturally widens this range.
+                ax.margins(y=.08)
+                bottom, top = ax.get_ylim()
+                ax.set_ylim(max(0, bottom), min(1, top))
+            if not shared_legend and ax.get_legend_handles_labels()[0]:
                 ax.legend(fontsize="small")
         fig.suptitle("Basis-specific block performance"
-                     + (f"; p={cycle_p:g}" if mode != "physical_error" else ""))
-        fig.tight_layout()
+                     + (f"; p={cycle_p:g}" if not physical_mode else "")
+                     + ('\n' + sample_note if sample_note else ''))
+        if shared_legend:
+            entries = {}
+            for ax in axes[0]:
+                handles, legends = ax.get_legend_handles_labels()
+                for handle, label in zip(handles, legends):
+                    entries.setdefault(label, handle)
+            legend_rows = (len(entries) + 2) // 3
+            fig.set_size_inches(12, 4.7 + .3*legend_rows)
+            fig.legend(list(entries.values()), list(entries), loc="lower center",
+                       bbox_to_anchor=(.5, .005), ncol=3, fontsize=9)
+            fig.tight_layout(rect=(0, .05 + .04*legend_rows, 1, 1))
+        else:
+            fig.tight_layout()
         for suffix in ("pdf", "png"):
             path = directory / f"{mode}.{suffix}"
             fig.savefig(path, dpi=180, bbox_inches="tight")

@@ -1,0 +1,306 @@
+{
+  "seed": 2026111301,
+  "shots_per_point": 10000,
+  "configurations": [
+    [
+      "css",
+      "0",
+      1
+    ],
+    [
+      "css",
+      "+",
+      1
+    ],
+    [
+      "css",
+      "0",
+      10
+    ],
+    [
+      "css",
+      "+",
+      10
+    ],
+    [
+      "css-flag",
+      "0",
+      1
+    ],
+    [
+      "css-flag",
+      "+",
+      1
+    ],
+    [
+      "css-flag",
+      "0",
+      10
+    ],
+    [
+      "css-flag",
+      "+",
+      10
+    ],
+    [
+      "css-flag-reversed",
+      "0",
+      1
+    ],
+    [
+      "css-flag-reversed",
+      "+",
+      1
+    ],
+    [
+      "css-flag-reversed",
+      "0",
+      10
+    ],
+    [
+      "css-flag-reversed",
+      "+",
+      10
+    ],
+    [
+      "css-flag-check",
+      "0",
+      1
+    ],
+    [
+      "css-flag-check",
+      "+",
+      1
+    ],
+    [
+      "css-flag-check",
+      "0",
+      10
+    ],
+    [
+      "css-flag-check",
+      "+",
+      10
+    ]
+  ],
+  "results": [
+    {
+      "variant": "css",
+      "basis": "0",
+      "cycles": 1,
+      "shots": 10000,
+      "accepted": 9272,
+      "logical_errors": 104,
+      "ler": 0.011216566005176877,
+      "low": 0.00926630335483959,
+      "high": 0.013571674176486944,
+      "survival": 0.9272,
+      "mean_cnots": 445.2552
+    },
+    {
+      "variant": "css",
+      "basis": "+",
+      "cycles": 1,
+      "shots": 10000,
+      "accepted": 9272,
+      "logical_errors": 251,
+      "ler": 0.02707075064710958,
+      "low": 0.023958157847437257,
+      "high": 0.030575057394148553,
+      "survival": 0.9272,
+      "mean_cnots": 445.2552
+    },
+    {
+      "variant": "css",
+      "basis": "0",
+      "cycles": 10,
+      "shots": 10000,
+      "accepted": 3397,
+      "logical_errors": 375,
+      "ler": 0.11039152193111569,
+      "low": 0.10029014257459581,
+      "high": 0.1213730745875776,
+      "survival": 0.3397,
+      "mean_cnots": 2917.5147
+    },
+    {
+      "variant": "css",
+      "basis": "+",
+      "cycles": 10,
+      "shots": 10000,
+      "accepted": 3397,
+      "logical_errors": 756,
+      "ler": 0.22254930821312924,
+      "low": 0.2088792810091566,
+      "high": 0.23684613053247427,
+      "survival": 0.3397,
+      "mean_cnots": 2917.5147
+    },
+    {
+      "variant": "css-flag",
+      "basis": "0",
+      "cycles": 1,
+      "shots": 10000,
+      "accepted": 8650,
+      "logical_errors": 6,
+      "ler": 0.0006936416184971098,
+      "low": 0.0003179397250877531,
+      "high": 0.001512629842898408,
+      "survival": 0.865,
+      "mean_cnots": 445.2552
+    },
+    {
+      "variant": "css-flag",
+      "basis": "+",
+      "cycles": 1,
+      "shots": 10000,
+      "accepted": 8650,
+      "logical_errors": 42,
+      "ler": 0.004855491329479769,
+      "low": 0.0035943387488483886,
+      "high": 0.006556235333042034,
+      "survival": 0.865,
+      "mean_cnots": 445.2552
+    },
+    {
+      "variant": "css-flag",
+      "basis": "0",
+      "cycles": 10,
+      "shots": 10000,
+      "accepted": 1509,
+      "logical_errors": 3,
+      "ler": 0.0019880715705765406,
+      "low": 0.0006763490171622288,
+      "high": 0.005828931997786845,
+      "survival": 0.1509,
+      "mean_cnots": 2231.5671
+    },
+    {
+      "variant": "css-flag",
+      "basis": "+",
+      "cycles": 10,
+      "shots": 10000,
+      "accepted": 1509,
+      "logical_errors": 17,
+      "ler": 0.01126573889993373,
+      "low": 0.007045597230848025,
+      "high": 0.01796790210185316,
+      "survival": 0.1509,
+      "mean_cnots": 2231.5671
+    },
+    {
+      "variant": "css-flag-reversed",
+      "basis": "0",
+      "cycles": 1,
+      "shots": 10000,
+      "accepted": 8648,
+      "logical_errors": 3,
+      "ler": 0.0003469010175763182,
+      "low": 0.00011798450623264197,
+      "high": 0.0010195142410034852,
+      "survival": 0.8648,
+      "mean_cnots": 445.2259
+    },
+    {
+      "variant": "css-flag-reversed",
+      "basis": "+",
+      "cycles": 1,
+      "shots": 10000,
+      "accepted": 8648,
+      "logical_errors": 52,
+      "ler": 0.006012950971322849,
+      "low": 0.004588558410087257,
+      "high": 0.007876008738302638,
+      "survival": 0.8648,
+      "mean_cnots": 445.2259
+    },
+    {
+      "variant": "css-flag-reversed",
+      "basis": "0",
+      "cycles": 10,
+      "shots": 10000,
+      "accepted": 1552,
+      "logical_errors": 2,
+      "ler": 0.001288659793814433,
+      "low": 0.000353468159127322,
+      "high": 0.004686543325486181,
+      "survival": 0.1552,
+      "mean_cnots": 2257.3711
+    },
+    {
+      "variant": "css-flag-reversed",
+      "basis": "+",
+      "cycles": 10,
+      "shots": 10000,
+      "accepted": 1552,
+      "logical_errors": 23,
+      "ler": 0.014819587628865979,
+      "low": 0.009895173869552997,
+      "high": 0.02213987606315239,
+      "survival": 0.1552,
+      "mean_cnots": 2257.3711
+    },
+    {
+      "variant": "css-flag-check",
+      "basis": "0",
+      "cycles": 1,
+      "shots": 10000,
+      "accepted": 6918,
+      "logical_errors": 18,
+      "ler": 0.0026019080659150044,
+      "low": 0.0016465137339933232,
+      "high": 0.004109390826623715,
+      "survival": 0.6918,
+      "mean_cnots": 643.671
+    },
+    {
+      "variant": "css-flag-check",
+      "basis": "+",
+      "cycles": 1,
+      "shots": 10000,
+      "accepted": 6918,
+      "logical_errors": 14,
+      "ler": 0.002023706273489448,
+      "low": 0.0012058985847073827,
+      "high": 0.003394244167784827,
+      "survival": 0.6918,
+      "mean_cnots": 643.671
+    },
+    {
+      "variant": "css-flag-check",
+      "basis": "0",
+      "cycles": 10,
+      "shots": 10000,
+      "accepted": 187,
+      "logical_errors": 3,
+      "ler": 0.016042780748663103,
+      "low": 0.00547073653094295,
+      "high": 0.04609803097643975,
+      "survival": 0.0187,
+      "mean_cnots": 1945.7779
+    },
+    {
+      "variant": "css-flag-check",
+      "basis": "+",
+      "cycles": 10,
+      "shots": 10000,
+      "accepted": 187,
+      "logical_errors": 1,
+      "ler": 0.0053475935828877,
+      "low": 0.0009446061174064463,
+      "high": 0.029664355147045487,
+      "survival": 0.0187,
+      "mean_cnots": 1945.7779
+    }
+  ],
+  "selection": "Discovery only; selected candidates get independent production samples",
+  "no_oracle": true,
+  "rules": {
+    "css": "Final input-relative correction syndrome unique through CSS weight two; optional flagged-history guard, role reversal or final d2 checks",
+    "css-flag": "Final input-relative correction syndrome unique through CSS weight two; optional flagged-history guard, role reversal or final d2 checks",
+    "css-flag-check": "Final input-relative correction syndrome unique through CSS weight two; optional flagged-history guard, role reversal or final d2 checks",
+    "css-flag-reversed": "Final input-relative correction syndrome unique through CSS weight two; optional flagged-history guard, role reversal or final d2 checks"
+  },
+  "acceptance_inputs": "Measured flags/syndromes and existing Pauli frame only; no prepared-state label or final ideal readout",
+  "pilot_resource_note": "Adapters decide at the parent endpoint; compiled graphs can abort rejected branches earlier. Pilot CNOT counts are not used for selection."
+}

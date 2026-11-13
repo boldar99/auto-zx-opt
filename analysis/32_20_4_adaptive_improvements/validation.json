@@ -1,0 +1,25 @@
+{
+  "complete": true,
+  "selected_full_attempted_shots": 18658296,
+  "experimental_ablation_attempted_shots": 9329148,
+  "pilot_attempted_shots": 400000,
+  "old_raw_datasets_unchanged": true,
+  "methods": [
+    "css",
+    "css_recover_exact",
+    "css_recover_safe"
+  ],
+  "tests": {
+    "broader": 74,
+    "final_candidates": 21
+  },
+  "steane_ps_full_extension_attempts": 16792460,
+  "all_eight_methods_equal_attempted_budgets": true,
+  "attempted_shots_per_displayed_method": 9329148,
+  "matching_budget_tests_passed": 7,
+  "matching_budget_tests_log": "../../build/matched_comparison_tests.log",
+  "main_figure_pairs": 5,
+  "tradeoff_figure_pairs": 1,
+  "notebooks_refreshed": true,
+  "visual_inspection_passed": true
+}

@@ -1,0 +1,160 @@
+{
+  "seed": 2026111301,
+  "shots_per_point": 10000,
+  "configurations": [
+    [
+      "css-separated",
+      "0",
+      1
+    ],
+    [
+      "css-separated",
+      "+",
+      1
+    ],
+    [
+      "css-separated",
+      "0",
+      10
+    ],
+    [
+      "css-separated",
+      "+",
+      10
+    ],
+    [
+      "css-separated-retarget",
+      "0",
+      1
+    ],
+    [
+      "css-separated-retarget",
+      "+",
+      1
+    ],
+    [
+      "css-separated-retarget",
+      "0",
+      10
+    ],
+    [
+      "css-separated-retarget",
+      "+",
+      10
+    ]
+  ],
+  "results": [
+    {
+      "variant": "css-separated",
+      "basis": "0",
+      "cycles": 1,
+      "shots": 10000,
+      "accepted": 8544,
+      "logical_errors": 4,
+      "ler": 0.00046816479400749064,
+      "low": 0.0001820747325953205,
+      "high": 0.0012032409494678602,
+      "survival": 0.8544,
+      "mean_cnots": 445.2552
+    },
+    {
+      "variant": "css-separated",
+      "basis": "+",
+      "cycles": 1,
+      "shots": 10000,
+      "accepted": 8544,
+      "logical_errors": 45,
+      "ler": 0.0052668539325842695,
+      "low": 0.003938729997896288,
+      "high": 0.00703965083342542,
+      "survival": 0.8544,
+      "mean_cnots": 445.2552
+    },
+    {
+      "variant": "css-separated",
+      "basis": "0",
+      "cycles": 10,
+      "shots": 10000,
+      "accepted": 1448,
+      "logical_errors": 3,
+      "ler": 0.0020718232044198894,
+      "low": 0.0007048515180335829,
+      "high": 0.006073752826746718,
+      "survival": 0.1448,
+      "mean_cnots": 2184.9843
+    },
+    {
+      "variant": "css-separated",
+      "basis": "+",
+      "cycles": 10,
+      "shots": 10000,
+      "accepted": 1448,
+      "logical_errors": 22,
+      "ler": 0.015193370165745856,
+      "low": 0.01005466954389712,
+      "high": 0.02289759155185291,
+      "survival": 0.1448,
+      "mean_cnots": 2184.9843
+    },
+    {
+      "variant": "css-separated-retarget",
+      "basis": "0",
+      "cycles": 1,
+      "shots": 10000,
+      "accepted": 8727,
+      "logical_errors": 6,
+      "ler": 0.0006875214850464077,
+      "low": 0.00031513415325313296,
+      "high": 0.0014992910536883624,
+      "survival": 0.8727,
+      "mean_cnots": 445.2552
+    },
+    {
+      "variant": "css-separated-retarget",
+      "basis": "+",
+      "cycles": 1,
+      "shots": 10000,
+      "accepted": 8727,
+      "logical_errors": 56,
+      "ler": 0.006416867193766472,
+      "low": 0.004945136762951696,
+      "high": 0.008322938183439696,
+      "survival": 0.8727,
+      "mean_cnots": 445.2552
+    },
+    {
+      "variant": "css-separated-retarget",
+      "basis": "0",
+      "cycles": 10,
+      "shots": 10000,
+      "accepted": 1785,
+      "logical_errors": 8,
+      "ler": 0.004481792717086834,
+      "low": 0.002272727333570549,
+      "high": 0.008819065470569144,
+      "survival": 0.1785,
+      "mean_cnots": 2332.7045
+    },
+    {
+      "variant": "css-separated-retarget",
+      "basis": "+",
+      "cycles": 10,
+      "shots": 10000,
+      "accepted": 1785,
+      "logical_errors": 37,
+      "ler": 0.02072829131652661,
+      "low": 0.015075463074067288,
+      "high": 0.0284395496381334,
+      "survival": 0.1785,
+      "mean_cnots": 2332.7045
+    }
+  ],
+  "selection": "Discovery only; selected candidates get independent production samples",
+  "no_oracle": true,
+  "rules": {
+    "css-separated": "Independent projected CSS-component histories, common safe frame",
+    "css-separated-retarget": "Independent projected CSS-component histories, common safe frame"
+  },
+  "acceptance_inputs": "Measured flags/syndromes and existing Pauli frame only; no prepared-state label or final ideal readout",
+  "pilot_resource_note": "Adapters decide at the parent endpoint; compiled graphs can abort rejected branches earlier. Pilot CNOT counts are not used for selection."
+}

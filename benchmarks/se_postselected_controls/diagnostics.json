@@ -1,0 +1,48 @@
+{
+  "81860c95640c9db3eae747c8f86799669a386638eae0858863a3db44acba47a7": {
+    "stage_counts": [
+      [
+        [
+          "X_d4",
+          "X",
+          4
+        ],
+        5000
+      ],
+      [
+        [
+          "Z_d4",
+          "Z",
+          4
+        ],
+        10000
+      ]
+    ],
+    "flagged_stage_counts": [],
+    "rejections": [],
+    "rejection_cycles": []
+  },
+  "9cce775bc4fb7bf261642591be81116a7b78e21f9934b4ada9ba48f829e50461": {
+    "stage_counts": [
+      [
+        [
+          "X_d4",
+          "X",
+          4
+        ],
+        5000
+      ],
+      [
+        [
+          "Z_d4",
+          "Z",
+          4
+        ],
+        10000
+      ]
+    ],
+    "flagged_stage_counts": [],
+    "rejections": [],
+    "rejection_cycles": []
+  }
+}

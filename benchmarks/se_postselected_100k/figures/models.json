@@ -1,0 +1,17 @@
+[
+  {
+    "model": 1,
+    "protocol_hash": "369e501c3fd7d6bc0fac687fb89c7e76870a44044bafe7ebaafe2519d681e58a",
+    "label": null,
+    "engine_hash": "02e8348dfa710cb77a3c46ecd30a5ec44d1a940363eea19dd39fb0c3e04a0db0",
+    "noise_ratios": {
+      "p_1q": 0.03125,
+      "p_2q": 1.0,
+      "p_coherent_mem": 0.0,
+      "p_init": 1.0,
+      "p_leakage": 0.0,
+      "p_linear_mem": 0.01575,
+      "p_meas": 0.00125
+    }
+  }
+]

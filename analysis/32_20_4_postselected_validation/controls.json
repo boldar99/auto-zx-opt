@@ -1,0 +1,157 @@
+{
+  "noiseless_reference": {
+    "shots": 2000,
+    "accepted": 2000,
+    "logical_errors": 0,
+    "cycles": 5
+  },
+  "native_split_inputs": {
+    "0": {
+      "backend": "selene-stim",
+      "noise_model": "gate-noise-including-preparation-and-readout-no-memory-v1",
+      "noise": {
+        "p_1q": 0.0,
+        "p_2q": 0.0,
+        "p_init": 0.0,
+        "p_meas": 0.0
+      },
+      "p": 0,
+      "seed": 20261112,
+      "cycles": 3,
+      "prepared_state": "0",
+      "shots": 8,
+      "accepted": 8,
+      "logical_errors": 0,
+      "ler": 0.0,
+      "ler_interval_95": [
+        0.0,
+        0.32440756488388023
+      ],
+      "survival": 1.0,
+      "versions": {
+        "spiderwarp": "0.1.0",
+        "numpy": "2.2.6",
+        "stim": "1.17.dev1792124270",
+        "guppylang": "0.21.16",
+        "hugr": "0.16.0",
+        "selene-sim": "0.2.18"
+      },
+      "experiment": {
+        "protocol_hash": "369e501c3fd7d6bc0fac687fb89c7e76870a44044bafe7ebaafe2519d681e58a",
+        "prepared_state": "0",
+        "cycles": 3,
+        "incoming_x": 1,
+        "incoming_z": 131072,
+        "source_sha256": "9a0a165e3c770658efcdfba011a4c520f86fea8a0d0703578705b950360c9a36",
+        "versions": {
+          "spiderwarp": "0.1.0",
+          "numpy": "2.2.6",
+          "stim": "1.17.dev1792124270",
+          "guppylang": "0.21.16",
+          "hugr": "0.16.0",
+          "selene-sim": "0.2.18"
+        },
+        "compile_hash": "3778688ea242c7370765fda396bc950a4a1830bd1b9300b487cc7aa164ad4cf5",
+        "hugr_sha256": "333f1a8fb67027583d3b0d9a045e154dc0e558f05c27b5339d42224f1f860784"
+      }
+    },
+    "+": {
+      "backend": "selene-stim",
+      "noise_model": "gate-noise-including-preparation-and-readout-no-memory-v1",
+      "noise": {
+        "p_1q": 0.0,
+        "p_2q": 0.0,
+        "p_init": 0.0,
+        "p_meas": 0.0
+      },
+      "p": 0,
+      "seed": 20261112,
+      "cycles": 3,
+      "prepared_state": "+",
+      "shots": 8,
+      "accepted": 8,
+      "logical_errors": 0,
+      "ler": 0.0,
+      "ler_interval_95": [
+        0.0,
+        0.32440756488388023
+      ],
+      "survival": 1.0,
+      "versions": {
+        "spiderwarp": "0.1.0",
+        "numpy": "2.2.6",
+        "stim": "1.17.dev1792124270",
+        "guppylang": "0.21.16",
+        "hugr": "0.16.0",
+        "selene-sim": "0.2.18"
+      },
+      "experiment": {
+        "protocol_hash": "369e501c3fd7d6bc0fac687fb89c7e76870a44044bafe7ebaafe2519d681e58a",
+        "prepared_state": "+",
+        "cycles": 3,
+        "incoming_x": 1,
+        "incoming_z": 131072,
+        "source_sha256": "295a0943b64513d75dac6545155562e694a53ab1fe9f1183b6c0ab4934bd9b6f",
+        "versions": {
+          "spiderwarp": "0.1.0",
+          "numpy": "2.2.6",
+          "stim": "1.17.dev1792124270",
+          "guppylang": "0.21.16",
+          "hugr": "0.16.0",
+          "selene-sim": "0.2.18"
+        },
+        "compile_hash": "d16ea0a5481922829f5d296436ff896397ccd9d9b3b90bd301afd6494e3552e8",
+        "hugr_sha256": "cd41e162f866be175495592e99f5596e6227fbb91c6ee5829fd667258a2713c3"
+      }
+    }
+  },
+  "native_noisy_gate_model": {
+    "backend": "selene-stim",
+    "noise_model": "gate-noise-including-preparation-and-readout-no-memory-v1",
+    "noise": {
+      "p_1q": 3.125e-05,
+      "p_2q": 0.001,
+      "p_init": 0.001,
+      "p_meas": 1.2499999999999999e-06
+    },
+    "p": 0.001,
+    "seed": 20261112,
+    "cycles": 3,
+    "prepared_state": "0",
+    "shots": 100,
+    "accepted": 52,
+    "logical_errors": 4,
+    "ler": 0.07692307692307693,
+    "ler_interval_95": [
+      0.030319345184930124,
+      0.1817356238429534
+    ],
+    "survival": 0.52,
+    "versions": {
+      "spiderwarp": "0.1.0",
+      "numpy": "2.2.6",
+      "stim": "1.17.dev1792124270",
+      "guppylang": "0.21.16",
+      "hugr": "0.16.0",
+      "selene-sim": "0.2.18"
+    },
+    "experiment": {
+      "protocol_hash": "369e501c3fd7d6bc0fac687fb89c7e76870a44044bafe7ebaafe2519d681e58a",
+      "prepared_state": "0",
+      "cycles": 3,
+      "incoming_x": 0,
+      "incoming_z": 0,
+      "source_sha256": "fe3a1cae84c8b2bb468800c15d58cc6d683a2a21a57136371ba6686354502034",
+      "versions": {
+        "spiderwarp": "0.1.0",
+        "numpy": "2.2.6",
+        "stim": "1.17.dev1792124270",
+        "guppylang": "0.21.16",
+        "hugr": "0.16.0",
+        "selene-sim": "0.2.18"
+      },
+      "compile_hash": "ab786bc3a7900df1452a69017eaed054c1c62f120246248e688136627b8d5bf5",
+      "hugr_sha256": "22ccdf6c9198e6896cf720b0ac21f7342b4cecf72ceafca00f5251e115b292f6"
+    }
+  }
+}

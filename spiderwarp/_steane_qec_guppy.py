@@ -75,6 +75,8 @@ class Prepared:
                   '        parity = False', '        for q in range(comptime(N_DATA)):',
                   '            if (checks[i] & frame & (1 << q)) != 0:', '                parity = not parity',
                   '        syndrome = append_bit(syndrome, parity, i)', '    return syndrome', '']
+        if protocol.unique_syndromes:
+            lines += [f'UNIQUE_{basis} = {list(protocol.unique_syndromes[basis])!r}', '']
     lines += ['@guppy',
               'def se_cycle_with_frame(data: array[qubit, comptime(N_DATA)], frame_x: int, frame_z: int) -> CycleResult:',
               '    level = 4']
@@ -85,7 +87,13 @@ class Prepared:
         lines += [f'        prepared = prepare_{basis}(level)',
                   '        level = prepared.level',
                   f'        syndrome = read_{basis}(data, prepared.ancilla)',
-                  '        if syndrome == previous:',
+                  '        if syndrome == previous:']
+        if protocol.unique_syndromes:
+            lines += [f'            adjusted = syndrome ^ frame_syndrome_{basis}({frame})',
+                      f'            unique = comptime(UNIQUE_{basis.upper()})',
+                      '            if not unique[adjusted]:',
+                      '                return CycleResult(False, frame_x, frame_z)']
+        lines += [
                   f'            decoder = comptime(DECODER_{basis.upper()})',
                   f'            {frame} ^= decoder[syndrome ^ frame_syndrome_{basis}({frame})]',
                   '            done = True', '        previous = syndrome']

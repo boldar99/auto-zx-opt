@@ -1,0 +1,262 @@
+{
+  "css": {
+    "physical": {
+      "0": {
+        "css_one_inputs_correct": 1089,
+        "distinct_first_gadget_faults": 1005,
+        "accepted_correct": 851,
+        "postselected": 154,
+        "incoming_css_one_plus_fault_new_rescues_correct": 0,
+        "noiseless_five_cycle_shots": 1000
+      },
+      "+": {
+        "css_one_inputs_correct": 1089,
+        "distinct_first_gadget_faults": 1005,
+        "accepted_correct": 851,
+        "postselected": 154,
+        "incoming_css_one_plus_fault_new_rescues_correct": 0,
+        "noiseless_five_cycle_shots": 1000
+      }
+    },
+    "native_clean_split_input": {
+      "backend": "selene-stim",
+      "noise_model": "gate-noise-including-preparation-and-readout-no-memory-v1",
+      "noise": {
+        "p_1q": 0.0,
+        "p_2q": 0.0,
+        "p_init": 0.0,
+        "p_meas": 0.0
+      },
+      "p": 0,
+      "seed": 20261113,
+      "cycles": 3,
+      "prepared_state": "+",
+      "shots": 8,
+      "accepted": 8,
+      "logical_errors": 0,
+      "ler": 0.0,
+      "ler_interval_95": [
+        0.0,
+        0.32440756488388023
+      ],
+      "survival": 1.0,
+      "versions": {
+        "spiderwarp": "0.1.0",
+        "numpy": "2.2.6",
+        "stim": "1.17.dev1792124270",
+        "guppylang": "0.21.16",
+        "hugr": "0.16.0",
+        "selene-sim": "0.2.18"
+      },
+      "experiment": {
+        "protocol_hash": "08ebce8890734f155dc0724418347b4a7519ec995127e4149dbccb22b9fa11c7",
+        "prepared_state": "+",
+        "cycles": 3,
+        "incoming_x": 1,
+        "incoming_z": 131072,
+        "source_sha256": "9a6cd333134a7678464083863d2d351968216d8e7042156864f181b4cbfcca54",
+        "versions": {
+          "spiderwarp": "0.1.0",
+          "numpy": "2.2.6",
+          "stim": "1.17.dev1792124270",
+          "guppylang": "0.21.16",
+          "hugr": "0.16.0",
+          "selene-sim": "0.2.18"
+        },
+        "compile_hash": "639efa7830a7db0ecd7401336f601a2f57e7466e84d11cb1f20d070760fa40c4",
+        "hugr_sha256": "36414791294564fa880dbcc1ce9cf4721d06f037b08b73a923dc6cf34c95722d"
+      }
+    },
+    "native_noisy_both_branches": {
+      "backend": "selene-stim",
+      "noise_model": "gate-noise-including-preparation-and-readout-no-memory-v1",
+      "noise": {
+        "p_1q": 3.125e-05,
+        "p_2q": 0.001,
+        "p_init": 0.001,
+        "p_meas": 1.2499999999999999e-06
+      },
+      "p": 0.001,
+      "seed": 20261113,
+      "cycles": 3,
+      "prepared_state": "+",
+      "shots": 100,
+      "accepted": 64,
+      "logical_errors": 14,
+      "ler": 0.21875,
+      "ler_interval_95": [
+        0.13502319406719474,
+        0.3343278395662582
+      ],
+      "survival": 0.64,
+      "versions": {
+        "spiderwarp": "0.1.0",
+        "numpy": "2.2.6",
+        "stim": "1.17.dev1792124270",
+        "guppylang": "0.21.16",
+        "hugr": "0.16.0",
+        "selene-sim": "0.2.18"
+      },
+      "experiment": {
+        "protocol_hash": "08ebce8890734f155dc0724418347b4a7519ec995127e4149dbccb22b9fa11c7",
+        "prepared_state": "+",
+        "cycles": 3,
+        "incoming_x": 1,
+        "incoming_z": 131072,
+        "source_sha256": "9a6cd333134a7678464083863d2d351968216d8e7042156864f181b4cbfcca54",
+        "versions": {
+          "spiderwarp": "0.1.0",
+          "numpy": "2.2.6",
+          "stim": "1.17.dev1792124270",
+          "guppylang": "0.21.16",
+          "hugr": "0.16.0",
+          "selene-sim": "0.2.18"
+        },
+        "compile_hash": "639efa7830a7db0ecd7401336f601a2f57e7466e84d11cb1f20d070760fa40c4",
+        "hugr_sha256": "36414791294564fa880dbcc1ce9cf4721d06f037b08b73a923dc6cf34c95722d"
+      }
+    }
+  },
+  "css_recover_exact": {
+    "physical": {
+      "0": {
+        "css_one_inputs_correct": 1089,
+        "distinct_first_gadget_faults": 1005,
+        "accepted_correct": 1005,
+        "postselected": 0,
+        "incoming_css_one_plus_fault_new_rescues_correct": 339,
+        "noiseless_five_cycle_shots": 1000
+      },
+      "+": {
+        "css_one_inputs_correct": 1089,
+        "distinct_first_gadget_faults": 1005,
+        "accepted_correct": 1005,
+        "postselected": 0,
+        "incoming_css_one_plus_fault_new_rescues_correct": 339,
+        "noiseless_five_cycle_shots": 1000
+      }
+    },
+    "native_smoke_test": {
+      "executed": false,
+      "reason": "Disqualified by the stronger arbitrary-input filter; stopped executable-wrapper compilation. The component HUGR was compiled/reloaded and the physical controls passed."
+    }
+  },
+  "css_recover_safe": {
+    "physical": {
+      "0": {
+        "css_one_inputs_correct": 1089,
+        "distinct_first_gadget_faults": 1005,
+        "accepted_correct": 1005,
+        "postselected": 0,
+        "incoming_css_one_plus_fault_new_rescues_correct": 251,
+        "noiseless_five_cycle_shots": 1000
+      },
+      "+": {
+        "css_one_inputs_correct": 1089,
+        "distinct_first_gadget_faults": 1005,
+        "accepted_correct": 1005,
+        "postselected": 0,
+        "incoming_css_one_plus_fault_new_rescues_correct": 251,
+        "noiseless_five_cycle_shots": 1000
+      }
+    },
+    "native_clean_split_input": {
+      "backend": "selene-stim",
+      "noise_model": "gate-noise-including-preparation-and-readout-no-memory-v1",
+      "noise": {
+        "p_1q": 0.0,
+        "p_2q": 0.0,
+        "p_init": 0.0,
+        "p_meas": 0.0
+      },
+      "p": 0,
+      "seed": 20261113,
+      "cycles": 1,
+      "prepared_state": "+",
+      "shots": 8,
+      "accepted": 8,
+      "logical_errors": 0,
+      "ler": 0.0,
+      "ler_interval_95": [
+        0.0,
+        0.32440756488388023
+      ],
+      "survival": 1.0,
+      "versions": {
+        "spiderwarp": "0.1.0",
+        "numpy": "2.2.6",
+        "stim": "1.17.dev1792124270",
+        "guppylang": "0.21.16",
+        "hugr": "0.16.0",
+        "selene-sim": "0.2.18"
+      },
+      "experiment": {
+        "protocol_hash": "c0254535e1e1468c29a81bfbc0214170c1336b29c2a4e66ff6ceb4001dd3e936",
+        "prepared_state": "+",
+        "cycles": 1,
+        "incoming_x": 1,
+        "incoming_z": 131072,
+        "source_sha256": "476b1d56b2c1d06591ea3bfc1904e50a7b65b33c493394b61efbb2f275c2f64d",
+        "versions": {
+          "spiderwarp": "0.1.0",
+          "numpy": "2.2.6",
+          "stim": "1.17.dev1792124270",
+          "guppylang": "0.21.16",
+          "hugr": "0.16.0",
+          "selene-sim": "0.2.18"
+        },
+        "compile_hash": "f294d635763335224870fd481ffad4d969907669e8bcda53ef9724c9728f589a",
+        "hugr_sha256": "61b9cf0187a73ac44389c841f86fbccb1120799b78f115d93aaa19783470fb23"
+      }
+    },
+    "native_noisy_both_branches": {
+      "backend": "selene-stim",
+      "noise_model": "gate-noise-including-preparation-and-readout-no-memory-v1",
+      "noise": {
+        "p_1q": 3.125e-05,
+        "p_2q": 0.001,
+        "p_init": 0.001,
+        "p_meas": 1.2499999999999999e-06
+      },
+      "p": 0.001,
+      "seed": 20261113,
+      "cycles": 1,
+      "prepared_state": "+",
+      "shots": 100,
+      "accepted": 66,
+      "logical_errors": 5,
+      "ler": 0.07575757575757576,
+      "ler_interval_95": [
+        0.032792037562960244,
+        0.1653919502061051
+      ],
+      "survival": 0.66,
+      "versions": {
+        "spiderwarp": "0.1.0",
+        "numpy": "2.2.6",
+        "stim": "1.17.dev1792124270",
+        "guppylang": "0.21.16",
+        "hugr": "0.16.0",
+        "selene-sim": "0.2.18"
+      },
+      "experiment": {
+        "protocol_hash": "c0254535e1e1468c29a81bfbc0214170c1336b29c2a4e66ff6ceb4001dd3e936",
+        "prepared_state": "+",
+        "cycles": 1,
+        "incoming_x": 1,
+        "incoming_z": 131072,
+        "source_sha256": "476b1d56b2c1d06591ea3bfc1904e50a7b65b33c493394b61efbb2f275c2f64d",
+        "versions": {
+          "spiderwarp": "0.1.0",
+          "numpy": "2.2.6",
+          "stim": "1.17.dev1792124270",
+          "guppylang": "0.21.16",
+          "hugr": "0.16.0",
+          "selene-sim": "0.2.18"
+        },
+        "compile_hash": "f294d635763335224870fd481ffad4d969907669e8bcda53ef9724c9728f589a",
+        "hugr_sha256": "61b9cf0187a73ac44389c841f86fbccb1120799b78f115d93aaa19783470fb23"
+      }
+    }
+  }
+}

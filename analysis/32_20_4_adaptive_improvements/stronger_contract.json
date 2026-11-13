@@ -1,0 +1,14 @@
+{
+  "protocol_hash": "3cd43369fd160eb929ef8a78f7351d83fac4599ade7dcc84128317e13edfd931",
+  "graph_and_quantum_actions_unchanged": true,
+  "tested_contract": {
+    "correctable": 1,
+    "logical_order": 1,
+    "max_syndrome_sectors": 65536,
+    "fault_order": 1,
+    "accept_clean_through": 1
+  },
+  "passed": false,
+  "error_type": "AdaptiveVerificationError",
+  "reason": "Accepted output exceeds CSS fault-count filter; record=(('Z_d4', 136, 50), ('X_d1', 0, 57)); history=(-1, 1, 3648)"
+}

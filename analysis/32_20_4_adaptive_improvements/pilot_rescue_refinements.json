@@ -1,0 +1,160 @@
+{
+  "seed": 2026111301,
+  "shots_per_point": 10000,
+  "configurations": [
+    [
+      "css-recover-exact",
+      "0",
+      1
+    ],
+    [
+      "css-recover-exact",
+      "+",
+      1
+    ],
+    [
+      "css-recover-exact",
+      "0",
+      10
+    ],
+    [
+      "css-recover-exact",
+      "+",
+      10
+    ],
+    [
+      "css-recover-no-d1",
+      "0",
+      1
+    ],
+    [
+      "css-recover-no-d1",
+      "+",
+      1
+    ],
+    [
+      "css-recover-no-d1",
+      "0",
+      10
+    ],
+    [
+      "css-recover-no-d1",
+      "+",
+      10
+    ]
+  ],
+  "results": [
+    {
+      "variant": "css-recover-exact",
+      "basis": "0",
+      "cycles": 1,
+      "shots": 10000,
+      "accepted": 9297,
+      "logical_errors": 8,
+      "ler": 0.0008604926320318382,
+      "low": 0.0004360952894828028,
+      "high": 0.0016972018867503179,
+      "survival": 0.9297,
+      "mean_cnots": 445.2552
+    },
+    {
+      "variant": "css-recover-exact",
+      "basis": "+",
+      "cycles": 1,
+      "shots": 10000,
+      "accepted": 9297,
+      "logical_errors": 51,
+      "ler": 0.005485640529202969,
+      "low": 0.004174966503106494,
+      "high": 0.007204805885155928,
+      "survival": 0.9297,
+      "mean_cnots": 445.2552
+    },
+    {
+      "variant": "css-recover-exact",
+      "basis": "0",
+      "cycles": 10,
+      "shots": 10000,
+      "accepted": 3620,
+      "logical_errors": 22,
+      "ler": 0.0060773480662983425,
+      "low": 0.004016886289909736,
+      "high": 0.009184976806016971,
+      "survival": 0.362,
+      "mean_cnots": 2970.287
+    },
+    {
+      "variant": "css-recover-exact",
+      "basis": "+",
+      "cycles": 10,
+      "shots": 10000,
+      "accepted": 3620,
+      "logical_errors": 73,
+      "ler": 0.02016574585635359,
+      "low": 0.016069573886160503,
+      "high": 0.025279215933540107,
+      "survival": 0.362,
+      "mean_cnots": 2970.287
+    },
+    {
+      "variant": "css-recover-no-d1",
+      "basis": "0",
+      "cycles": 1,
+      "shots": 10000,
+      "accepted": 9336,
+      "logical_errors": 8,
+      "ler": 0.000856898029134533,
+      "low": 0.0004342732955601085,
+      "high": 0.001690115957531071,
+      "survival": 0.9336,
+      "mean_cnots": 445.2552
+    },
+    {
+      "variant": "css-recover-no-d1",
+      "basis": "+",
+      "cycles": 1,
+      "shots": 10000,
+      "accepted": 9336,
+      "logical_errors": 63,
+      "ler": 0.006748071979434447,
+      "low": 0.0052782538131303765,
+      "high": 0.008623637283540198,
+      "survival": 0.9336,
+      "mean_cnots": 445.2552
+    },
+    {
+      "variant": "css-recover-no-d1",
+      "basis": "0",
+      "cycles": 10,
+      "shots": 10000,
+      "accepted": 3669,
+      "logical_errors": 19,
+      "ler": 0.005178522758244753,
+      "low": 0.0033178133335358476,
+      "high": 0.008074308893849627,
+      "survival": 0.3669,
+      "mean_cnots": 2992.5098
+    },
+    {
+      "variant": "css-recover-no-d1",
+      "basis": "+",
+      "cycles": 10,
+      "shots": 10000,
+      "accepted": 3669,
+      "logical_errors": 92,
+      "ler": 0.025074952303079857,
+      "low": 0.02049081033212364,
+      "high": 0.030652551265904007,
+      "survival": 0.3669,
+      "mean_cnots": 2992.5098
+    }
+  ],
+  "selection": "Discovery only; selected candidates get independent production samples",
+  "no_oracle": true,
+  "rules": {
+    "css-recover-exact": "Full-Pauli incoming CSS<=1 / internal-fault<=1 rescue; exact and syndrome-preserving restrictions named by the variant",
+    "css-recover-no-d1": "Full-Pauli incoming CSS<=1 / internal-fault<=1 rescue; exact and syndrome-preserving restrictions named by the variant"
+  },
+  "acceptance_inputs": "Measured flags/syndromes and existing Pauli frame only; no prepared-state label or final ideal readout",
+  "pilot_resource_note": "Adapters decide at the parent endpoint; compiled graphs can abort rejected branches earlier. Pilot CNOT counts are not used for selection."
+}

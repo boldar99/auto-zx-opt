@@ -1,0 +1,772 @@
+{
+  "methodology": "Exact replay of saved default-noise N=1 production batches; 100k per basis",
+  "scope": "Posthoc filters and path attribution on the existing adaptive policy; no resynthesis or forced switching",
+  "caveats": [
+    "Replayed shots are the original observations, not independent extra samples",
+    "No-d1/no-d2 filters prune existing paths; they do not implement d4-to-d2/d1 controllers",
+    "Flagged-extraction count is an observable filter, not a count of physical faults",
+    "Survival includes original policy rejection; no early-abort cost is estimated"
+  ],
+  "versions": {
+    "spiderwarp": "0.1.0",
+    "numpy": "2.2.6",
+    "stim": "1.17.dev1792124270",
+    "guppylang": "0.21.16",
+    "hugr": "0.16.0",
+    "selene-sim": "0.2.18"
+  },
+  "results": [
+    {
+      "prepared_state": "+",
+      "task_hash": "1ac3d68daf3345fa2e98d281a81e769c4cd0431336f6c31e30b35524ef39bd68",
+      "input_batches_sha256": "693140772c9ada586d732888cf11e4d0aad0ba59d553cc9f181adfc0199112bf",
+      "batches_matched": [
+        {
+          "start": 0,
+          "shots": 10000,
+          "seed": 43999593602241353,
+          "accepted": 9950,
+          "logical_errors": 361
+        },
+        {
+          "start": 10000,
+          "shots": 10000,
+          "seed": 693577482920655882,
+          "accepted": 9959,
+          "logical_errors": 347
+        },
+        {
+          "start": 20000,
+          "shots": 10000,
+          "seed": 251525662956824131,
+          "accepted": 9963,
+          "logical_errors": 341
+        },
+        {
+          "start": 30000,
+          "shots": 10000,
+          "seed": 813467724686814130,
+          "accepted": 9944,
+          "logical_errors": 372
+        },
+        {
+          "start": 40000,
+          "shots": 10000,
+          "seed": 676251058712915517,
+          "accepted": 9959,
+          "logical_errors": 375
+        },
+        {
+          "start": 50000,
+          "shots": 10000,
+          "seed": 27661763575592439,
+          "accepted": 9942,
+          "logical_errors": 376
+        },
+        {
+          "start": 60000,
+          "shots": 10000,
+          "seed": 860816151536013344,
+          "accepted": 9953,
+          "logical_errors": 356
+        },
+        {
+          "start": 70000,
+          "shots": 10000,
+          "seed": 426739930911789553,
+          "accepted": 9961,
+          "logical_errors": 371
+        },
+        {
+          "start": 80000,
+          "shots": 10000,
+          "seed": 541122283072164383,
+          "accepted": 9948,
+          "logical_errors": 346
+        },
+        {
+          "start": 90000,
+          "shots": 10000,
+          "seed": 876238171621361198,
+          "accepted": 9948,
+          "logical_errors": 373
+        }
+      ],
+      "groups": [
+        {
+          "prepared_state": "+",
+          "condition": "all_d4_flags_zero",
+          "shots": 100000,
+          "selected_shots": 65954,
+          "accepted": 65949,
+          "logical_errors": 484,
+          "ler": 0.0073390043821741045,
+          "ler_low": 0.006715664008519872,
+          "ler_high": 0.008019735366615278,
+          "survival": 0.65949,
+          "survival_low": 0.6565468343328315,
+          "survival_high": 0.6624209126525168,
+          "baseline_failure_fraction": 0.1337755666113875
+        },
+        {
+          "prepared_state": "+",
+          "condition": "all_flags_zero",
+          "shots": 100000,
+          "selected_shots": 65932,
+          "accepted": 65929,
+          "logical_errors": 484,
+          "ler": 0.007341230717893492,
+          "ler_low": 0.006717701861055436,
+          "ler_high": 0.008022167334900148,
+          "survival": 0.65929,
+          "survival_low": 0.6563464251332802,
+          "survival_high": 0.6622213372173131,
+          "baseline_failure_fraction": 0.1337755666113875
+        },
+        {
+          "prepared_state": "+",
+          "condition": "at_most_one_flagged_extraction",
+          "shots": 100000,
+          "selected_shots": 97419,
+          "accepted": 97133,
+          "logical_errors": 3072,
+          "ler": 0.03162673859553396,
+          "ler_low": 0.03054456829784709,
+          "ler_high": 0.03274595429369666,
+          "survival": 0.97133,
+          "survival_low": 0.9702774589816255,
+          "survival_high": 0.9723463305136671,
+          "baseline_failure_fraction": 0.8490878938640133
+        },
+        {
+          "prepared_state": "+",
+          "condition": "baseline",
+          "shots": 100000,
+          "selected_shots": 100000,
+          "accepted": 99527,
+          "logical_errors": 3618,
+          "ler": 0.036351944698423545,
+          "ler_low": 0.03520693587013523,
+          "ler_high": 0.03753274313495047,
+          "survival": 0.99527,
+          "survival_low": 0.9948253032509735,
+          "survival_high": 0.9956766470244884,
+          "baseline_failure_fraction": 1.0
+        },
+        {
+          "prepared_state": "+",
+          "condition": "keep_current_paths_without_d1",
+          "shots": 100000,
+          "selected_shots": 98505,
+          "accepted": 98113,
+          "logical_errors": 2976,
+          "ler": 0.030332371856940467,
+          "ler_low": 0.029277500834731005,
+          "ler_high": 0.03142401962055537,
+          "survival": 0.98113,
+          "survival_low": 0.9802680024512416,
+          "survival_high": 0.9819550341470442,
+          "baseline_failure_fraction": 0.8225538971807629
+        },
+        {
+          "prepared_state": "+",
+          "condition": "keep_current_paths_without_d2",
+          "shots": 100000,
+          "selected_shots": 81880,
+          "accepted": 81632,
+          "logical_errors": 2688,
+          "ler": 0.032928263426107406,
+          "ler_low": 0.031725931948812645,
+          "ler_high": 0.03417455198916978,
+          "survival": 0.81632,
+          "survival_low": 0.813907875535813,
+          "survival_high": 0.8187078227926426,
+          "baseline_failure_fraction": 0.7429519071310116
+        },
+        {
+          "prepared_state": "+",
+          "condition": "observed_d1_used",
+          "shots": 100000,
+          "selected_shots": 1495,
+          "accepted": 1414,
+          "logical_errors": 642,
+          "ler": 0.45403111739745405,
+          "ler_low": 0.42823978028482534,
+          "ler_high": 0.48007154804371066,
+          "survival": 0.01414,
+          "survival_low": 0.013426659684596647,
+          "survival_high": 0.014890667105162545,
+          "baseline_failure_fraction": 0.17744610281923714
+        },
+        {
+          "prepared_state": "+",
+          "condition": "observed_d2_used_without_d1",
+          "shots": 100000,
+          "selected_shots": 17589,
+          "accepted": 17384,
+          "logical_errors": 740,
+          "ler": 0.04256787850897377,
+          "ler_low": 0.03966655276432065,
+          "ler_high": 0.04567132326444628,
+          "survival": 0.17384,
+          "survival_low": 0.17150369189053968,
+          "survival_high": 0.17620136575106046,
+          "baseline_failure_fraction": 0.2045328911000553
+        },
+        {
+          "prepared_state": "+",
+          "condition": "observed_d4_flag",
+          "shots": 100000,
+          "selected_shots": 34046,
+          "accepted": 33578,
+          "logical_errors": 3134,
+          "ler": 0.09333492167490619,
+          "ler_low": 0.09026979648548715,
+          "ler_high": 0.0964930844753875,
+          "survival": 0.33578,
+          "survival_low": 0.3328592986158274,
+          "survival_high": 0.3387133177868695,
+          "baseline_failure_fraction": 0.8662244333886125
+        },
+        {
+          "prepared_state": "+",
+          "condition": "observed_no_d4_flag",
+          "shots": 100000,
+          "selected_shots": 65954,
+          "accepted": 65949,
+          "logical_errors": 484,
+          "ler": 0.0073390043821741045,
+          "ler_low": 0.006715664008519872,
+          "ler_high": 0.008019735366615278,
+          "survival": 0.65949,
+          "survival_low": 0.6565468343328315,
+          "survival_high": 0.6624209126525168,
+          "baseline_failure_fraction": 0.1337755666113875
+        },
+        {
+          "prepared_state": "+",
+          "condition": "observed_only_d4",
+          "shots": 100000,
+          "selected_shots": 80916,
+          "accepted": 80729,
+          "logical_errors": 2236,
+          "ler": 0.027697605569250206,
+          "ler_low": 0.02658786011109425,
+          "ler_high": 0.02885229754895393,
+          "survival": 0.80729,
+          "survival_low": 0.8048335739856971,
+          "survival_high": 0.8097228180835716,
+          "baseline_failure_fraction": 0.6180210060807075
+        },
+        {
+          "prepared_state": "+",
+          "condition": "only_d4_and_all_flags_zero",
+          "shots": 100000,
+          "selected_shots": 65674,
+          "accepted": 65673,
+          "logical_errors": 477,
+          "ler": 0.007263258873509661,
+          "ler_low": 0.0066420213373926465,
+          "ler_high": 0.007942137059159655,
+          "survival": 0.65673,
+          "survival_low": 0.6537812387082178,
+          "survival_high": 0.659666720317512,
+          "baseline_failure_fraction": 0.1318407960199005
+        }
+      ],
+      "paths": {
+        "Z4;X4!": {
+          "shots": 4622,
+          "accepted": 4585,
+          "logical_errors": 242
+        },
+        "Z4;X4;Z4": {
+          "shots": 65674,
+          "accepted": 65673,
+          "logical_errors": 477
+        },
+        "Z4;X4;Z4!": {
+          "shots": 10048,
+          "accepted": 9913,
+          "logical_errors": 1072
+        },
+        "Z4!;X2;Z2": {
+          "shots": 5202,
+          "accepted": 5199,
+          "logical_errors": 27
+        },
+        "Z4!": {
+          "shots": 572,
+          "accepted": 558,
+          "logical_errors": 445
+        },
+        "Z4;X4;Z4;X2": {
+          "shots": 232,
+          "accepted": 232,
+          "logical_errors": 3
+        },
+        "Z4!;X2": {
+          "shots": 4880,
+          "accepted": 4877,
+          "logical_errors": 98
+        },
+        "Z4!;X2;Z1": {
+          "shots": 521,
+          "accepted": 502,
+          "logical_errors": 183
+        },
+        "Z4;X4!;Z2": {
+          "shots": 1484,
+          "accepted": 1481,
+          "logical_errors": 43
+        },
+        "Z4;X4!;Z2;X2": {
+          "shots": 3122,
+          "accepted": 3115,
+          "logical_errors": 21
+        },
+        "Z4;X4!;Z1;X1": {
+          "shots": 278,
+          "accepted": 262,
+          "logical_errors": 133
+        },
+        "Z4!;X2;Z2!": {
+          "shots": 554,
+          "accepted": 532,
+          "logical_errors": 244
+        },
+        "Z4!;X1;Z1": {
+          "shots": 127,
+          "accepted": 113,
+          "logical_errors": 33
+        },
+        "Z4;X4!;Z1": {
+          "shots": 280,
+          "accepted": 260,
+          "logical_errors": 127
+        },
+        "Z4;X4!;Z2;X2!": {
+          "shots": 313,
+          "accepted": 281,
+          "logical_errors": 1
+        },
+        "Z4!;X2!": {
+          "shots": 1204,
+          "accepted": 1097,
+          "logical_errors": 48
+        },
+        "Z4;X4!;Z2!": {
+          "shots": 507,
+          "accepted": 481,
+          "logical_errors": 253
+        },
+        "Z4;X4;Z4!;X2": {
+          "shots": 66,
+          "accepted": 66,
+          "logical_errors": 2
+        },
+        "Z4!;X1": {
+          "shots": 253,
+          "accepted": 244,
+          "logical_errors": 155
+        },
+        "Z4;X4;Z4;X1": {
+          "shots": 26,
+          "accepted": 24,
+          "logical_errors": 4
+        },
+        "Z4;X4!;Z2;X1": {
+          "shots": 10,
+          "accepted": 9,
+          "logical_errors": 7
+        },
+        "Z4;X4;Z4!;X2!": {
+          "shots": 3,
+          "accepted": 3,
+          "logical_errors": 0
+        },
+        "Z4;X4;Z4;X2!": {
+          "shots": 22,
+          "accepted": 20,
+          "logical_errors": 0
+        }
+      }
+    },
+    {
+      "prepared_state": "0",
+      "task_hash": "801a2c4b66289a938cda285f38752f86bf2a8b0662fa00bd0006810baf5e6cec",
+      "input_batches_sha256": "28b255b6bbcbdbd3b1d864c39312ac93390ab77b1533260f923397cd28727377",
+      "batches_matched": [
+        {
+          "start": 0,
+          "shots": 10000,
+          "seed": 1021255407790146803,
+          "accepted": 9962,
+          "logical_errors": 165
+        },
+        {
+          "start": 10000,
+          "shots": 10000,
+          "seed": 558706283619301623,
+          "accepted": 9948,
+          "logical_errors": 163
+        },
+        {
+          "start": 20000,
+          "shots": 10000,
+          "seed": 104054361032787706,
+          "accepted": 9961,
+          "logical_errors": 190
+        },
+        {
+          "start": 30000,
+          "shots": 10000,
+          "seed": 968930545496193415,
+          "accepted": 9962,
+          "logical_errors": 181
+        },
+        {
+          "start": 40000,
+          "shots": 10000,
+          "seed": 866700679849040536,
+          "accepted": 9946,
+          "logical_errors": 190
+        },
+        {
+          "start": 50000,
+          "shots": 10000,
+          "seed": 726916523845701816,
+          "accepted": 9968,
+          "logical_errors": 182
+        },
+        {
+          "start": 60000,
+          "shots": 10000,
+          "seed": 110764852487719525,
+          "accepted": 9968,
+          "logical_errors": 190
+        },
+        {
+          "start": 70000,
+          "shots": 10000,
+          "seed": 773190030561950090,
+          "accepted": 9960,
+          "logical_errors": 158
+        },
+        {
+          "start": 80000,
+          "shots": 10000,
+          "seed": 320020504010933963,
+          "accepted": 9949,
+          "logical_errors": 180
+        },
+        {
+          "start": 90000,
+          "shots": 10000,
+          "seed": 455188808850489272,
+          "accepted": 9951,
+          "logical_errors": 178
+        }
+      ],
+      "groups": [
+        {
+          "prepared_state": "0",
+          "condition": "all_d4_flags_zero",
+          "shots": 100000,
+          "selected_shots": 66229,
+          "accepted": 66224,
+          "logical_errors": 68,
+          "ler": 0.001026818071998067,
+          "ler_low": 0.0008101270292375409,
+          "ler_high": 0.0013013936807896016,
+          "survival": 0.66224,
+          "survival_low": 0.659302519992221,
+          "survival_high": 0.6651650157210082,
+          "baseline_failure_fraction": 0.038266741699493526
+        },
+        {
+          "prepared_state": "0",
+          "condition": "all_flags_zero",
+          "shots": 100000,
+          "selected_shots": 66198,
+          "accepted": 66194,
+          "logical_errors": 53,
+          "ler": 0.0008006767985013748,
+          "ler_low": 0.0006122396523863757,
+          "ler_high": 0.0010470509891222686,
+          "survival": 0.66194,
+          "survival_low": 0.6590018943678204,
+          "survival_high": 0.6648656643932762,
+          "baseline_failure_fraction": 0.029825548677546426
+        },
+        {
+          "prepared_state": "0",
+          "condition": "at_most_one_flagged_extraction",
+          "shots": 100000,
+          "selected_shots": 97426,
+          "accepted": 97173,
+          "logical_errors": 1157,
+          "ler": 0.011906599569839358,
+          "ler_low": 0.011243660242842232,
+          "ler_high": 0.012608128146502508,
+          "survival": 0.97173,
+          "survival_low": 0.9706844712051603,
+          "survival_high": 0.9727392875596421,
+          "baseline_failure_fraction": 0.6510973550928532
+        },
+        {
+          "prepared_state": "0",
+          "condition": "baseline",
+          "shots": 100000,
+          "selected_shots": 100000,
+          "accepted": 99575,
+          "logical_errors": 1777,
+          "ler": 0.017845844840572434,
+          "ler_low": 0.017041948503195407,
+          "ler_high": 0.018686941356323445,
+          "survival": 0.99575,
+          "survival_low": 0.9953273175797667,
+          "survival_high": 0.9961345958191073,
+          "baseline_failure_fraction": 1.0
+        },
+        {
+          "prepared_state": "0",
+          "condition": "keep_current_paths_without_d1",
+          "shots": 100000,
+          "selected_shots": 98564,
+          "accepted": 98214,
+          "logical_errors": 1538,
+          "ler": 0.015659681919074672,
+          "ler_low": 0.014901937931782058,
+          "ler_high": 0.01645531257460342,
+          "survival": 0.98214,
+          "survival_low": 0.981300414218078,
+          "survival_high": 0.9829425447857206,
+          "baseline_failure_fraction": 0.8655036578503095
+        },
+        {
+          "prepared_state": "0",
+          "condition": "keep_current_paths_without_d2",
+          "shots": 100000,
+          "selected_shots": 82129,
+          "accepted": 81913,
+          "logical_errors": 1050,
+          "ler": 0.012818478141442751,
+          "ler_low": 0.012070653101596067,
+          "ler_high": 0.013611995562028101,
+          "survival": 0.81913,
+          "survival_low": 0.8167320997915937,
+          "survival_high": 0.8215033826551692,
+          "baseline_failure_fraction": 0.5908835115362971
+        },
+        {
+          "prepared_state": "0",
+          "condition": "observed_d1_used",
+          "shots": 100000,
+          "selected_shots": 1436,
+          "accepted": 1361,
+          "logical_errors": 239,
+          "ler": 0.17560617193240263,
+          "ler_low": 0.15631284681330443,
+          "ler_high": 0.1967255634039778,
+          "survival": 0.01361,
+          "survival_low": 0.012910327154777634,
+          "survival_high": 0.0143470403528809,
+          "baseline_failure_fraction": 0.1344963421496905
+        },
+        {
+          "prepared_state": "0",
+          "condition": "observed_d2_used_without_d1",
+          "shots": 100000,
+          "selected_shots": 17356,
+          "accepted": 17165,
+          "logical_errors": 717,
+          "ler": 0.0417710457325954,
+          "ler_low": 0.03887920826998021,
+          "ler_high": 0.04486793694475915,
+          "survival": 0.17165,
+          "survival_low": 0.16932552574736476,
+          "survival_high": 0.1739997001436685,
+          "baseline_failure_fraction": 0.4034890264490715
+        },
+        {
+          "prepared_state": "0",
+          "condition": "observed_d4_flag",
+          "shots": 100000,
+          "selected_shots": 33771,
+          "accepted": 33351,
+          "logical_errors": 1709,
+          "ler": 0.05124284129411412,
+          "ler_low": 0.04892769829808981,
+          "ler_high": 0.05366135052246118,
+          "survival": 0.33351,
+          "survival_low": 0.33059431582312565,
+          "survival_high": 0.3364384749751023,
+          "baseline_failure_fraction": 0.9617332583005065
+        },
+        {
+          "prepared_state": "0",
+          "condition": "observed_no_d4_flag",
+          "shots": 100000,
+          "selected_shots": 66229,
+          "accepted": 66224,
+          "logical_errors": 68,
+          "ler": 0.001026818071998067,
+          "ler_low": 0.0008101270292375409,
+          "ler_high": 0.0013013936807896016,
+          "survival": 0.66224,
+          "survival_low": 0.659302519992221,
+          "survival_high": 0.6651650157210082,
+          "baseline_failure_fraction": 0.038266741699493526
+        },
+        {
+          "prepared_state": "0",
+          "condition": "observed_only_d4",
+          "shots": 100000,
+          "selected_shots": 81208,
+          "accepted": 81049,
+          "logical_errors": 821,
+          "ler": 0.010129674641266394,
+          "ler_low": 0.009463133343790111,
+          "ler_high": 0.010842650256120722,
+          "survival": 0.81049,
+          "survival_low": 0.8080490319128218,
+          "survival_high": 0.8129071143125265,
+          "baseline_failure_fraction": 0.46201463140123805
+        },
+        {
+          "prepared_state": "0",
+          "condition": "only_d4_and_all_flags_zero",
+          "shots": 100000,
+          "selected_shots": 65964,
+          "accepted": 65960,
+          "logical_errors": 48,
+          "ler": 0.0007277137659187386,
+          "ler_low": 0.0005489586973422206,
+          "ler_high": 0.0009646199028826045,
+          "survival": 0.6596,
+          "survival_low": 0.6566570596408121,
+          "survival_high": 0.6625306788936514,
+          "baseline_failure_fraction": 0.027011817670230726
+        }
+      ],
+      "paths": {
+        "Z4;X4;Z4": {
+          "shots": 65964,
+          "accepted": 65960,
+          "logical_errors": 48
+        },
+        "Z4!;X2;Z2": {
+          "shots": 5033,
+          "accepted": 5031,
+          "logical_errors": 15
+        },
+        "Z4!": {
+          "shots": 563,
+          "accepted": 558,
+          "logical_errors": 3
+        },
+        "Z4;X4;Z4!": {
+          "shots": 10007,
+          "accepted": 9886,
+          "logical_errors": 16
+        },
+        "Z4;X4!": {
+          "shots": 4674,
+          "accepted": 4645,
+          "logical_errors": 754
+        },
+        "Z4;X4!;Z2;X2!": {
+          "shots": 317,
+          "accepted": 283,
+          "logical_errors": 120
+        },
+        "Z4;X4!;Z2;X2": {
+          "shots": 3081,
+          "accepted": 3071,
+          "logical_errors": 11
+        },
+        "Z4;X4;Z4!;X2": {
+          "shots": 78,
+          "accepted": 78,
+          "logical_errors": 0
+        },
+        "Z4;X4!;Z2!": {
+          "shots": 508,
+          "accepted": 483,
+          "logical_errors": 21
+        },
+        "Z4!;X2": {
+          "shots": 4783,
+          "accepted": 4778,
+          "logical_errors": 25
+        },
+        "Z4;X4;Z4;X2": {
+          "shots": 215,
+          "accepted": 215,
+          "logical_errors": 4
+        },
+        "Z4!;X2!": {
+          "shots": 1183,
+          "accepted": 1095,
+          "logical_errors": 474
+        },
+        "Z4;X4!;Z2": {
+          "shots": 1561,
+          "accepted": 1560,
+          "logical_errors": 27
+        },
+        "Z4!;X2;Z1": {
+          "shots": 509,
+          "accepted": 492,
+          "logical_errors": 8
+        },
+        "Z4!;X2;Z2!": {
+          "shots": 561,
+          "accepted": 536,
+          "logical_errors": 2
+        },
+        "Z4;X4!;Z1;X1": {
+          "shots": 244,
+          "accepted": 226,
+          "logical_errors": 30
+        },
+        "Z4!;X1": {
+          "shots": 252,
+          "accepted": 243,
+          "logical_errors": 92
+        },
+        "Z4;X4!;Z1": {
+          "shots": 266,
+          "accepted": 244,
+          "logical_errors": 77
+        },
+        "Z4!;X1;Z1": {
+          "shots": 140,
+          "accepted": 132,
+          "logical_errors": 29
+        },
+        "Z4;X4;Z4;X1": {
+          "shots": 19,
+          "accepted": 19,
+          "logical_errors": 1
+        },
+        "Z4;X4;Z4;X2!": {
+          "shots": 31,
+          "accepted": 30,
+          "logical_errors": 15
+        },
+        "Z4;X4!;Z2;X1": {
+          "shots": 6,
+          "accepted": 5,
+          "logical_errors": 2
+        },
+        "Z4;X4;Z4!;X2!": {
+          "shots": 5,
+          "accepted": 5,
+          "logical_errors": 3
+        }
+      }
+    }
+  ]
+}

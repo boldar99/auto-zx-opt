@@ -197,16 +197,93 @@ policy synthesis and independent verification once; subsequent runs load the
 saved decision graph without synthesis. Guppy source generation does not need
 Guppy installed. HUGR compilation is a separate, optional operation.
 
+### Adaptive postselection from the full observation history
+
+**Adaptive history PS**, the order-one postselected controller, rejects as soon as its measured flags and
+syndromes have no explanation with incoming CSS error order plus internal faulty
+locations `r+s <= 1`. It retains benign flagged histories and rejects some
+unflagged histories requiring multiple faults. It uses no hidden noise-event
+counts or ideal final measurements.
+
+```sh
+python -m spiderwarp.se_experiment build-postselected build/se_32_20_4 \
+    --out build/se_postselected_32_20_4 --emit hugr
+python -m spiderwarp.se_experiment sweep build/se_postselected_32_20_4 \
+    --config benchmarks/se_postselected_100k/config.json \
+    --shots 100000 --max-shots 1000000 --allocation inverse-square \
+    --batch-size 10000 --jobs 8 --seed 20261112 \
+    --results benchmarks/se_postselected_100k
+python -m spiderwarp.se_comparison --plot-only
+```
+
+`build-postselected` derives a separate ordinary adaptive decision graph from
+the saved original. It preserves quantum circuits, actions and returned frames
+on surviving paths, and aborts rejected paths early. The independent fault checker
+verifies mandatory acceptance and logical preservation through `r+s<=1`, with
+the original CSS output filters. Mandatory clean-input two-fault acceptance is
+relaxed. A separate full-Pauli-history checker verifies the postselection guard.
+The controller uses 60 qubits and retains a 589-CNOT worst-case bound; no new
+optimality claim is made. Guppy/HUGR embed the guard as decision tables, without
+runtime fault enumeration or a decoder sidecar. `postselection.json` binds the
+derived graph to its parent hash and records the guard verification.
+
+The full comparison automatically includes the completed
+`benchmarks/se_postselected_100k/` dataset when present; an explicit directory can
+be supplied with `--postselected-results`. The figures show physical-p LER/p²,
+cycle LER/N, survival versus cycles, executed CNOT cost, and survival versus
+physical p. Survival remains linear with a range fitted to the measured data;
+stronger postselection can substantially widen that range. Use
+`se_experiment plot ... --physical-survival` to request the additional physical-p
+survival figure directly. Counts and intervals are available in the populated
+[comparison notebook](notebooks/32_20_4_steane_comparison.ipynb).
+
+### Adaptive syndrome postselection and verified recovery
+
+The adaptive study uses the same CSS-component weight-two assumption as the
+Steane PS baselines. **Adaptive syndrome PS** rejects when the original controller's
+new input-relative correction has an ambiguous syndrome. **Adaptive verified recovery**
+retains the histories accepted by **Adaptive history PS** and admits additional records only when
+all compatible incoming-CSS-order-one plus one-internal-fault histories identify
+one exact data Pauli class. Its correction must preserve the original frame's
+syndrome. That last constraint preserves the arbitrary-input QEC filters; the
+independent verifier checks the same contract as history PS.
+
+```sh
+python analysis/32_20_4_adaptive_improvements/production.py --variant css --jobs 8
+python analysis/32_20_4_adaptive_improvements/production.py --variant css-recover-safe --jobs 8
+python -m spiderwarp.se_comparison --plot-only
+python analysis/32_20_4_adaptive_improvements/report.py
+```
+
+Each new full sweep uses the original 32 configurations and 9,329,148-shot
+budget. The methods retain the original circuits, 60-qubit cap, at most four
+extractions and 589-CNOT worst-case bound. Standalone Guppy/HUGR live in
+`build/adaptive_{css,css_recover_safe}_32_20_4/`; results are in the corresponding
+`benchmarks/adaptive_{css,css_recover_safe}_100k/` directories. The plain CSS
+baseline allows single-fault rejection; verified rescue retains mandatory
+acceptance and logical protection through r+s<=1, with CSS filters through
+order two. Neither claims universal two-fault logical correction.
+
+Ten pilot candidates and their independent production results are documented
+in `analysis/32_20_4_adaptive_improvements/`. Basis reversal, extra final d2
+checks and independent CSS projections were not promoted. Aggressive exact
+frame retargeting failed the original arbitrary-input filter check and remains
+an experimental ablation; it is excluded from the main comparison. The
+AR-versus-LER tradeoff figure shows one and ten cycles without assuming
+independent per-cycle survival. History PS gives the lowest measured adaptive
+LER; verified recovery increases ten-cycle acceptance by about 40%, with higher
+conditional error. The notebooks and `handoff.md` summarize all ten pilots and
+rank untested ideas for likelihood-based PS, history across cycles, selective
+checks and circuit scheduling.
+
 ### Conventional Steane RUS comparisons
 
-Three conventional Steane controllers use the original encoded-zero d1/d2/d4
+Two retained conventional Steane controllers use the original encoded-zero d1/d2/d4
 preparation assets, with Hadamard-dual encoded-plus preparations for Z readout:
 
-* `d4`: discard flagged ancillas and repeat d4 until every verification bit is zero.
-* `ladder-ancilla`: on each flagged preparation, discard and descend d4 → d2 → d1;
+* **Steane d4 RUS** (`d4`): discard flagged ancillas and repeat d4 until every verification bit is zero.
+* **Steane descending RUS** (`ladder-ancilla`): on each flagged preparation, discard and descend d4 → d2 → d1;
   restart at d4 for every fresh ancilla, including syndrome confirmation reads.
-* `ladder-cycle`: use the same descent but retain the current level through both
-  bases and all syndrome reads; restart at d4 at the next QEC cycle.
 
 Each cycle confirms the Z syndrome twice consecutively, then confirms the X
 syndrome twice consecutively. A mismatch requires another fresh ancilla and
@@ -231,14 +308,47 @@ python -m spiderwarp.se_experiment build-steane --mode d4 \
     --out build/steane_rus_d4 --emit hugr
 python -m spiderwarp.se_experiment build-steane --mode ladder-ancilla \
     --out build/steane_rus_ladder_ancilla --emit hugr
-python -m spiderwarp.se_experiment build-steane --mode ladder-cycle \
-    --out build/steane_rus_ladder_cycle --emit hugr
-
-# All three: the same 32 configurations, fixed production budgets and seed as
+# Both retained modes: the same 32 configurations, fixed production budgets and seed as
 # benchmarks/se_100k; 100k-shot floor and 1M cap, resumable in 10k-shot batches.
 python -m spiderwarp.se_comparison --jobs 8
 python -m spiderwarp.se_comparison --plot-only
 ```
+
+The per-cycle ladder is excluded from the default analysis. Its existing code,
+artifacts and raw data remain available for explicit historical reproduction.
+
+For data-syndrome postselection, use `build-steane --postselection unique-css-2`.
+This checks the confirmed syndrome after accounting for the cumulative Pauli
+frame. It accepts only if all errors with each CSS component of weight at most
+two agree modulo stabilizers. For this code, all 31 weight-two syndromes per
+component have 16 distinct logical explanations, so each is rejected. The
+identity and 32 single-error syndromes per component remain accepted.
+This differs from ancilla verification, which retries before coupling to data.
+
+```sh
+python analysis/32_20_4_syndrome_uniqueness/analyze.py
+# Archived 0.1x pilots; run once if these datasets are absent.
+python analysis/32_20_4_syndrome_uniqueness/quick_steane_ps.py --jobs 8
+# Extend each pilot into a separate full-budget directory, retaining every old batch.
+python analysis/32_20_4_syndrome_uniqueness/full_steane_ps.py --mode d4 --jobs 8
+python analysis/32_20_4_syndrome_uniqueness/full_steane_ps.py --mode ladder-ancilla --jobs 8
+python -m spiderwarp.se_comparison --plot-only
+```
+
+The quick sampler builds standalone Guppy/HUGR and preserves its 0.1x pilot data
+in `benchmarks/steane_css_ps_<mode>_10k/`. The full sampler reuses those 932,918
+attempts, adds 8,396,230, and saves each completed **9,329,148-attempt** sweep in
+`benchmarks/steane_css_ps_<mode>_100k/`, with provenance and unchanged pilot hashes.
+The displayed names add **+ syndrome PS** to the two Steane RUS names.
+
+The canonical comparison now requires identical attempted-shot counts at every
+matching configuration for all eight methods: the same 32-point grid, 100k
+floor, 1M cap, inverse-square allocation and seed. It refuses incomplete or
+unequal-budget datasets; it never falls back to the archived quick runs.
+Accepted sample counts differ because acceptance rate is itself an outcome.
+Default-noise repetition points have 100,000 attempts per basis and method.
+Display names are centralized in `spiderwarp/se_comparison_names.py`; protocol
+IDs, bundle paths, source/HUGR hashes and raw original data are preserved.
 
 Each baseline saves 9,329,148 trajectories under
 `benchmarks/steane_rus_<mode>_100k/`, with hyphens replaced by underscores.
@@ -257,8 +367,8 @@ To overlay other result directories with explicit legend labels:
 ```sh
 python -m spiderwarp.se_experiment plot benchmarks/se_100k \
     --compare benchmarks/steane_rus_d4_100k \
-    --labels "Current adaptive" "Steane RUS d4" \
-    --out benchmarks/steane_comparison/figures
+    --labels "Adaptive baseline" "Steane d4 RUS" \
+    --out build/custom_comparison_figures
 ```
 
 The [comparison notebook](notebooks/32_20_4_steane_comparison.ipynb) contains

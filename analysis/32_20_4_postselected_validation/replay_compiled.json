@@ -1,0 +1,37 @@
+{
+  "parent_protocol_hash": "07022f2f0e2794e443d17093c8bca92c13537a1c7b5e3046cf52bd455d739e62",
+  "protocol_hash": "369e501c3fd7d6bc0fac687fb89c7e76870a44044bafe7ebaafe2519d681e58a",
+  "circuits_identical": true,
+  "all_400k_decisions_match": true,
+  "surviving_frames_and_actions_identical": true,
+  "totals": {
+    "discovery/0": {
+      "accepted": 90901,
+      "logical_errors": 56,
+      "shots": 100000,
+      "external_frame_checks": 1000,
+      "earlier_abort": 1789
+    },
+    "discovery/+": {
+      "accepted": 90895,
+      "logical_errors": 390,
+      "shots": 100000,
+      "external_frame_checks": 1000,
+      "earlier_abort": 1874
+    },
+    "validation/0": {
+      "accepted": 90848,
+      "logical_errors": 43,
+      "shots": 100000,
+      "external_frame_checks": 1000,
+      "earlier_abort": 1876
+    },
+    "validation/+": {
+      "accepted": 90825,
+      "logical_errors": 381,
+      "shots": 100000,
+      "external_frame_checks": 1000,
+      "earlier_abort": 1806
+    }
+  }
+}

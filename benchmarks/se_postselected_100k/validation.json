@@ -1,0 +1,358 @@
+{
+  "complete": true,
+  "protocol_hash": "369e501c3fd7d6bc0fac687fb89c7e76870a44044bafe7ebaafe2519d681e58a",
+  "configurations": 32,
+  "attempted_shots": 9329148,
+  "exact_prescribed_shot_targets": true,
+  "raw_counts_and_95_percent_wilson_intervals_checked": true,
+  "saved_task_engine_matches_installed_sampler": true,
+  "original_datasets_unchanged": true,
+  "cycles_started": 12047242,
+  "cycles_completed": 10844180,
+  "independent_ft_verification": {
+    "contract": {
+      "correctable": 1,
+      "logical_order": 1,
+      "max_syndrome_sectors": 65536,
+      "fault_order": 2,
+      "accept_clean_through": 1
+    },
+    "decoder_hash": "c2ac2ba6d1bd79dfa0080e57c091eed7c8316f1a0361855d9218ae10f3910e24",
+    "verified": true,
+    "checked_transitions": 4452310,
+    "accepted_contexts": 6616,
+    "discarded_contexts": 1610058,
+    "ec_a_input_syndromes": 4096,
+    "worst_case_cnots": 589,
+    "max_extractions": 4,
+    "peak_qubits": 60,
+    "lower_bound_cnots": 0,
+    "noise_model": "All 15 nonidentity Paulis per two-qubit gate; X/Y/Z per one-qubit gate; reset and measurement flips; no implicit idles; terminal Pauli frames."
+  },
+  "independent_guard_verification": {
+    "states": 1254,
+    "nonreject_edges": 3430,
+    "accepts": 500
+  },
+  "deterministic_rebuild_protocol_hash": "369e501c3fd7d6bc0fac687fb89c7e76870a44044bafe7ebaafe2519d681e58a",
+  "controls": {
+    "noiseless_reference": {
+      "shots": 2000,
+      "accepted": 2000,
+      "logical_errors": 0,
+      "cycles": 5
+    },
+    "native_split_inputs": {
+      "0": {
+        "backend": "selene-stim",
+        "noise_model": "gate-noise-including-preparation-and-readout-no-memory-v1",
+        "noise": {
+          "p_1q": 0.0,
+          "p_2q": 0.0,
+          "p_init": 0.0,
+          "p_meas": 0.0
+        },
+        "p": 0,
+        "seed": 20261112,
+        "cycles": 3,
+        "prepared_state": "0",
+        "shots": 8,
+        "accepted": 8,
+        "logical_errors": 0,
+        "ler": 0.0,
+        "ler_interval_95": [
+          0.0,
+          0.32440756488388023
+        ],
+        "survival": 1.0,
+        "versions": {
+          "spiderwarp": "0.1.0",
+          "numpy": "2.2.6",
+          "stim": "1.17.dev1792124270",
+          "guppylang": "0.21.16",
+          "hugr": "0.16.0",
+          "selene-sim": "0.2.18"
+        },
+        "experiment": {
+          "protocol_hash": "369e501c3fd7d6bc0fac687fb89c7e76870a44044bafe7ebaafe2519d681e58a",
+          "prepared_state": "0",
+          "cycles": 3,
+          "incoming_x": 1,
+          "incoming_z": 131072,
+          "source_sha256": "9a0a165e3c770658efcdfba011a4c520f86fea8a0d0703578705b950360c9a36",
+          "versions": {
+            "spiderwarp": "0.1.0",
+            "numpy": "2.2.6",
+            "stim": "1.17.dev1792124270",
+            "guppylang": "0.21.16",
+            "hugr": "0.16.0",
+            "selene-sim": "0.2.18"
+          },
+          "compile_hash": "3778688ea242c7370765fda396bc950a4a1830bd1b9300b487cc7aa164ad4cf5",
+          "hugr_sha256": "333f1a8fb67027583d3b0d9a045e154dc0e558f05c27b5339d42224f1f860784"
+        }
+      },
+      "+": {
+        "backend": "selene-stim",
+        "noise_model": "gate-noise-including-preparation-and-readout-no-memory-v1",
+        "noise": {
+          "p_1q": 0.0,
+          "p_2q": 0.0,
+          "p_init": 0.0,
+          "p_meas": 0.0
+        },
+        "p": 0,
+        "seed": 20261112,
+        "cycles": 3,
+        "prepared_state": "+",
+        "shots": 8,
+        "accepted": 8,
+        "logical_errors": 0,
+        "ler": 0.0,
+        "ler_interval_95": [
+          0.0,
+          0.32440756488388023
+        ],
+        "survival": 1.0,
+        "versions": {
+          "spiderwarp": "0.1.0",
+          "numpy": "2.2.6",
+          "stim": "1.17.dev1792124270",
+          "guppylang": "0.21.16",
+          "hugr": "0.16.0",
+          "selene-sim": "0.2.18"
+        },
+        "experiment": {
+          "protocol_hash": "369e501c3fd7d6bc0fac687fb89c7e76870a44044bafe7ebaafe2519d681e58a",
+          "prepared_state": "+",
+          "cycles": 3,
+          "incoming_x": 1,
+          "incoming_z": 131072,
+          "source_sha256": "295a0943b64513d75dac6545155562e694a53ab1fe9f1183b6c0ab4934bd9b6f",
+          "versions": {
+            "spiderwarp": "0.1.0",
+            "numpy": "2.2.6",
+            "stim": "1.17.dev1792124270",
+            "guppylang": "0.21.16",
+            "hugr": "0.16.0",
+            "selene-sim": "0.2.18"
+          },
+          "compile_hash": "d16ea0a5481922829f5d296436ff896397ccd9d9b3b90bd301afd6494e3552e8",
+          "hugr_sha256": "cd41e162f866be175495592e99f5596e6227fbb91c6ee5829fd667258a2713c3"
+        }
+      }
+    },
+    "native_noisy_gate_model": {
+      "backend": "selene-stim",
+      "noise_model": "gate-noise-including-preparation-and-readout-no-memory-v1",
+      "noise": {
+        "p_1q": 3.125e-05,
+        "p_2q": 0.001,
+        "p_init": 0.001,
+        "p_meas": 1.2499999999999999e-06
+      },
+      "p": 0.001,
+      "seed": 20261112,
+      "cycles": 3,
+      "prepared_state": "0",
+      "shots": 100,
+      "accepted": 52,
+      "logical_errors": 4,
+      "ler": 0.07692307692307693,
+      "ler_interval_95": [
+        0.030319345184930124,
+        0.1817356238429534
+      ],
+      "survival": 0.52,
+      "versions": {
+        "spiderwarp": "0.1.0",
+        "numpy": "2.2.6",
+        "stim": "1.17.dev1792124270",
+        "guppylang": "0.21.16",
+        "hugr": "0.16.0",
+        "selene-sim": "0.2.18"
+      },
+      "experiment": {
+        "protocol_hash": "369e501c3fd7d6bc0fac687fb89c7e76870a44044bafe7ebaafe2519d681e58a",
+        "prepared_state": "0",
+        "cycles": 3,
+        "incoming_x": 0,
+        "incoming_z": 0,
+        "source_sha256": "fe3a1cae84c8b2bb468800c15d58cc6d683a2a21a57136371ba6686354502034",
+        "versions": {
+          "spiderwarp": "0.1.0",
+          "numpy": "2.2.6",
+          "stim": "1.17.dev1792124270",
+          "guppylang": "0.21.16",
+          "hugr": "0.16.0",
+          "selene-sim": "0.2.18"
+        },
+        "compile_hash": "ab786bc3a7900df1452a69017eaed054c1c62f120246248e688136627b8d5bf5",
+        "hugr_sha256": "22ccdf6c9198e6896cf720b0ac21f7342b4cecf72ceafca00f5251e115b292f6"
+      }
+    }
+  },
+  "compiled_trace_replay": {
+    "parent_protocol_hash": "07022f2f0e2794e443d17093c8bca92c13537a1c7b5e3046cf52bd455d739e62",
+    "protocol_hash": "369e501c3fd7d6bc0fac687fb89c7e76870a44044bafe7ebaafe2519d681e58a",
+    "circuits_identical": true,
+    "all_400k_decisions_match": true,
+    "surviving_frames_and_actions_identical": true,
+    "totals": {
+      "discovery/0": {
+        "accepted": 90901,
+        "logical_errors": 56,
+        "shots": 100000,
+        "external_frame_checks": 1000,
+        "earlier_abort": 1789
+      },
+      "discovery/+": {
+        "accepted": 90895,
+        "logical_errors": 390,
+        "shots": 100000,
+        "external_frame_checks": 1000,
+        "earlier_abort": 1874
+      },
+      "validation/0": {
+        "accepted": 90848,
+        "logical_errors": 43,
+        "shots": 100000,
+        "external_frame_checks": 1000,
+        "earlier_abort": 1876
+      },
+      "validation/+": {
+        "accepted": 90825,
+        "logical_errors": 381,
+        "shots": 100000,
+        "external_frame_checks": 1000,
+        "earlier_abort": 1806
+      }
+    }
+  },
+  "physical_low_order_and_silent_fault_audit": {
+    "full_history_engine_prefix_matches": 2000,
+    "physical_low_order_checks": {
+      "0": {
+        "single_fault_responses": 3015,
+        "incoming_css_weight_at_most_one": 1089,
+        "unexpected_rejections": 0,
+        "logical_failures_in_these_low_order_cases": 0
+      },
+      "+": {
+        "single_fault_responses": 3015,
+        "incoming_css_weight_at_most_one": 1089,
+        "unexpected_rejections": 0,
+        "logical_failures_in_these_low_order_cases": 0
+      }
+    },
+    "one_fault_multiple_flag_bits": {
+      "action": "Z_d4",
+      "flags": 6,
+      "set_bits": 2,
+      "faults": [
+        {
+          "operation_offset": 159,
+          "pauli_product": [
+            [
+              "Z",
+              58
+            ],
+            [
+              "X",
+              59
+            ]
+          ],
+          "before_measurement": false
+        }
+      ]
+    },
+    "silent_two_fault_witnesses": [
+      {
+        "prepared_state": "0",
+        "action": "Z_d4",
+        "faults": [
+          {
+            "operation_offset": 124,
+            "pauli_product": [
+              [
+                "X",
+                1
+              ]
+            ],
+            "before_measurement": false
+          },
+          {
+            "operation_offset": 208,
+            "pauli_product": [
+              [
+                "X",
+                2
+              ]
+            ],
+            "before_measurement": false
+          }
+        ],
+        "accepted": true,
+        "logical_failure": true,
+        "observations_equal_clean": true
+      },
+      {
+        "prepared_state": "+",
+        "action": "Z_d4",
+        "faults": [
+          {
+            "operation_offset": 124,
+            "pauli_product": [
+              [
+                "Z",
+                1
+              ]
+            ],
+            "before_measurement": false
+          },
+          {
+            "operation_offset": 208,
+            "pauli_product": [
+              [
+                "Z",
+                2
+              ]
+            ],
+            "before_measurement": false
+          }
+        ],
+        "accepted": true,
+        "logical_failure": true,
+        "observations_equal_clean": true
+      }
+    ],
+    "conclusion": "No low-order discrepancy found. Invisible two-fault logical errors remain possible under the existing contract."
+  },
+  "standalone_export_audit": {
+    "source_regenerates_identically": true,
+    "all_stored_transitions_and_frames_match": true,
+    "legal_input_acceptance_checks": 5505024,
+    "unique_acceptance_tables": 104,
+    "unknown_outcomes_reject": true,
+    "hugr_reloaded": true,
+    "source_sha256": "830bed57a80212790b93fadff0619ac69af5f28835464263a98d68c2afaf9ab3",
+    "hugr_sha256": "b9474418d3d8245c3046084e3d755a314e8c44a288eafa7d8f617e884b826897"
+  },
+  "real_resume_new_shots": 0,
+  "resume_audit": "../../analysis/32_20_4_postselected_validation/resume.json",
+  "tests": {
+    "full_regression_passed": 185,
+    "final_focused_plot_and_resume_passed": 5,
+    "logs": [
+      "../../build/se_postselected_tests.log",
+      "../../build/se_postselected_final_plot_tests.log"
+    ]
+  },
+  "figures": {
+    "comparison_png_pdf_pairs": 5,
+    "standalone_png_pdf_pairs": 4,
+    "visual_inspection_passed": true
+  },
+  "interpretation": "Conditional 20-logical-qubit block LER; measured full-trajectory survival; endpoint LER/N is not a hazard",
+  "remaining_limit": "Actual two-fault logical errors may have exactly clean observations; those cannot be postselected by this guard"
+}

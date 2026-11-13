@@ -1,0 +1,87 @@
+{
+  "seed": 2026111301,
+  "shots_per_point": 10000,
+  "configurations": [
+    [
+      "css-recover",
+      "0",
+      1
+    ],
+    [
+      "css-recover",
+      "+",
+      1
+    ],
+    [
+      "css-recover",
+      "0",
+      10
+    ],
+    [
+      "css-recover",
+      "+",
+      10
+    ]
+  ],
+  "results": [
+    {
+      "variant": "css-recover",
+      "basis": "0",
+      "cycles": 1,
+      "shots": 10000,
+      "accepted": 9421,
+      "logical_errors": 11,
+      "ler": 0.0011676042882921133,
+      "low": 0.0006521146700741602,
+      "high": 0.0020897307958258676,
+      "survival": 0.9421,
+      "mean_cnots": 445.2552
+    },
+    {
+      "variant": "css-recover",
+      "basis": "+",
+      "cycles": 1,
+      "shots": 10000,
+      "accepted": 9421,
+      "logical_errors": 67,
+      "ler": 0.007111771574142872,
+      "low": 0.0056043282771185325,
+      "high": 0.009021006209721936,
+      "survival": 0.9421,
+      "mean_cnots": 445.2552
+    },
+    {
+      "variant": "css-recover",
+      "basis": "0",
+      "cycles": 10,
+      "shots": 10000,
+      "accepted": 4523,
+      "logical_errors": 31,
+      "ler": 0.006853858058810524,
+      "low": 0.004832786727024111,
+      "high": 0.009711892917631866,
+      "survival": 0.4523,
+      "mean_cnots": 3220.5764
+    },
+    {
+      "variant": "css-recover",
+      "basis": "+",
+      "cycles": 10,
+      "shots": 10000,
+      "accepted": 4523,
+      "logical_errors": 158,
+      "ler": 0.03493256688038912,
+      "low": 0.029964026714543807,
+      "high": 0.04069041562239134,
+      "survival": 0.4523,
+      "mean_cnots": 3220.5764
+    }
+  ],
+  "selection": "Discovery only; selected candidates get independent production samples",
+  "no_oracle": true,
+  "rules": {
+    "css-recover": "Full-Pauli incoming CSS<=1 / internal-fault<=1 rescue; exact and syndrome-preserving restrictions named by the variant"
+  },
+  "acceptance_inputs": "Measured flags/syndromes and existing Pauli frame only; no prepared-state label or final ideal readout",
+  "pilot_resource_note": "Adapters decide at the parent endpoint; compiled graphs can abort rejected branches earlier. Pilot CNOT counts are not used for selection."
+}

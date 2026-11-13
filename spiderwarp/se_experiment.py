@@ -30,6 +30,12 @@ def parser():
     steane.add_argument("--mode", choices=["d4", "ladder-ancilla", "ladder-cycle"], required=True)
     steane.add_argument("--out", type=Path, required=True)
     steane.add_argument("--emit", choices=["none", "guppy", "hugr"], default="guppy")
+    steane.add_argument("--postselection", choices=["none", "unique-css-2"], default="none",
+                        help="Reject confirmed data syndromes without a unique CSS correction through weight two")
+    postselected = sub.add_parser("build-postselected", help="Compile and verify the order-one history guard")
+    postselected.add_argument("parent", type=Path)
+    postselected.add_argument("--out", type=Path, default=Path("build/se_postselected_32_20_4"))
+    postselected.add_argument("--emit", choices=["none", "guppy", "hugr"], default="guppy")
     compile_ = sub.add_parser("compile", help="Generate source/HUGR from an existing bundle")
     compile_.add_argument("protocol", type=Path)
     compile_.add_argument("--emit", choices=["guppy", "hugr"], default="hugr")
@@ -62,6 +68,7 @@ def parser():
     plot.add_argument("--cycle-p", type=float, help="Repetition-sweep p_2q; default is default_noise_model().p_2q")
     plot.add_argument("--compare", type=Path, nargs="+", help="Additional result directories to overlay")
     plot.add_argument("--labels", nargs="+", help="Labels for results followed by --compare directories")
+    plot.add_argument("--physical-survival", action="store_true", help="Also plot survival against physical p")
     inspect = sub.add_parser("inspect", help="Validate and describe a saved protocol")
     inspect.add_argument("protocol", type=Path)
     inspect.add_argument("--verify", action="store_true")
@@ -121,9 +128,23 @@ def emit_protocol(protocol, directory, emit):
 def main(argv=None):
     p = parser()
     args = p.parse_args(argv)
-    if args.command == "build-steane":
+    if args.command == "build-postselected":
+        from spiderwarp.se_postselection import postselect_order_one, verify_order_one_guard
+        parent = load_protocol(args.parent)
+        protocol = postselect_order_one(parent, progress=lambda s: print(s, flush=True))
+        protocol.save_bundle(args.out)
+        provenance = dict(method="reject-no-order-zero-or-one-explanation",
+            parent_protocol_hash=read_manifest(args.parent)[1]["protocol_hash"],
+            protocol_hash=read_manifest(args.out)[1]["protocol_hash"],
+            early_abort=True, quantum_circuits_unchanged=True, surviving_frames_unchanged=True,
+            required_acceptance="r+s<=1; clean-input s=2 acceptance relaxed",
+            guard_verification=verify_order_one_guard(protocol))
+        atomic_write(args.out / "postselection.json", json.dumps(provenance, indent=2)+"\n")
+        print(json.dumps(vars(protocol.verification), default=vars, indent=2), flush=True)
+        emit_protocol(protocol, args.out.resolve(), args.emit)
+    elif args.command == "build-steane":
         from spiderwarp.steane_qec import build_steane_qec
-        protocol = build_steane_qec(args.mode, output_dir=args.out)
+        protocol = build_steane_qec(args.mode, output_dir=args.out, postselection=args.postselection)
         print(f"Steane {args.mode}: {protocol.required_qubits} physical qubits", flush=True)
         emit_protocol(protocol, args.out.resolve(), args.emit)
     elif args.command == "build":
@@ -200,7 +221,8 @@ def main(argv=None):
     elif args.command == "plot":
         from spiderwarp.se_plotting import plot_results
         for path in plot_results(args.results, args.out, cycle_p=args.cycle_p,
-                                 compare=args.compare, labels=args.labels):
+                                 compare=args.compare, labels=args.labels,
+                                 physical_survival=args.physical_survival):
             print(path)
     elif args.command == "native":
         from spiderwarp.se_native import run_native
