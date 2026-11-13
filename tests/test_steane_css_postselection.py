@@ -15,7 +15,7 @@ from spiderwarp.se_protocol_simulation import ProtocolSampler, _StateExperiment
 from spiderwarp.steane_qec import build_steane_qec, unique_css_syndromes
 
 
-@pytest.fixture(scope='module', params=('d4', 'ladder-ancilla'))
+@pytest.fixture(scope='module', params=('fixed',))
 def protocol(request):
     return build_steane_qec(request.param, postselection='unique-css-2')
 
@@ -62,7 +62,7 @@ def exported_controller(protocol):
     return namespace
 
 
-def test_all_confirmed_syndromes_and_incoming_frames_match_export(protocol):
+def test_all_single_syndromes_and_incoming_frames_match_export(protocol):
     assert all(sum(domain) == 33 for domain in unique_css_syndromes(protocol.code).values())
     exported = exported_controller(protocol)
     for basis in ('Z', 'X'):
@@ -82,7 +82,7 @@ def test_all_confirmed_syndromes_and_incoming_frames_match_export(protocol):
                 shift = exported['frame_syndrome_' + basis.lower()](frame)
                 assert actual.accepted == protocol.unique_syndromes[basis][syndrome ^ shift]
                 if basis == 'Z' and not actual.accepted:
-                    assert reference.trace == ['prep_Z_d4', 'read_Z'] * 2
+                    assert reference.trace == ['prep_Z_d3', 'read_Z']
                 if not actual.accepted:
                     assert actual.discard_reason == 'ambiguous CSS syndrome through data weight two'
 
@@ -122,13 +122,15 @@ def test_postselected_bundle_and_original_artifacts_stay_distinct(protocol, tmp_
     saved.write_text(json.dumps(raw))
     with pytest.raises(ValueError, match='unique-correction domain changed'):
         load_protocol(saved)
-    original = build_steane_qec(protocol.mode)
-    path = Path('build') / ('steane_rus_' + protocol.mode.replace('-', '_'))
-    if (path / 'export.json').exists():
-        metadata = json.loads((path / 'export.json').read_text())
-        assert hashlib.sha256(generate_source(original).encode()).hexdigest() == metadata['source_sha256']
-        manifest = json.loads((path / 'protocol.json').read_text())
-        assert json.loads(original.save_bundle(tmp_path / 'original').read_text())['protocol_hash'] == manifest['protocol_hash']
+    manifest = json.loads(protocol.save_bundle(tmp_path / 'single').read_text())
+    assert set(manifest['preparations']) == {'1', '3'}
+    assert manifest['preparation_start'] == 3
+    assert manifest['syndrome_confirmation'] == 'single-per-basis'
+    manifest['syndrome_confirmation'] = 'two-consecutive-per-basis'
+    manifest['protocol_hash'] = digest({k: v for k, v in manifest.items() if k not in {'protocol_hash', 'versions'}})
+    (tmp_path / 'single/protocol.json').write_text(json.dumps(manifest))
+    with pytest.raises(ValueError, match='Removed repeated-read'):
+        load_protocol(tmp_path / 'single')
 
 
 def test_quick_comparison_requires_explicit_unequal_budget_allowance(tmp_path):
@@ -156,23 +158,10 @@ def test_quick_comparison_requires_explicit_unequal_budget_allowance(tmp_path):
     assert audit['attempted_shots'] == {'production': 10000, 'quick': 1000}
 
 
-def test_canonical_comparison_refuses_an_explicit_quick_dataset(tmp_path, monkeypatch):
+def test_canonical_comparison_rejects_retired_dataset_overrides():
     from spiderwarp.se_comparison import main
-    from spiderwarp.se_protocol_simulation import _wilson_interval
-    monkeypatch.chdir(tmp_path)
-    for name, shots in (('se_100k', 10000), ('steane_rus_d4_100k', 10000), ('quick', 1000)):
-        directory = tmp_path / 'benchmarks' / name
-        directory.mkdir(parents=True)
-        low, high = _wilson_interval(1, shots)
-        row = dict(shots=shots, target_shots=shots, accepted=shots, logical_errors=1,
-                   ler_low=low, ler_high=high, p=.0008, cycles=1, prepared_state='0',
-                   noise='{"p_2q":0.0008}', sweeps='["cycles"]', seed=20261112)
-        with (directory / 'summary.csv').open('w', newline='') as stream:
-            writer = csv.DictWriter(stream, list(row))
-            writer.writeheader()
-            writer.writerow(row)
-        (directory / 'run.json').write_text(json.dumps(dict(status='complete', mode='d4')))
-    with pytest.raises(ValueError, match='budgets differ'):
-        main(['--plot-only', '--modes', 'd4', '--steane-postselected-results',
-              'benchmarks/quick'])
-    assert not (tmp_path / 'benchmarks/steane_comparison/comparison.csv').exists()
+    # The canonical comparison reads only the current matched-budget registry;
+    # old baseline/quick-result injection switches are no longer supported.
+    with pytest.raises(SystemExit) as exc:
+        main(['--plot-only', '--modes', 'fixed', '--steane-postselected-results', 'benchmarks/quick'])
+    assert exc.value.code == 2

@@ -1,7 +1,7 @@
 """Conventional Steane QEC with verified, repeat-until-success ancillas.
 
 Retries discard only the ancilla, before any coupling to the persistent data.
-Each CSS syndrome is read until two consecutive readings agree. Protection
+Each CSS syndrome is read exactly once. Protection
 labels apply to ancilla preparation, never to the distance of the data code.
 """
 from __future__ import annotations
@@ -17,9 +17,8 @@ from spiderwarp.csscode import CSSCode
 from spiderwarp.lut_decoder import LutDecoder
 from spiderwarp.optimized_steane_se import ProtocolResult
 
-MODES = ("d4", "ladder-ancilla", "ladder-cycle")
-LABELS = {"d4": "Steane RUS d4", "ladder-ancilla": "Steane ladder / ancilla",
-          "ladder-cycle": "Steane ladder / cycle"}
+MODES = ("fixed",)
+LABELS = {"fixed": "Steane d3 RUS"}
 
 
 def unique_css_syndromes(code, maximum=2):
@@ -50,24 +49,23 @@ class SteaneStage:
 class SteaneQECProtocol:
     """A frame-returning controller compatible with ProtocolSampler.
 
-    The retry and syndrome-confirmation loops are unbounded: no artificial
-    attempt cap is introduced. Optional data postselection checks a confirmed,
-    frame-adjusted syndrome for unique CSS correction through weight two.
-    Ladder state resets either for
-    each ancilla (including syndrome repeats), or at the start of each cycle.
+    Only ancilla preparation retries are unbounded. Each basis has one data
+    read, followed by frame-adjusted unique-CSS-through-two postselection.
+    The data code remains [[32,20,4]]. Every ancilla attempt uses d3.
     This is a simulation baseline, not an independently certified adaptive policy.
     """
 
-    def __init__(self, code, preparations, mode="d4", *, postselection="none"):
+    def __init__(self, code, preparations, mode="fixed", *, postselection="unique-css-2"):
         if mode not in MODES:
             raise ValueError(f"Unknown Steane RUS mode: {mode}")
-        if set(preparations) != {1, 2, 4} or code.d != 4:
-            raise ValueError("Steane baselines require d1/d2/d4 preparations and a d4 code")
+        if set(preparations) != {1, 3} or code.d != 4:
+            raise ValueError("Steane baselines require d1/d3 preparations and a d4 data code")
         if not np.array_equal(code.H_x, code.H_z):
             raise ValueError("These dual preparations require identical CSS checks")
-        if postselection not in {"none", "unique-css-2"}:
-            raise ValueError("Unknown Steane data postselection rule")
+        if postselection != "unique-css-2":
+            raise ValueError("The retained Steane baselines require unique-css-2 data postselection")
         self.code, self.mode = code, mode
+        self.start_distance = 3
         self.postselection = postselection
         self.unique_syndromes = unique_css_syndromes(code) if postselection != "none" else {}
         self.preparations = {d: c.copy() for d, c in preparations.items()}
@@ -121,36 +119,27 @@ class SteaneQECProtocol:
             measurements.append((name, g.basis, g.distance, flags, syndrome))
             return flags, syndrome
 
-        level = 4
         for basis in ("Z", "X"):
-            previous = -1
+            level = self.start_distance
             while True:
-                if self.mode != "ladder-cycle":
-                    level = 4
-                while True:
-                    flags, _ = execute(f"prep_{basis}_d{level}")
-                    if flags == 0:
-                        break
-                    execute(f"discard_{basis}")
-                    if self.mode != "d4":
-                        level = {4: 2, 2: 1, 1: 1}[level]
-                _, syndrome = execute(f"read_{basis}")
-                if syndrome == previous:
-                    checks = self.code.H_z if basis == "Z" else self.code.H_x
-                    frame = frame_x if basis == "Z" else frame_z
-                    adjusted = syndrome ^ sum(((row_mask(row) & frame).bit_count() % 2) << i
-                                              for i, row in enumerate(checks))
-                    if self.unique_syndromes and not self.unique_syndromes[basis][adjusted]:
-                        return ProtocolResult(False, tuple(measurements), (),
-                            discard_reason="ambiguous CSS syndrome through data weight two",
-                            frame_x=frame_x, frame_z=frame_z)
-                    correction = self.decoders[basis][adjusted]
-                    if basis == "Z":
-                        frame_x ^= correction
-                    else:
-                        frame_z ^= correction
+                flags, _ = execute(f"prep_{basis}_d{level}")
+                if flags == 0:
                     break
-                previous = syndrome
+                execute(f"discard_{basis}")
+            _, syndrome = execute(f"read_{basis}")
+            checks = self.code.H_z if basis == "Z" else self.code.H_x
+            frame = frame_x if basis == "Z" else frame_z
+            adjusted = syndrome ^ sum(((row_mask(row) & frame).bit_count() % 2) << i
+                                      for i, row in enumerate(checks))
+            if not self.unique_syndromes[basis][adjusted]:
+                return ProtocolResult(False, tuple(measurements), (),
+                    discard_reason="ambiguous CSS syndrome through data weight two",
+                    frame_x=frame_x, frame_z=frame_z)
+            correction = self.decoders[basis][adjusted]
+            if basis == "Z":
+                frame_x ^= correction
+            else:
+                frame_z ^= correction
         return ProtocolResult(True, tuple(measurements), (), frame_x=frame_x, frame_z=frame_z)
 
     def save_bundle(self, directory):
@@ -159,12 +148,9 @@ class SteaneQECProtocol:
         core = dict(schema_version=1, kind="steane-rus", mode=self.mode,
                     code=self.code.to_dict(), preparations={str(d): str(c) for d, c in sorted(self.preparations.items())},
                     decoders={b: list(v) for b, v in self.decoders.items()},
-                    syndrome_confirmation="two-consecutive-per-basis", retry_limit=None,
-                    data_waits_during_retries=True)
-        # Preserve the exact old manifest identity for non-postselected runs.
-        if self.postselection != "none":
-            core.update(data_postselection=self.postselection,
-                        unique_syndromes={b: list(v) for b, v in self.unique_syndromes.items()})
+                    preparation_start=self.start_distance, syndrome_confirmation="single-per-basis", retry_limit=None,
+                    data_waits_during_retries=True, data_postselection=self.postselection,
+                    unique_syndromes={b: list(v) for b, v in self.unique_syndromes.items()})
         path = Path(directory).resolve() / "protocol.json"
         atomic_write(path, json.dumps(dict(core, protocol_hash=digest(core), versions=versions()), indent=2)+"\n")
         return path
@@ -178,27 +164,29 @@ class SteaneQECProtocol:
         return self.source_path
 
 
-def build_steane_qec(mode="d4", *, output_dir=None, postselection="none"):
+def build_steane_qec(mode="fixed", *, output_dir=None, postselection="unique-css-2"):
     from spiderwarp.utils import get_project_root
     code = CSSCode.load_code("misc", "32_20_4")
     assets = get_project_root() / "assets/circuits/FTStatePrep/misc"
     protocol = SteaneQECProtocol(code, {d: stim.Circuit.from_file(assets / f"32_20_4_zero_d{d}.stim")
-                                       for d in (1, 2, 4)}, mode, postselection=postselection)
+                                       for d in (1, 3)}, mode, postselection=postselection)
     if output_dir is not None:
         protocol.save_bundle(output_dir)
     return protocol
 
 
 def load_steane_qec(manifest):
+    if manifest.get("syndrome_confirmation") != "single-per-basis" or manifest.get("preparation_start") != 3:
+        raise ValueError("Removed repeated-read Steane protocol; rebuild with single-per-basis d3 preparation")
     code = CSSCode.from_dict(manifest["code"])
     protocol = SteaneQECProtocol(code, {int(d): stim.Circuit(c) for d, c in manifest["preparations"].items()},
-                                 manifest["mode"], postselection=manifest.get("data_postselection", "none"))
+                                 manifest["mode"], postselection=manifest["data_postselection"])
     if {b: list(v) for b, v in protocol.decoders.items()} != manifest["decoders"]:
         raise ValueError("Steane decoder identity changed")
     if protocol.postselection != "none" and (
             {b: list(v) for b, v in protocol.unique_syndromes.items()} != manifest.get("unique_syndromes")):
         raise ValueError("Steane unique-correction domain changed")
-    if (manifest["syndrome_confirmation"] != "two-consecutive-per-basis"
+    if (manifest["syndrome_confirmation"] != "single-per-basis"
             or manifest["retry_limit"] is not None or not manifest["data_waits_during_retries"]):
         raise ValueError("Unsupported Steane execution semantics")
     return protocol

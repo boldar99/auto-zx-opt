@@ -196,7 +196,7 @@ def load_protocol(path, *, verify=False):
     code = CSSCode(n, raw["k"], raw["d"], **arrays,
                    is_self_dual=raw["is_self_dual"], name=raw.get("name"))
     space = PauliSpace(code)
-    contract = FTContract(**m["contract"])
+    contract = FTContract(**dict({"input_scope": "arbitrary"}, **m["contract"]))
     decoder = FixedCSSDecoder(space, contract)
     if decoder.fingerprint != m["decoder_hash"]:
         raise ValueError("Stored decoder differs from the installed decoder")
@@ -273,7 +273,7 @@ def load_protocol(path, *, verify=False):
         stack.extend((j, False) for j in
                      ([node.next] if node.kind == "frame" else set(node.children.values())))
     report = dict(m["verification"])
-    report["contract"] = FTContract(**report["contract"])
+    report["contract"] = FTContract(**dict({"input_scope": "arbitrary"}, **report["contract"]))
     report = AdaptiveVerificationReport(**report)
     peak = max((actions[node.action].qubits for i, node in enumerate(nodes)
                 if colors[i] and node.kind == "extract"), default=code.n)

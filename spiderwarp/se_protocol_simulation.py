@@ -35,6 +35,8 @@ class ProtocolDiagnostics:
     Stage denominators count executions, whereas rejections count shots. The
     stage attached to a rejection is the last extraction that actually ran.
     Primary flags can lead to accepted recovery and are not themselves rejects.
+    accepted_cnots and accepted_stage_counts exclude every part of a trajectory
+    that rejects, even if its earlier cycles completed successfully.
     """
 
     stage_counts: dict[Stage, int] = field(default_factory=dict)
@@ -45,6 +47,8 @@ class ProtocolDiagnostics:
     cycles_started: int = 0
     cycles_completed: int = 0
     total_cnots: int = 0
+    accepted_cnots: int = 0
+    accepted_stage_counts: dict[Stage, int] = field(default_factory=dict)
 
     @property
     def rejection_counts(self) -> dict[str, int]:
@@ -237,13 +241,16 @@ class ProtocolSampler:
         if type(seed) is not int or seed < 0:
             raise ValueError("seed must be a nonnegative integer")
         rng = np.random.default_rng(seed)
-        accepted = failures = started = completed = cnots = 0
+        accepted = failures = started = completed = cnots = accepted_cnots = 0
+        accepted_stages = Counter()
         stages, flagged, rejections, paths, rejection_cycles = (Counter() for _ in range(5))
         for _ in range(shots):
             simulator = self.experiment.initial.copy(seed=int(rng.integers(0, 2**63)))
             noisy = _NoisySimulator(simulator, self.circuits, self.noise, self.corrections)
             frame_x = frame_z = 0
             shot_path = []
+            shot_cnots = 0
+            shot_stages = Counter()
             survives = True
             for cycle in range(1, self.cycles + 1):
                 started += 1
@@ -256,8 +263,11 @@ class ProtocolSampler:
                 stages.update(path)
                 flagged.update((role, basis, distance)
                                for role, basis, distance, flags, _ in result.measurements if flags)
-                cnots += sum(self.costs.get(role, self.costs.get((basis, distance), 0))
-                             for role, basis, distance in path)
+                cost = sum(self.costs.get(role, self.costs.get((basis, distance), 0))
+                           for role, basis, distance in path)
+                cnots += cost
+                shot_cnots += cost
+                shot_stages.update(path)
                 if self.collect_paths:
                     shot_path.extend(path)
                 if not result.accepted:
@@ -272,11 +282,14 @@ class ProtocolSampler:
                 paths[tuple(shot_path)] += 1
             if survives:
                 accepted += 1
+                accepted_cnots += shot_cnots
+                accepted_stages.update(shot_stages)
                 failures += self.experiment.logical_failure(simulator, frame_x=frame_x, frame_z=frame_z)
         return LogicalErrorRateEstimate(
             shots, accepted, failures, copy(self.noise), seed, self.prepared_state,
             ProtocolDiagnostics(dict(stages), dict(flagged), dict(rejections), dict(paths),
-                                dict(rejection_cycles), started, completed, cnots), self.cycles)
+                                dict(rejection_cycles), started, completed, cnots,
+                                accepted_cnots, dict(accepted_stages)), self.cycles)
 
 
 def estimate_protocol_ler(

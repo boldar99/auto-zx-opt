@@ -116,6 +116,7 @@ def test_full_size_saved_guard():
     protocol = load_protocol(path)
     assert protocol.verification.verified and protocol.required_qubits == 60
     assert protocol.policy.contract.accept_clean_through == 1
+    assert protocol.policy.contract.input_scope == 'total-order'
     assert {protocol.policy.actions[node.action].gadget.distance
             for node in protocol.policy.nodes if node.kind == "extract"} == {2, 4}
     for basis in ("0", "+"):
@@ -133,7 +134,7 @@ def test_comparison_keeps_postselection_yield_and_resource_count(tmp_path):
         lo, hi = _wilson_interval(errors, accepted)
         rows = [dict(protocol_hash=directory.name, engine_hash="engine", prepared_state=basis, p=.0008, cycles=1,
                      shots=100, target_shots=100, accepted=accepted, logical_errors=errors,
-                     total_cnots=100*400, ler_low=lo, ler_high=hi, noise='{"p_2q":0.0008}',
+                     total_cnots=100*400, accepted_cnots=accepted*400, ler_low=lo, ler_high=hi, noise='{"p_2q":0.0008}',
                      sweeps='["cycles","physical_error"]', seed=17)
                 for basis in ("0", "+")]
         with (directory / "summary.csv").open("w", newline="") as stream:

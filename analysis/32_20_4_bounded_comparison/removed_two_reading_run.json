@@ -1,0 +1,62 @@
+{
+  "reason": "Correct the mistaken two-total-reading cap and replace all-attempt gate statistics with accepted-only costs",
+  "removed": [
+    {
+      "path": "benchmarks/se_postselected_50k",
+      "files": 69
+    },
+    {
+      "path": "benchmarks/adaptive_css_50k",
+      "files": 69
+    },
+    {
+      "path": "benchmarks/steane_single_d3_fixed_ps_50k",
+      "files": 69
+    },
+    {
+      "path": "benchmarks/steane_comparison",
+      "files": 17
+    },
+    {
+      "path": "build/se_32_20_4",
+      "files": 7
+    },
+    {
+      "path": "build/se_postselected_32_20_4",
+      "files": 11
+    },
+    {
+      "path": "build/adaptive_css_32_20_4",
+      "files": 11
+    },
+    {
+      "path": "build/bounded_native_controls",
+      "files": 112
+    },
+    {
+      "path": "analysis/32_20_4_bounded_comparison/build_validation.json",
+      "files": 1
+    },
+    {
+      "path": "analysis/32_20_4_bounded_comparison/controls.json",
+      "files": 1
+    },
+    {
+      "path": "analysis/32_20_4_bounded_comparison/sampling_validation.json",
+      "files": 1
+    },
+    {
+      "path": "analysis/32_20_4_bounded_comparison/validation.json",
+      "files": 1
+    },
+    {
+      "path": "analysis/32_20_4_bounded_comparison/raw_hashes.json",
+      "files": 1
+    },
+    {
+      "path": "analysis/32_20_4_bounded_comparison/default_noise_gate_flag_audit.json",
+      "files": 1
+    }
+  ],
+  "archived_raw_data": false
+}

@@ -1,0 +1,224 @@
+{
+  "complete": true,
+  "methods": {
+    "adaptive_history": {
+      "contract": {
+        "correctable": 1,
+        "logical_order": 1,
+        "max_syndrome_sectors": 65536,
+        "fault_order": 2,
+        "accept_clean_through": 1,
+        "input_scope": "total-order",
+        "accepted_filter_order": 1
+      },
+      "paths": [
+        [
+          "Z_d4"
+        ],
+        [
+          "Z_d4",
+          "X_d2"
+        ],
+        [
+          "Z_d4",
+          "X_d4"
+        ],
+        [
+          "Z_d4",
+          "X_d4",
+          "X_d2"
+        ],
+        [
+          "Z_d4",
+          "X_d4",
+          "Z_d2"
+        ]
+      ],
+      "zero_record_path": [
+        "Z_d4",
+        "X_d4"
+      ],
+      "max_d4_extractions": 2,
+      "max_extractions": 3,
+      "no_d1": true,
+      "worst_case_cnots": 433,
+      "order_one_guard": {
+        "states": 1666,
+        "nonreject_edges": 2618,
+        "accepts": 1345
+      },
+      "protocol_hash": "62da3175473f60675125c331b7cc2ac9c5bdee5ed71e23f7fe04e8da439cfe44",
+      "bundle": "build/se_postselected_32_20_4",
+      "verification": {
+        "contract": {
+          "correctable": 1,
+          "logical_order": 1,
+          "max_syndrome_sectors": 65536,
+          "fault_order": 2,
+          "accept_clean_through": 1,
+          "input_scope": "total-order",
+          "accepted_filter_order": 1
+        },
+        "decoder_hash": "c2ac2ba6d1bd79dfa0080e57c091eed7c8316f1a0361855d9218ae10f3910e24",
+        "verified": true,
+        "checked_transitions": 3947446,
+        "accepted_contexts": 262200,
+        "discarded_contexts": 2025247,
+        "ec_a_input_syndromes": 0,
+        "worst_case_cnots": 433,
+        "max_extractions": 3,
+        "peak_qubits": 60,
+        "lower_bound_cnots": 0,
+        "noise_model": "All 15 nonidentity Paulis per two-qubit gate; X/Y/Z per one-qubit gate; reset and measurement flips; no implicit idles; terminal Pauli frames."
+      }
+    },
+    "adaptive_syndrome": {
+      "contract": {
+        "correctable": 1,
+        "logical_order": 1,
+        "max_syndrome_sectors": 65536,
+        "fault_order": 2,
+        "accept_clean_through": 1,
+        "input_scope": "total-order",
+        "accepted_filter_order": 1
+      },
+      "paths": [
+        [
+          "Z_d4"
+        ],
+        [
+          "Z_d4",
+          "X_d2"
+        ],
+        [
+          "Z_d4",
+          "X_d4"
+        ],
+        [
+          "Z_d4",
+          "X_d4",
+          "X_d2"
+        ],
+        [
+          "Z_d4",
+          "X_d4",
+          "Z_d2"
+        ]
+      ],
+      "zero_record_path": [
+        "Z_d4",
+        "X_d4"
+      ],
+      "max_d4_extractions": 2,
+      "max_extractions": 3,
+      "no_d1": true,
+      "worst_case_cnots": 433,
+      "order_one_guard": {
+        "states": 1666,
+        "nonreject_edges": 2618,
+        "accepts": 1345
+      },
+      "protocol_hash": "62da3175473f60675125c331b7cc2ac9c5bdee5ed71e23f7fe04e8da439cfe44",
+      "bundle": "build/adaptive_css_32_20_4",
+      "verification": {
+        "contract": {
+          "correctable": 1,
+          "logical_order": 1,
+          "max_syndrome_sectors": 65536,
+          "fault_order": 2,
+          "accept_clean_through": 1,
+          "input_scope": "total-order",
+          "accepted_filter_order": 1
+        },
+        "decoder_hash": "c2ac2ba6d1bd79dfa0080e57c091eed7c8316f1a0361855d9218ae10f3910e24",
+        "verified": true,
+        "checked_transitions": 3947446,
+        "accepted_contexts": 262200,
+        "discarded_contexts": 2025247,
+        "ec_a_input_syndromes": 0,
+        "worst_case_cnots": 433,
+        "max_extractions": 3,
+        "peak_qubits": 60,
+        "lower_bound_cnots": 0,
+        "noise_model": "All 15 nonidentity Paulis per two-qubit gate; X/Y/Z per one-qubit gate; reset and measurement flips; no implicit idles; terminal Pauli frames."
+      }
+    },
+    "adaptive_no_flags": {
+      "contract": {
+        "correctable": 0,
+        "logical_order": 1,
+        "max_syndrome_sectors": 65536,
+        "fault_order": 2,
+        "accept_clean_through": 0,
+        "input_scope": "total-order",
+        "accepted_filter_order": 1
+      },
+      "paths": [
+        [
+          "Z_d4"
+        ],
+        [
+          "Z_d4",
+          "X_d4"
+        ]
+      ],
+      "zero_record_path": [
+        "Z_d4",
+        "X_d4"
+      ],
+      "max_d4_extractions": 2,
+      "max_extractions": 2,
+      "no_d1": true,
+      "worst_case_cnots": 312,
+      "order_one_guard": {
+        "states": 1196,
+        "nonreject_edges": 1124,
+        "accepts": 71
+      },
+      "protocol_hash": "131e76ee8a48727bc49c57fe1e91192578cd7627931903ad0644f87982874c88",
+      "bundle": "build/adaptive_css_no_flags_32_20_4",
+      "verification": {
+        "contract": {
+          "correctable": 0,
+          "logical_order": 1,
+          "max_syndrome_sectors": 65536,
+          "fault_order": 2,
+          "accept_clean_through": 0,
+          "input_scope": "total-order",
+          "accepted_filter_order": 1
+        },
+        "decoder_hash": "c2ac2ba6d1bd79dfa0080e57c091eed7c8316f1a0361855d9218ae10f3910e24",
+        "verified": true,
+        "checked_transitions": 2868243,
+        "accepted_contexts": 146979,
+        "discarded_contexts": 1975436,
+        "ec_a_input_syndromes": 0,
+        "worst_case_cnots": 312,
+        "max_extractions": 2,
+        "peak_qubits": 60,
+        "lower_bound_cnots": 0,
+        "noise_model": "All 15 nonidentity Paulis per two-qubit gate; X/Y/Z per one-qubit gate; reset and measurement flips; no implicit idles; terminal Pauli frames."
+      },
+      "flag_guard": "All nonreject edges have flags == 0"
+    }
+  },
+  "user_steering": "PS on inferred r+s>=2; never use d1; exclude V and likelihood order-two rescues",
+  "allowed_distance_paths": [
+    [
+      4,
+      4,
+      2
+    ],
+    [
+      4,
+      4
+    ],
+    [
+      4,
+      2
+    ]
+  ],
+  "sample_floor": 100000,
+  "sample_cap": 1000000,
+  "matching_attempted_counts": true
+}

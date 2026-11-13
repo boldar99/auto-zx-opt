@@ -1,0 +1,648 @@
+{
+  "complete": true,
+  "counts": {
+    "attempted": 6000,
+    "category_0_attempted": 1000,
+    "rejected": 3634,
+    "category_1_attempted": 1000,
+    "accepted": 2366,
+    "rescued_exactly_correct": 1523,
+    "category_1_rescued": 443,
+    "category_2_attempted": 1000,
+    "category_3_attempted": 1000,
+    "category_4_attempted": 1000,
+    "category_5_attempted": 1000,
+    "protected": 843,
+    "category_3_rescued": 340,
+    "category_0_rescued": 228,
+    "category_4_rescued": 114,
+    "category_2_rescued": 336,
+    "category_5_rescued": 62
+  },
+  "examples": [
+    {
+      "basis": "0",
+      "incoming": [
+        [
+          "Y",
+          9
+        ]
+      ],
+      "plan": [
+        0,
+        1,
+        0
+      ],
+      "measurements": [
+        [
+          "Z_d4",
+          "Z",
+          4,
+          0,
+          27
+        ],
+        [
+          "X_d4",
+          "X",
+          4,
+          352,
+          63
+        ],
+        [
+          "Z_d2",
+          "Z",
+          2,
+          0,
+          2
+        ]
+      ],
+      "frame": [
+        33554944,
+        512
+      ]
+    },
+    {
+      "basis": "0",
+      "incoming": [],
+      "plan": [
+        0,
+        2,
+        0
+      ],
+      "measurements": [
+        [
+          "Z_d4",
+          "Z",
+          4,
+          0,
+          0
+        ],
+        [
+          "X_d4",
+          "X",
+          4,
+          1420,
+          11
+        ],
+        [
+          "Z_d2",
+          "Z",
+          2,
+          0,
+          11
+        ]
+      ],
+      "frame": [
+        101649935,
+        0
+      ]
+    },
+    {
+      "basis": "0",
+      "incoming": [
+        [
+          "Z",
+          8
+        ],
+        [
+          "X",
+          17
+        ]
+      ],
+      "plan": [
+        0,
+        1,
+        0
+      ],
+      "measurements": [
+        [
+          "Z_d4",
+          "Z",
+          4,
+          0,
+          29
+        ],
+        [
+          "X_d4",
+          "X",
+          4,
+          129,
+          38
+        ],
+        [
+          "X_d2",
+          "X",
+          2,
+          0,
+          59
+        ]
+      ],
+      "frame": [
+        376138134,
+        256
+      ]
+    },
+    {
+      "basis": "0",
+      "incoming": [
+        [
+          "X",
+          16
+        ],
+        [
+          "Z",
+          30
+        ]
+      ],
+      "plan": [
+        1,
+        0,
+        0
+      ],
+      "measurements": [
+        [
+          "Z_d4",
+          "Z",
+          4,
+          0,
+          28
+        ],
+        [
+          "X_d4",
+          "X",
+          4,
+          0,
+          33
+        ],
+        [
+          "Z_d2",
+          "Z",
+          2,
+          0,
+          61
+        ]
+      ],
+      "frame": [
+        65536,
+        357913941
+      ]
+    },
+    {
+      "basis": "0",
+      "incoming": [],
+      "plan": [
+        0,
+        2,
+        0
+      ],
+      "measurements": [
+        [
+          "Z_d4",
+          "Z",
+          4,
+          0,
+          0
+        ],
+        [
+          "X_d4",
+          "X",
+          4,
+          1870,
+          55
+        ]
+      ],
+      "frame": [
+        292884821,
+        0
+      ]
+    },
+    {
+      "basis": "0",
+      "incoming": [
+        [
+          "Z",
+          19
+        ],
+        [
+          "X",
+          30
+        ]
+      ],
+      "plan": [
+        0,
+        1,
+        0
+      ],
+      "measurements": [
+        [
+          "Z_d4",
+          "Z",
+          4,
+          0,
+          33
+        ],
+        [
+          "X_d4",
+          "X",
+          4,
+          1202,
+          13
+        ],
+        [
+          "Z_d2",
+          "Z",
+          2,
+          0,
+          63
+        ]
+      ],
+      "frame": [
+        292844613,
+        524288
+      ]
+    },
+    {
+      "basis": "0",
+      "incoming": [],
+      "plan": [
+        0,
+        2,
+        0
+      ],
+      "measurements": [
+        [
+          "Z_d4",
+          "Z",
+          4,
+          0,
+          0
+        ],
+        [
+          "X_d4",
+          "X",
+          4,
+          1912,
+          5
+        ],
+        [
+          "Z_d2",
+          "Z",
+          2,
+          0,
+          4
+        ]
+      ],
+      "frame": [
+        117903119,
+        0
+      ]
+    },
+    {
+      "basis": "0",
+      "incoming": [
+        [
+          "X",
+          1
+        ],
+        [
+          "Z",
+          9
+        ]
+      ],
+      "plan": [
+        1,
+        0,
+        0
+      ],
+      "measurements": [
+        [
+          "Z_d4",
+          "Z",
+          4,
+          1120,
+          26
+        ],
+        [
+          "X_d2",
+          "X",
+          2,
+          0,
+          58
+        ]
+      ],
+      "frame": [
+        2,
+        357914453
+      ]
+    },
+    {
+      "basis": "0",
+      "incoming": [],
+      "plan": [
+        1,
+        1,
+        0
+      ],
+      "measurements": [
+        [
+          "Z_d4",
+          "Z",
+          4,
+          0,
+          19
+        ],
+        [
+          "X_d4",
+          "X",
+          4,
+          384,
+          43
+        ],
+        [
+          "Z_d2",
+          "Z",
+          2,
+          0,
+          1
+        ]
+      ],
+      "frame": [
+        376007062,
+        8192
+      ]
+    },
+    {
+      "basis": "0",
+      "incoming": [
+        [
+          "X",
+          15
+        ],
+        [
+          "Z",
+          16
+        ]
+      ],
+      "plan": [
+        0,
+        1,
+        0
+      ],
+      "measurements": [
+        [
+          "Z_d4",
+          "Z",
+          4,
+          0,
+          3
+        ],
+        [
+          "X_d4",
+          "X",
+          4,
+          144,
+          61
+        ],
+        [
+          "Z_d2",
+          "Z",
+          2,
+          0,
+          6
+        ]
+      ],
+      "frame": [
+        8355584,
+        65536
+      ]
+    },
+    {
+      "basis": "0",
+      "incoming": [],
+      "plan": [
+        2,
+        0,
+        0
+      ],
+      "measurements": [
+        [
+          "Z_d4",
+          "Z",
+          4,
+          448,
+          63
+        ],
+        [
+          "X_d2",
+          "X",
+          2,
+          0,
+          57
+        ]
+      ],
+      "frame": [
+        0,
+        271782195
+      ]
+    },
+    {
+      "basis": "0",
+      "incoming": [],
+      "plan": [
+        0,
+        2,
+        0
+      ],
+      "measurements": [
+        [
+          "Z_d4",
+          "Z",
+          4,
+          0,
+          0
+        ],
+        [
+          "X_d4",
+          "X",
+          4,
+          1180,
+          2
+        ],
+        [
+          "Z_d2",
+          "Z",
+          2,
+          0,
+          42
+        ]
+      ],
+      "frame": [
+        8323323,
+        0
+      ]
+    },
+    {
+      "basis": "0",
+      "incoming": [
+        [
+          "X",
+          5
+        ],
+        [
+          "Z",
+          29
+        ]
+      ],
+      "plan": [
+        1,
+        0,
+        0
+      ],
+      "measurements": [
+        [
+          "Z_d4",
+          "Z",
+          4,
+          309,
+          16
+        ],
+        [
+          "X_d2",
+          "X",
+          2,
+          0,
+          17
+        ]
+      ],
+      "frame": [
+        32,
+        86320421
+      ]
+    },
+    {
+      "basis": "0",
+      "incoming": [
+        [
+          "X",
+          14
+        ],
+        [
+          "Z",
+          22
+        ]
+      ],
+      "plan": [
+        0,
+        1,
+        0
+      ],
+      "measurements": [
+        [
+          "Z_d4",
+          "Z",
+          4,
+          0,
+          35
+        ],
+        [
+          "X_d4",
+          "X",
+          4,
+          320,
+          1
+        ],
+        [
+          "Z_d2",
+          "Z",
+          2,
+          0,
+          32
+        ]
+      ],
+      "frame": [
+        16383,
+        4194304
+      ]
+    },
+    {
+      "basis": "0",
+      "incoming": [],
+      "plan": [
+        2,
+        0,
+        0
+      ],
+      "measurements": [
+        [
+          "Z_d4",
+          "Z",
+          4,
+          1950,
+          7
+        ],
+        [
+          "X_d2",
+          "X",
+          2,
+          0,
+          41
+        ]
+      ],
+      "frame": [
+        0,
+        287712789
+      ]
+    },
+    {
+      "basis": "0",
+      "incoming": [],
+      "plan": [
+        1,
+        1,
+        0
+      ],
+      "measurements": [
+        [
+          "Z_d4",
+          "Z",
+          4,
+          0,
+          33
+        ],
+        [
+          "X_d4",
+          "X",
+          4,
+          1072,
+          2
+        ],
+        [
+          "Z_d2",
+          "Z",
+          2,
+          0,
+          33
+        ]
+      ],
+      "frame": [
+        357913941,
+        16384
+      ]
+    }
+  ],
+  "seed": 2026111309,
+  "physical_faults": "Distinct physical sites; exact stabilizer and logical checks on additional rescues",
+  "noise_scope": "Certificate gate/reset/readout model; production memory noise assessed separately",
+  "measurement_pairs": {
+    "physical_pairs": 3233,
+    "both_first_pairs": 820,
+    "accepted": 1576,
+    "rejected": 1657,
+    "additional_exact_rescues": 429,
+    "both_first_rescues": 408,
+    "both_second_pairs": 820,
+    "both_second_rescues": 1,
+    "across_first_second_pairs": 1593,
+    "across_first_second_rescues": 20
+  }
+}

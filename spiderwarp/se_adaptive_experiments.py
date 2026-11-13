@@ -15,12 +15,12 @@ from spiderwarp._se_adaptive import (
     PolicyNode, compact_policy,
 )
 from spiderwarp.optimized_steane_se import ProtocolResult
-from spiderwarp.se_postselection import OrderOneEvidence
+from spiderwarp.se_postselection import OrderOneEvidence, postselect_order_one
 from spiderwarp.steane_qec import unique_css_syndromes
 
 VARIANTS = ('css', 'css-flag', 'css-flag-reversed', 'css-flag-check',
             'css-separated', 'css-separated-retarget', 'css-recover',
-            'css-recover-exact', 'css-recover-no-d1', 'css-recover-safe')
+            'css-recover-exact', 'css-recover-no-d1', 'css-recover-safe', 'css-no-flags')
 
 
 def reverse_css_roles(parent):
@@ -80,6 +80,32 @@ class AdaptiveCSSCandidate:
         if not result.accepted:
             return result
         measurements = list(result.measurements)
+        if self.variant == 'css':
+            # r is incoming error order, not the weight of a propagated hook
+            # correction. One internal faulty location remains s=1 throughout.
+            state = self.initial
+            incoming = frame_x | (frame_z << self.code.n)
+            for name, basis, _, flags, syndrome in measurements:
+                syndrome ^= self.space.component_syndrome(incoming, 'X' if basis == 'Z' else 'Z')
+                state = self._step(state, name, flags, syndrome)
+                if not state:
+                    return replace(result, accepted=False, discard_reason='no order-one incoming/fault explanation')
+            return result
+        if self.variant == 'css-no-flags' and any(f for _, _, _, f, _ in measurements):
+            return replace(result, accepted=False, discard_reason='nonzero preparation flag')
+        # Stable flag-free readings directly identify incoming CSS syndromes.
+        # Checking only the chosen frame could miss a two-error input that the
+        # parent explains as a spurious one-fault readout and leaves uncorrected.
+        incoming = frame_x | (frame_z << self.code.n)
+        observed = {'X': set(), 'Z': set()}
+        if not any(f for _, _, _, f, _ in measurements):
+            for _, basis, _, _, raw in measurements:
+                component = 'X' if basis == 'Z' else 'Z'
+                observed[component].add(raw ^ self.space.component_syndrome(incoming, component))
+            if all(len(values) == 1 for values in observed.values()):
+                if any(not self.unique['Z' if b == 'X' else 'X'][next(iter(values))]
+                       for b, values in observed.items()):
+                    return replace(result, accepted=False, discard_reason='ambiguous stable CSS input syndrome')
         delta = (result.frame_x ^ frame_x) | ((result.frame_z ^ frame_z) << self.code.n)
         signature = self.space.pauli_syndrome(delta)
         if (not self.unique['Z'][signature & self.decoder.x_mask]
@@ -383,13 +409,20 @@ class CompactCSSRescueEvidence:
 def compile_css_candidate(parent, variant='css', *, verify=True, progress=None):
     """Compile the exact sampling rule into a normal, standalone policy DAG.
 
-    Acceptance is allowed to postselect single faults. The independent contract
+    The full adaptive CSS mode counts incoming errors and internal locations,
+    rather than the weight of their propagated correction. It therefore equals
+    the order-one history policy. The stricter zero-flag experiment additionally
+    bounds its direct flag-free CSS readings and may postselect single faults.
+
+    For the other exploratory variants the independent contract
     requires clean acceptance and logical preservation of accepted histories
     through incoming CSS order plus circuit fault order one. It does not claim
     unique decoding of arbitrary two-fault circuit histories.
     """
-    if variant not in VARIANTS[:4]:
+    if variant not in (*VARIANTS[:4], 'css-no-flags'):
         raise ValueError(variant)
+    if variant == 'css':
+        return postselect_order_one(parent, verify=verify, progress=progress)
     if variant.endswith('reversed'):
         parent = reverse_css_roles(parent)
     old = parent.policy
@@ -415,30 +448,54 @@ def compile_css_candidate(parent, variant='css', *, verify=True, progress=None):
             checks = intern(PolicyNode('extract', action=basis + '_d2', children=children))
 
     @lru_cache(maxsize=None)
-    def visit(index, signature, flagged, state):
+    def visit(index, signature, flagged, state, sx, sz, stable):
         node = old.nodes[index]
         if node.kind == 'reject' or (variant != 'css' and flagged and not state):
             return 0
         if node.kind == 'accept':
+            if not flagged and stable and sx >= 0 and sz >= 0:
+                if not unique['Z'][sx] or not unique['X'][sz]:
+                    return 0
             correction = signature ^ evidence.space.pauli_syndrome(node.frame)
             if not (unique['Z'][correction & evidence.mask] and unique['X'][correction >> evidence.width]):
                 return 0
             return intern(PolicyNode('frame', frame=node.frame, next=checks))
         if node.kind == 'frame':
             following = evidence.translate(state, node.frame) if variant != 'css' else state
-            child = visit(node.next, signature ^ evidence.space.pauli_syndrome(node.frame), flagged, following)
+            child = visit(node.next, signature ^ evidence.space.pauli_syndrome(node.frame), flagged, following,
+                          sx, sz, stable)
             return intern(PolicyNode('frame', frame=node.frame, next=child)) if child else 0
         groups = evidence.transition(state, node.action) if variant != 'css' and state else {}
         children = {}
         for outcome, child in node.children.items():
+            # f=0 is an observable guard, not an oracle for the actual number
+            # of faulty circuit locations. Reject before any follow-up gadget.
+            if variant == 'css-no-flags' and outcome[0]:
+                continue
             following = groups.get(outcome, frozenset()) if variant != 'css' else state
-            target = visit(child, signature, flagged or bool(outcome[0]), following)
+            next_flagged = flagged or bool(outcome[0])
+            ax, az, unchanged = sx, sz, stable
+            if next_flagged:
+                ax, az, unchanged = -1, -1, False
+            else:
+                component = 'X' if old.actions[node.action].gadget.basis == 'Z' else 'Z'
+                offset = signature & evidence.mask if component == 'X' else signature >> evidence.width
+                raw = outcome[1] ^ offset
+                if component == 'X':
+                    unchanged &= sx < 0 or sx == raw
+                    ax = raw
+                else:
+                    unchanged &= sz < 0 or sz == raw
+                    az = raw
+            target = visit(child, signature, next_flagged, following, ax, az, unchanged)
             if target:
                 children[outcome] = target
         return intern(PolicyNode('extract', action=node.action, children=children))
 
-    root = visit(old.root, 0, False, evidence.initial if variant != 'css' else frozenset())
-    contract = FTContract(0, 1, fault_order=1, accept_clean_through=0)
+    root = visit(old.root, 0, False, evidence.initial if variant != 'css' else frozenset(), -1, -1, True)
+    contract = FTContract(0, 1, fault_order=2, accept_clean_through=0,
+                          input_scope=old.contract.input_scope,
+                          accepted_filter_order=old.contract.accepted_filter_order)
     decoder = FixedCSSDecoder(evidence.space, contract)
     report = AdaptiveVerificationReport(contract, decoder.fingerprint)
     policy = AdaptivePolicy(old.actions.copy(), contract, decoder, tuple(nodes), root, report,
@@ -536,8 +593,12 @@ def compile_css_recovery(parent, variant='css-recover-exact', *, verify=True, pr
         return intern(replace(node, children=children))
 
     root = visit(old.root, 0, model.initial, None, (), -1, -1, True, False, False)
-    contract = (FTContract(1, 1, fault_order=2, accept_clean_through=1)
-                if variant.endswith('safe') else FTContract(0, 1, fault_order=1, accept_clean_through=0))
+    contract = (FTContract(1, 1, fault_order=2, accept_clean_through=1,
+                           input_scope=old.contract.input_scope,
+                           accepted_filter_order=old.contract.accepted_filter_order)
+                if variant.endswith('safe') else FTContract(0, 1, fault_order=2, accept_clean_through=0,
+                                                           input_scope=old.contract.input_scope,
+                                                           accepted_filter_order=old.contract.accepted_filter_order))
     decoder = FixedCSSDecoder(space, contract)
     policy = AdaptivePolicy(old.actions.copy(), contract, decoder, tuple(nodes), root,
                             AdaptiveVerificationReport(contract, decoder.fingerprint),

@@ -1,25 +1,21 @@
 {
   "complete": true,
   "methods": [
-    "Adaptive baseline (60 qubits)",
-    "Steane d4 RUS (66 qubits)",
-    "Steane descending RUS (66 qubits)",
-    "Adaptive history PS (60 qubits)",
-    "Steane d4 RUS + syndrome PS (66 qubits)",
-    "Steane descending RUS + syndrome PS (66 qubits)",
-    "Adaptive syndrome PS (60 qubits)",
-    "Adaptive verified recovery (60 qubits)"
+    "Adaptive PS(r+s\u22641) (60 qubits)",
+    "Adaptive PS(r+s\u22641 or V\u2082) (60 qubits)",
+    "Adaptive PS(r+s\u22641 or p_err\u226410%) (60 qubits)",
+    "Adaptive PS(r+s\u22641 or p_err\u226425%) (60 qubits)",
+    "Adaptive PS(f=0, r_syn\u22641) (60 qubits)",
+    "Steane d3 RUS PS(r_syn\u22641) (66 qubits)"
   ],
   "configurations_per_method": 32,
   "attempted_shots": {
-    "Adaptive baseline (60 qubits)": 9329148,
-    "Steane d4 RUS (66 qubits)": 9329148,
-    "Steane descending RUS (66 qubits)": 9329148,
-    "Adaptive history PS (60 qubits)": 9329148,
-    "Steane d4 RUS + syndrome PS (66 qubits)": 9329148,
-    "Steane descending RUS + syndrome PS (66 qubits)": 9329148,
-    "Adaptive syndrome PS (60 qubits)": 9329148,
-    "Adaptive verified recovery (60 qubits)": 9329148
+    "Adaptive PS(r+s\u22641) (60 qubits)": 9329148,
+    "Adaptive PS(r+s\u22641 or V\u2082) (60 qubits)": 9329148,
+    "Adaptive PS(r+s\u22641 or p_err\u226410%) (60 qubits)": 9329148,
+    "Adaptive PS(r+s\u22641 or p_err\u226425%) (60 qubits)": 9329148,
+    "Adaptive PS(f=0, r_syn\u22641) (60 qubits)": 9329148,
+    "Steane d3 RUS PS(r_syn\u22641) (66 qubits)": 9329148
   },
   "equal_noise_seeds_budgets_and_configurations": true,
   "equal_noise_seeds_and_configurations": true,
@@ -30,88 +26,215 @@
   "interpretation": "Conditional 20-logical-qubit block LER; endpoint LER/N; survival separate",
   "timing": "Serial noisy ancilla attempts, including persistent data idles; ideal experiment boundaries",
   "peak_qubits": {
-    "Adaptive baseline (60 qubits)": 60,
-    "Steane d4 RUS (66 qubits)": 66,
-    "Steane descending RUS (66 qubits)": 66,
-    "Adaptive history PS (60 qubits)": 60,
-    "Steane d4 RUS + syndrome PS (66 qubits)": 66,
-    "Steane descending RUS + syndrome PS (66 qubits)": 66,
-    "Adaptive syndrome PS (60 qubits)": 60,
-    "Adaptive verified recovery (60 qubits)": 60
+    "Adaptive PS(r+s\u22641) (60 qubits)": 60,
+    "Adaptive PS(r+s\u22641 or V\u2082) (60 qubits)": 60,
+    "Adaptive PS(r+s\u22641 or p_err\u226410%) (60 qubits)": 60,
+    "Adaptive PS(r+s\u22641 or p_err\u226425%) (60 qubits)": 60,
+    "Adaptive PS(f=0, r_syn\u22641) (60 qubits)": 60,
+    "Steane d3 RUS PS(r_syn\u22641) (66 qubits)": 66
   },
-  "full_acceptance_required": [
-    "Steane d4 RUS (66 qubits)",
-    "Steane descending RUS (66 qubits)"
-  ],
-  "syndrome_confirmation": "Steane: two consecutive readings per CSS basis; adaptive: its existing policy",
+  "full_acceptance_required": [],
+  "syndrome_confirmation": "Steane: one reading per CSS basis; adaptive: its existing policy",
   "certificates": "See each saved adaptive contract/certificate; no adaptive-policy certificate claimed for Steane RUS",
-  "historical_steane_validation": {
-    "source_and_hugr_hashes_checked": true,
-    "saved_source_matches_regenerated": true,
-    "library_hugr_reloaded": true,
-    "actual_executed_cycles": {
-      "d4": 13529148,
-      "ladder-ancilla": 13529148,
-      "ladder-cycle": 13529148
-    },
-    "noiseless_reference_controls": {
-      "shots": 6000,
-      "accepted": 6000,
-      "logical_errors": 0,
-      "cycles": 5
-    },
-    "native_controls": {
-      "shots": 48,
-      "accepted": 48,
-      "logical_errors": 0,
-      "cycles": 3,
-      "incoming_x": 1,
-      "incoming_z": 131072
-    },
-    "tests": {
-      "full_regression_collection": 164,
-      "focused": 44,
-      "final_plot_regressions": 2,
-      "forced_retry_regressions": 4
-    },
-    "forced_retry_native_controls": {
-      "shots": 16,
-      "accepted": 16,
-      "logical_errors": 0,
-      "flags_forced_at_distances": [
-        4,
-        2
-      ]
-    },
-    "real_d4_resume_scheduled_new_shots": 0
-  },
-  "adaptive_postselection_validation": "../se_postselected_100k/validation.json",
-  "syndrome_uniqueness_analysis": "../../analysis/32_20_4_syndrome_uniqueness/summary.json",
-  "excluded_modes": [
-    "ladder-cycle"
+  "baseline_excluded": true,
+  "old_adaptive_data_deleted": true,
+  "adaptive_domain": "r+s<=2; history PS requires order-one compatibility; V2 adds exact uniqueness rescues",
+  "no_d1": true,
+  "max_adaptive_extractions_per_cycle": 3,
+  "max_adaptive_d4_per_cycle": 2,
+  "allowed_distance_paths": [
+    [
+      4,
+      4,
+      2
+    ],
+    [
+      4,
+      4
+    ],
+    [
+      4,
+      2
+    ]
   ],
-  "original_raw_datasets_unchanged": true,
-  "steane_css_postselection_validations": {
-    "d4": "../steane_css_ps_d4_100k/validation.json",
-    "ladder_ancilla": "../steane_css_ps_ladder_ancilla_100k/validation.json"
+  "gate_cost": "accepted_cnots / accepted / N; complete accepted trajectories only",
+  "rejected_trajectories_excluded_from_ler_and_gate_statistics": true,
+  "acceptance_rate_denominator": "All attempted trajectories",
+  "adaptive_accepted_cycle_gate_bounds": [
+    277,
+    433
+  ],
+  "no_order_two_rescues": false,
+  "methods_audited": {
+    "adaptive_history": {
+      "configurations": 32,
+      "attempted_shots": 9329148,
+      "raw_gate_counts_verified": true,
+      "batch_counts_verified": true,
+      "protocol_hash": "62da3175473f60675125c331b7cc2ac9c5bdee5ed71e23f7fe04e8da439cfe44",
+      "source_regenerates_identically": true,
+      "source_sha256": "67e157642f82b22f66e441e497766915cc5aa13535e44c734c21815007a115d0",
+      "hugr_reloaded": true,
+      "hugr_sha256": "bd3e3ad115c93e2d23f7a6f5a40ba7fb1bdfd2821f2c6b999a796cf771652429"
+    },
+    "adaptive_order_two": {
+      "configurations": 32,
+      "attempted_shots": 9329148,
+      "raw_gate_counts_verified": true,
+      "batch_counts_verified": true,
+      "protocol_hash": "c1886b03bf70e35791d080b5f7b0279871bbbcb9134e9193a841ebd9e9f589be",
+      "source_regenerates_identically": true,
+      "source_sha256": "35dd2576d911b7c2ac765086ebb22d8542274f103c874d925e356fd3878a2f9a",
+      "hugr_reloaded": true,
+      "hugr_sha256": "f09b749a7ef5ea7ac96bd237a7be98549f12a49c392e2396a4000256b845f50e"
+    },
+    "adaptive_probability_10": {
+      "configurations": 32,
+      "attempted_shots": 9329148,
+      "raw_gate_counts_verified": true,
+      "batch_counts_verified": true,
+      "protocol_hash": "0db6bd03938e2295a1a0e75433858d7713fde76596e123f70ebd6ab56b1c3eaf",
+      "source_regenerates_identically": true,
+      "source_sha256": "efa0a78ab972cbfed842031e601bb899d194b15b78f43ca3971c502c4150d31f",
+      "hugr_reloaded": true,
+      "hugr_sha256": "815ab2356b50abf19026da06ebf94fa7745bd11a6ddec104893520e7386bbc5c"
+    },
+    "adaptive_probability_25": {
+      "configurations": 32,
+      "attempted_shots": 9329148,
+      "raw_gate_counts_verified": true,
+      "batch_counts_verified": true,
+      "protocol_hash": "08f58e6d201b0cb04429d0cc6d21ba6bb6e8c626106fdabd801e08108b6a535e",
+      "source_regenerates_identically": true,
+      "source_sha256": "8d017f705d6b8eec374f93a6ad6aff0582163a2bd63c2cadaf871909defb34e1",
+      "hugr_reloaded": true,
+      "hugr_sha256": "69eaf02589d254563a37fd04662aa96009b46986911de381a73583dffeb34dbf"
+    },
+    "adaptive_no_flags": {
+      "configurations": 32,
+      "attempted_shots": 9329148,
+      "raw_gate_counts_verified": true,
+      "batch_counts_verified": true,
+      "protocol_hash": "131e76ee8a48727bc49c57fe1e91192578cd7627931903ad0644f87982874c88",
+      "source_regenerates_identically": true,
+      "source_sha256": "2f7235c9935973c3aca6ebf8872a234262aa3df1355d07e72e58fb14eb7434cc",
+      "hugr_reloaded": true,
+      "hugr_sha256": "ab8482beef56d0ee06b954105687a4e0dafb2b1bce4fc5bdc28b02be3058faeb"
+    },
+    "steane_fixed_ps": {
+      "configurations": 32,
+      "attempted_shots": 9329148,
+      "raw_gate_counts_verified": true,
+      "batch_counts_verified": true,
+      "protocol_hash": "86479f4f7cd93b1685a6373313a023ec60a9eb9555b9221e0a535da7deee29f0",
+      "source_regenerates_identically": true,
+      "source_sha256": "4f7bb313fbd6a4785f07391a205c8e560b791d47a9d8cbe084e405849509a84c",
+      "hugr_reloaded": true,
+      "hugr_sha256": "c8ab9a198f5653a63800c7b36a60dea8f8461bff21aa76d28930b13cea622ea2"
+    }
   },
-  "archived_quick_steane_data_unchanged": true,
-  "display_names": "../../spiderwarp/se_comparison_names.py",
-  "adaptive_css_validations": {
-    "css": "../adaptive_css_100k/validation.json",
-    "css_recover_safe": "../adaptive_css_recover_safe_100k/validation.json"
+  "order_two_uniqueness_rescue": "adaptive_order_two",
+  "rescue_certificate_includes_memory": false,
+  "propagated_weight_guard_retired": true,
+  "full_adaptive_css_mode_identical_to_history": true,
+  "notebooks_refreshed": true,
+  "six_figure_pairs_generated": true,
+  "visual_inspection_pending": false,
+  "physical_native_controls": "controls.json",
+  "all_css_one_inputs_accepted_and_correct_in_controls": true,
+  "order_two_physical_controls": "order_two_controls.json",
+  "additional_rescues_physically_replayed_correct": 1523,
+  "order_two_export_transition_audit": {
+    "nodes_checked": 186390,
+    "transitions_checked": 1045488,
+    "packed_nodes": 186391,
+    "complete": true,
+    "seconds": 26.399441375004244
   },
-  "experimental_ablation_excluded": "../adaptive_css_recover_exact_100k/validation.json",
-  "pilot_selection": "../../analysis/32_20_4_adaptive_improvements/selection_report.json",
-  "figures": {
-    "main_png_pdf_pairs": 5,
-    "methods": 8,
-    "tradeoff_png_pdf_pairs": 1,
-    "visual_inspection_passed": true
+  "probability_rescues": {
+    "epsilons": [
+      0.1,
+      0.25
+    ],
+    "error": "Wrong MAP Pauli class modulo stabilizers",
+    "mandatory_order_one": true,
+    "model": "Default-noise frozen two-response-channel posterior, including memory",
+    "all_orders_bound": false,
+    "discovery_sampling": false
   },
-  "prior_adaptive_tests": {
-    "broader_regressions": 74,
-    "final_candidate_regressions": 21
+  "probability_controls": {
+    "complete": true,
+    "methods": {
+      "10": {
+        "export": {
+          "nodes_checked": 23918,
+          "transitions_checked": 242149,
+          "missing_edges_reject": true
+        },
+        "confidence": {
+          "additional_records": 294509,
+          "mandatory_records": 2375,
+          "independently_rescored": 1000,
+          "max_estimated_error": 0.09990084103749607,
+          "pointwise_posterior_matches_global_convolution": true
+        }
+      },
+      "25": {
+        "export": {
+          "nodes_checked": 26241,
+          "transitions_checked": 312810,
+          "missing_edges_reject": true
+        },
+        "confidence": {
+          "additional_records": 346138,
+          "mandatory_records": 2375,
+          "independently_rescored": 1000,
+          "max_estimated_error": 0.25,
+          "pointwise_posterior_matches_global_convolution": true
+        }
+      }
+    },
+    "nesting": {
+      "complete": true,
+      "paired_nodes": 34064,
+      "acceptance_nested": true,
+      "shared_record_corrections_identical": true
+    },
+    "seed": 2026111315,
+    "note": "Correction confidence checked using independent pointwise meet-in-the-middle posterior; no production labels"
   },
-  "matching_budget_tests_log": "../../build/matched_comparison_tests.log"
+  "targeted_tests": {
+    "passed": 79,
+    "skipped": 12,
+    "log": "build/probability_final_tests.log"
+  },
+  "probability_validation": "probability_validation.json",
+  "completed_run_resume": {
+    "additional_shots": 0,
+    "raw_files": 384,
+    "all_hashes_preserved": true
+  },
+  "visual_inspection_passed": true,
+  "visually_checked_figure_pairs": [
+    "physical_error",
+    "cycles",
+    "survival",
+    "cnot_cost",
+    "physical_survival",
+    "acceptance_error_tradeoff"
+  ],
+  "figure_sha256": {
+    "physical_error.png": "c154d25044305db8f2c2d9bfdb30c99b3b7fd2cd394d5d518ea9c48e19722223",
+    "physical_error.pdf": "7e7514d62f324006077b2acde29786169214fba749351c30f2b6978873199d55",
+    "cycles.png": "5a4f11bdca2817041c541dff3843a60f3ad0bfa1e85eb1caf4bd62d396f7abd5",
+    "cycles.pdf": "b4905a458aa005ad714f24b937fadfed770083acdeb7c7d55d2f48def5bfe0c9",
+    "survival.png": "0f862c782d3ed6b78612f32304e51794ecb9b525e2bc3b54a7c24637c7797787",
+    "survival.pdf": "f014be44c3d7a11a0e788a129d24f1dfe89fe3fcae83515ee6c73a82e0daa46b",
+    "cnot_cost.png": "50a49c38d27b8df7d20ad8212834362a609a1e9983129d0e383526fed9f3c8fb",
+    "cnot_cost.pdf": "d1b3029ad1a6a95a832882eb840280a0827a3a987b853ae45d5530576ee001ee",
+    "physical_survival.png": "ef31c6914096ba991c3e828dc4a75693a728b37e21465dcd22c1c89593cc0e5a",
+    "physical_survival.pdf": "0c555c84068b096f760082f319f0813fef606faaf35270a251d7041c7abab654",
+    "acceptance_error_tradeoff.png": "83fb4f9fb32b8af23599d9981b934873236c7d0bebf4dbc7e9e761f0ebdff719",
+    "acceptance_error_tradeoff.pdf": "628704b23582375e9e3bee61324a298605d3ca0b36f41533a39b62761c75dc07"
+  }
 }

@@ -1,0 +1,41 @@
+{
+  "complete": true,
+  "methods": {
+    "10": {
+      "export": {
+        "nodes_checked": 23918,
+        "transitions_checked": 242149,
+        "missing_edges_reject": true
+      },
+      "confidence": {
+        "additional_records": 294509,
+        "mandatory_records": 2375,
+        "independently_rescored": 1000,
+        "max_estimated_error": 0.09990084103749607,
+        "pointwise_posterior_matches_global_convolution": true
+      }
+    },
+    "25": {
+      "export": {
+        "nodes_checked": 26241,
+        "transitions_checked": 312810,
+        "missing_edges_reject": true
+      },
+      "confidence": {
+        "additional_records": 346138,
+        "mandatory_records": 2375,
+        "independently_rescored": 1000,
+        "max_estimated_error": 0.25,
+        "pointwise_posterior_matches_global_convolution": true
+      }
+    }
+  },
+  "nesting": {
+    "complete": true,
+    "paired_nodes": 34064,
+    "acceptance_nested": true,
+    "shared_record_corrections_identical": true
+  },
+  "seed": 2026111315,
+  "note": "Correction confidence checked using independent pointwise meet-in-the-middle posterior; no production labels"
+}

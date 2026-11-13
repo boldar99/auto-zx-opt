@@ -14,6 +14,9 @@ from spiderwarp._se_guppy import IntegerDecisions
 from spiderwarp._se_circuit import row_mask
 
 
+COMPACT_POLICY_THRESHOLD = 50000
+
+
 def factor_masks(table):
     """Express masks in a basis chosen by first independent table value.
 
@@ -53,6 +56,8 @@ def generate_adaptive_source(protocol):
         CLEAN_INPUT_ACCEPTANCE_ORDER=policy.contract.accept_clean_through,
         LOGICAL_FAULT_ORDER=policy.contract.logical_order,
         ANALYZED_FAULT_ORDER=policy.contract.fault_order,
+        ACCEPTED_FILTER_ORDER=policy.contract.accepted_filter_order,
+        INPUT_SCOPE=policy.contract.input_scope,
         VERIFIED_AT_BUILD=policy.report.verified,
         WORST_CASE_CNOTS=policy.report.worst_case_cnots,
         LOWER_BOUND_CNOTS=policy.report.lower_bound_cnots,
@@ -119,21 +124,44 @@ def generate_adaptive_source(protocol):
             basis_ids[vectors] = len(bases)
             bases.append(vectors)
         return basis_ids[vectors]
-    exported_ids = {old: new for new, old in enumerate(
-        i for i, node in enumerate(policy.nodes) if node.kind != "frame")}
+    large_export = len(policy.nodes) >= COMPACT_POLICY_THRESHOLD
+    if large_export:
+        # Terminal extraction tables already contain their accept frames. Those
+        # accept nodes must not also occupy a large, unreachable Guppy constant.
+        reachable, pending = {0}, [policy.root]
+        while pending:
+            index = pending.pop()
+            while policy.nodes[index].kind == 'frame':
+                index = policy.nodes[index].next
+            if index in reachable:
+                continue
+            reachable.add(index)
+            node = policy.nodes[index]
+            if node.kind == 'extract':
+                targets = []
+                for child in node.children.values():
+                    while policy.nodes[child].kind == 'frame':
+                        child = policy.nodes[child].next
+                    targets.append(child)
+                if not all(policy.nodes[child].kind in {'accept', 'reject'} for child in targets):
+                    pending.extend(targets)
+        exported_ids = {old: new for new, old in enumerate(sorted(reachable))}
+    else:
+        exported_ids = {old: new for new, old in enumerate(
+            i for i, node in enumerate(policy.nodes) if node.kind != "frame")}
 
     def successor(index):
         frame = 0
         while policy.nodes[index].kind == "frame":
             frame ^= policy.nodes[index].frame
             index = policy.nodes[index].next
-        return exported_ids[index], frame, policy.nodes[index]
+        return exported_ids.get(index, 0), frame, policy.nodes[index]
 
     root, root_frame, _ = successor(policy.root)
     metadata.update(ROOT_NODE=root, ROOT_FRAME_X=root_frame & ((1 << code.n) - 1),
                     ROOT_FRAME_Z=root_frame >> code.n)
-    for node in policy.nodes:
-        if node.kind == "frame":
+    for index, node in enumerate(policy.nodes):
+        if index not in exported_ids:
             continue
         if node.kind == 'extract':
             action = policy.actions[node.action]
@@ -263,6 +291,26 @@ def generate_adaptive_source(protocol):
                     DECISION_PREDICATE_MASK=(1 << predicate_bits) - 1,
                     DECISION_REFERENCE_MASK=(1 << reference_bits) - 1,
                     DECISION_OTHER_SHIFT=predicate_bits + reference_bits)
+    if large_export:
+        # A tuple of seven constants per row exceeds the serializer's per-value
+        # text limit on full order-two controllers. Five small control fields
+        # fit in one positive signed machine word; retain the two frame masks.
+        columns = (0, 1, 2, 5, 6)
+        widths = [max(1, max(row[c] for row in node_rows).bit_length()) for c in columns]
+        if sum(widths) > 63:
+            raise ValueError('Packed policy controls exceed a signed machine word')
+        shifts, shift = [], 0
+        for width in widths:
+            shifts.append(shift)
+            shift += width
+        node_rows = [(sum(row[c] << s for c, s in zip(columns, shifts)), row[3], row[4])
+                     for row in node_rows]
+        metadata['POLICY_ROWS_PACKED'] = True
+        unpack_policy = ['        word, frame_x, frame_z = nodes[node]']
+        for field, shift, width in zip(('kind', 'action', 'transition', 'basis_x', 'basis_z'), shifts, widths):
+            metadata['POLICY_' + field.upper() + '_SHIFT'] = shift
+            metadata['POLICY_' + field.upper() + '_MASK'] = (1 << width) - 1
+            unpack_policy.append(f'        {field} = (word >> comptime(POLICY_{field.upper()}_SHIFT)) & comptime(POLICY_{field.upper()}_MASK)')
     tables = '\n\n'.join(f'{name} = {pformat(value, width=100, compact=True)}'
                          for name, value in [('POLICY_NODES', node_rows),
                                              ('TERMINAL_DECODERS', terminal_roots or [(-1, -1, -1)]),
@@ -275,6 +323,9 @@ def generate_adaptive_source(protocol):
                                              ('DECISION_LEAVES', leaves or [0]),
                                              ('DECISION_NODES', decision_data or ([0] if packed else [(0, 0, -1, -1)]))])
     template = Path(__file__).with_name('_se_adaptive_guppy_template.py.in').read_text()
+    if large_export:
+        template = template.replace('        kind, action, transition, frame_x, frame_z, basis_x, basis_z = nodes[node]',
+                                    '\n'.join(unpack_policy))
     return (template.replace('# GENERATED_METADATA', '\n'.join(
                 f'{name} = {value!r}' for name, value in metadata.items()))
             .replace('# GENERATED_LOOKUP', lookup)

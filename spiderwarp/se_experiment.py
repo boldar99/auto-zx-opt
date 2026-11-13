@@ -25,17 +25,39 @@ def parser():
     build.add_argument("--max-search-states", type=int, default=100000)
     build.add_argument("--optimize", action="store_true", help="Run ZX optimization before synthesis")
     build.add_argument("--feasible-only", action="store_true", help="Skip minimax search")
+    build.add_argument("--paired", action="store_true", help="d4→d4, d4→d2, or d4→d4→d2 PS flow; no d1 or third d4")
     build.add_argument("--emit", choices=["none", "guppy", "hugr"], default="guppy")
     steane = sub.add_parser("build-steane", help="Save a conventional Steane RUS baseline")
-    steane.add_argument("--mode", choices=["d4", "ladder-ancilla", "ladder-cycle"], required=True)
+    steane.add_argument("--mode", choices=["fixed"], default="fixed")
     steane.add_argument("--out", type=Path, required=True)
     steane.add_argument("--emit", choices=["none", "guppy", "hugr"], default="guppy")
-    steane.add_argument("--postselection", choices=["none", "unique-css-2"], default="none",
-                        help="Reject confirmed data syndromes without a unique CSS correction through weight two")
+    steane.add_argument("--postselection", choices=["unique-css-2"], default="unique-css-2",
+                        help="Reject the single frame-adjusted data reading without a unique CSS correction through weight two")
     postselected = sub.add_parser("build-postselected", help="Compile and verify the order-one history guard")
     postselected.add_argument("parent", type=Path)
     postselected.add_argument("--out", type=Path, default=Path("build/se_postselected_32_20_4"))
     postselected.add_argument("--emit", choices=["none", "guppy", "hugr"], default="guppy")
+    order_two = sub.add_parser("build-order-two", help="Compile exact r+s<=2 uniqueness rescues with mandatory order-one acceptance")
+    order_two.add_argument("parent", type=Path)
+    order_two.add_argument("--out", type=Path, default=Path("build/adaptive_order_two_32_20_4"))
+    order_two.add_argument("--emit", choices=["none", "guppy", "hugr"], default="guppy")
+    likelihood = sub.add_parser("build-likelihood", help="Freeze full-history likelihood PS rescues at one or more risk thresholds")
+    likelihood.add_argument("parent", type=Path)
+    likelihood.add_argument("--out", type=Path, default=Path("build/se_likelihood_32_20_4"))
+    likelihood.add_argument("--risk-thresholds", type=float, nargs="+", default=[0.01, 0.05],
+                            help="Estimated joint logical-risk cutoffs for additional rescues (default: 0.01 0.05)")
+    likelihood.add_argument("--records", type=Path,
+                            help="Frozen discovery JSON[.gz] containing records of [action, flags, raw syndrome]")
+    likelihood.add_argument("--discovery-shots", type=int, default=10000,
+                            help="Attempted discovery trajectories per basis/cycle configuration")
+    likelihood.add_argument("--discovery-cycles", type=int, nargs="+", default=[1, 10])
+    likelihood.add_argument("--seed", type=int, default=2026111304)
+    likelihood_noise = likelihood.add_mutually_exclusive_group()
+    likelihood_noise.add_argument("--p", type=float, help="Scale the default hardware model to this p_2q")
+    likelihood_noise.add_argument("--noise-model", type=Path, help="JSON CustomErrorModel likelihood rates")
+    likelihood.add_argument("--input-error-probability", type=float,
+                            help="Incoming iid depolarizing prior per qubit (default: likelihood p_2q)")
+    likelihood.add_argument("--emit", choices=["none", "guppy", "hugr"], default="guppy")
     compile_ = sub.add_parser("compile", help="Generate source/HUGR from an existing bundle")
     compile_.add_argument("protocol", type=Path)
     compile_.add_argument("--emit", choices=["guppy", "hugr"], default="hugr")
@@ -128,7 +150,58 @@ def emit_protocol(protocol, directory, emit):
 def main(argv=None):
     p = parser()
     args = p.parse_args(argv)
-    if args.command == "build-postselected":
+    if args.command == "build-order-two":
+        from spiderwarp.se_order_two import compile_order_two
+        parent = load_protocol(args.parent)
+        protocol, provenance = compile_order_two(parent, progress=lambda s: print(s, flush=True))
+        protocol.save_bundle(args.out)
+        provenance['parent_protocol_hash'] = read_manifest(args.parent)[1]['protocol_hash']
+        provenance['protocol_hash'] = read_manifest(args.out)[1]['protocol_hash']
+        atomic_write(args.out / 'experiment.json', json.dumps(provenance, indent=2) + '\n')
+        emit_protocol(protocol, args.out, args.emit)
+        return
+    if args.command == "build-likelihood":
+        import math
+        from spiderwarp.noise_model import CustomErrorModel
+        from spiderwarp.se_likelihood import (
+            FullHistoryLikelihood, collect_likelihood_records, postselect_likelihood,
+        )
+        from spiderwarp.se_protocol_io import digest
+        from spiderwarp.se_protocol_simulation import scaled_noise_model
+        if (len(set(args.risk_thresholds)) != len(args.risk_thresholds)
+                or any(not math.isfinite(t) or not 0 <= t <= 1 for t in args.risk_thresholds)):
+            p.error("Risk thresholds must be unique finite probabilities")
+        parent = load_protocol(args.parent)
+        noise = (CustomErrorModel(**json.loads(args.noise_model.read_text())) if args.noise_model
+                 else scaled_noise_model(args.p) if args.p is not None else None)
+        model = FullHistoryLikelihood(parent, noise_model=noise,
+                                     input_error_probability=args.input_error_probability)
+        progress = lambda message: print(message, flush=True)
+        parent_hash = read_manifest(args.parent)[1]["protocol_hash"]
+        if args.records:
+            import gzip
+            raw = args.records.read_bytes()
+            discovery = json.loads(gzip.decompress(raw) if args.records.suffix == '.gz' else raw)
+            if not isinstance(discovery, dict):
+                discovery = dict(records=discovery)
+            if discovery.get('parent_protocol_hash', parent_hash) != parent_hash:
+                p.error("Discovery records belong to a different parent protocol")
+        else:
+            discovery = collect_likelihood_records(model, shots=args.discovery_shots,
+                cycles=args.discovery_cycles, seed=args.seed, progress=progress)
+        discovery = dict(discovery, parent_protocol_hash=parent_hash)
+        atomic_write(args.out / "discovery.json", json.dumps(discovery, indent=2) + "\n")
+        for threshold in args.risk_thresholds:
+            protocol, provenance = postselect_likelihood(parent, discovery['records'],
+                risk_threshold=threshold, model=model, progress=progress)
+            directory = args.out / ("epsilon_" + str(threshold).replace('.', 'p'))
+            protocol.save_bundle(directory)
+            provenance.update(parent_protocol_hash=parent_hash,
+                protocol_hash=read_manifest(directory)[1]['protocol_hash'],
+                discovery_sha256=digest(discovery), discovery_tasks=discovery.get('discovery_tasks'))
+            atomic_write(directory / "likelihood.json", json.dumps(provenance, indent=2) + "\n")
+            emit_protocol(protocol, directory.resolve(), args.emit)
+    elif args.command == "build-postselected":
         from spiderwarp.se_postselection import postselect_order_one, verify_order_one_guard
         parent = load_protocol(args.parent)
         protocol = postselect_order_one(parent, progress=lambda s: print(s, flush=True))
@@ -162,7 +235,7 @@ def main(argv=None):
             code, circuits, peak_qubits=args.peak_qubits, optimize=args.optimize,
             minimize=not args.feasible_only, max_cnot_cost=args.max_cnot_cost,
             max_search_states=args.max_search_states, export=False,
-            output_dir=args.out, progress=lambda s: print(s, flush=True))
+            output_dir=args.out, progress=lambda s: print(s, flush=True), paired=args.paired)
         print(f"Protocol bundle: {args.out.resolve()}", flush=True)
         print(json.dumps(vars(protocol.verification), default=vars, indent=2), flush=True)
         emit_protocol(protocol, args.out.resolve(), args.emit)

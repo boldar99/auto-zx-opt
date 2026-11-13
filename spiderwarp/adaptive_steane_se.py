@@ -156,7 +156,7 @@ def build_adaptive_se_protocol(
     first_action: str | None = None, peak_qubits: int | None = None,
     max_cnot_cost: int | None = None, minimize: bool = True,
     max_search_states: int = 100000, export: bool = False, output_dir=None,
-    progress=None,
+    progress=None, paired: bool = False,
 ) -> AdaptiveSEProtocol:
     """Synthesize and independently verify a fixed-library minimax policy.
 
@@ -208,10 +208,16 @@ def build_adaptive_se_protocol(
             first_action = candidates[0]
     else:
         raise ValueError("Use integer-labelled Stim circuits or named SEGadgets")
+    if paired and contract is None:
+        # Order two is analyzed for detection. Correction/residual guarantees
+        # cover total order one; hidden order-two cases are not overconstrained.
+        from dataclasses import replace
+        contract = replace(FTContract.for_code(code), correctable=1,
+                           accept_clean_through=1, accepted_filter_order=1)
     builder = AdaptivePolicyBuilder(space, actions, contract=contract, peak_qubits=peak_qubits,
                                     max_search_states=max_search_states, progress=progress)
     policy = builder.build(first_action=first_action, max_cnot_cost=max_cnot_cost,
-                           minimize=minimize, verify=True)
+                           minimize=minimize, verify=True, paired=paired)
     result = AdaptiveSEProtocol(code, policy)
     if export:
         result.export(output_dir)

@@ -1,0 +1,48 @@
+{
+  "complete": true,
+  "methods": [
+    "adaptive_history",
+    "adaptive_order_two",
+    "adaptive_no_flags",
+    "steane_fixed_ps"
+  ],
+  "configurations_per_method": 32,
+  "attempts_per_method": 9329148,
+  "total_comparison_attempts": 37316592,
+  "raw_files_verified": 256,
+  "targeted_tests": {
+    "passed": 56,
+    "skipped": 12
+  },
+  "notebooks": [
+    {
+      "path": "notebooks/32_20_4_protocol_demo.ipynb",
+      "embedded_figures": 6,
+      "all_code_cells_executed": true
+    },
+    {
+      "path": "notebooks/32_20_4_steane_comparison.ipynb",
+      "embedded_figures": 6,
+      "all_code_cells_executed": true
+    }
+  ],
+  "visually_checked_figure_pairs": [
+    "physical_error",
+    "cycles",
+    "survival",
+    "cnot_cost",
+    "physical_survival",
+    "acceptance_error_tradeoff"
+  ],
+  "export_transition_audit": {
+    "nodes_checked": 186390,
+    "transitions_checked": 1045488,
+    "packed_nodes": 186391,
+    "complete": true,
+    "seconds": 26.399441375004244
+  },
+  "physical_controls": "order_two_controls.json",
+  "resume_validation": "order_two_resume_validation.json",
+  "statistics": "Conditional LER and gate costs exclude rejected trajectories; AR uses all attempts",
+  "result": "Acceptance improves but ten-cycle conditional LER increases at default hardware noise"
+}

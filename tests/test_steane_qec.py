@@ -28,7 +28,7 @@ def test_physical_noiseless_repeated_cycles(protocols, mode, basis):
                              cycles=3).sample(20, 7)
     assert result.accepted == 20 and result.logical_errors == 0
     assert result.diagnostics.cycles_completed == 60
-    assert result.diagnostics.total_cnots == 20 * 3 * 632
+    assert result.diagnostics.total_cnots == 20 * 3 * 288
     assert protocol.required_qubits == 66
 
 
@@ -48,7 +48,7 @@ class ScriptedReadout:
         self.counts[name] += 1
         self.trace.append(name)
         # Reject the first two preparations of either distance/basis; d1 has
-        # no flags. Only the very first Z read differs, requiring a third read.
+        # no flags. The first Z read is nonzero and must be used without confirmation.
         values = [False] * circuit.num_measurements
         prep_count = sum(v for k, v in self.counts.items() if k.startswith("prep_"))
         if name.startswith("prep_") and prep_count <= 2 and values:
@@ -59,24 +59,18 @@ class ScriptedReadout:
 
 
 @pytest.mark.parametrize("mode", MODES)
-def test_retry_ladder_scope_and_confirmation(protocols, mode):
+def test_fixed_retry_and_single_read(protocols, mode):
     protocol = protocols[mode]
     sim = ScriptedReadout(protocol)
     outcome = protocol.run(sim)
     prep = [n for n in sim.trace if n.startswith("prep_")]
-    if mode == "d4":
-        assert prep == ["prep_Z_d4"] * 5 + ["prep_X_d4"] * 2
-    elif mode == "ladder-ancilla":
-        assert prep == ["prep_Z_d4", "prep_Z_d2", "prep_Z_d1", "prep_Z_d4", "prep_Z_d4",
-                        "prep_X_d4", "prep_X_d4"]
-    else:
-        assert prep == ["prep_Z_d4", "prep_Z_d2"] + ["prep_Z_d1"] * 3 + ["prep_X_d1"] * 2
-    assert sim.trace[:4] == [prep[0], "discard_Z", prep[1], "discard_Z"]
-    assert sim.counts["read_Z"] == 3 and sim.counts["read_X"] == 2
-    assert outcome.accepted and outcome.frame_x == outcome.frame_z == 0
+    assert prep == ["prep_Z_d3"] * 3 + ["prep_X_d3"]
+    assert sim.trace[:2] == [prep[0], "discard_Z"]
+    assert sim.counts["read_Z"] == sim.counts["read_X"] == 1
+    assert outcome.accepted and outcome.frame_x == 1 and outcome.frame_z == 0
     second = ScriptedReadout(protocol)
     protocol.run(second)
-    assert second.trace[0] == "prep_Z_d4"  # Every new QEC cycle resets.
+    assert second.trace[0] == "prep_Z_d3"  # Every new QEC cycle resets.
 
 
 @pytest.mark.parametrize("mode", MODES)
@@ -87,7 +81,7 @@ def test_bundle_roundtrip_and_integrity(protocols, mode, tmp_path):
     assert loaded.mode == mode
     assert loaded.decoders == original.decoders
     source = loaded.export_guppy(tmp_path).read_text()
-    assert "while True:" in source and "syndrome == previous" in source
+    assert "while True:" in source and "syndrome == previous" not in source
     manifest = json.loads(path.read_text())
     manifest["mode"] = "changed"
     path.write_text(json.dumps(manifest))
@@ -96,7 +90,7 @@ def test_bundle_roundtrip_and_integrity(protocols, mode, tmp_path):
 
 
 def test_every_single_css_input_and_existing_frame(protocols):
-    protocol = protocols["ladder-cycle"]
+    protocol = protocols["fixed"]
     # Split X/Z support is CSS weight one, including incoming tracked frames.
     for basis in ("0", "+"):
         experiment = _StateExperiment(protocol.code, protocol.required_qubits, basis)
@@ -143,8 +137,8 @@ def test_arbitrary_logical_state_is_preserved_with_split_css_input(protocols, mo
 
 
 def test_data_waits_through_every_failed_preparation(protocols):
-    sampler = ProtocolSampler(protocols["d4"], noise_model=CustomErrorModel(p_linear_mem=.001))
-    g = sampler.protocol.gadgets["prep_Z_d4"]
+    sampler = ProtocolSampler(protocols["fixed"], noise_model=CustomErrorModel(p_linear_mem=.001))
+    g = sampler.protocol.gadgets["prep_Z_d3"]
     noisy = sampler.circuits[id(g.circuit)]
     idle = noisy[0]
     assert idle.name == "Z_ERROR"
@@ -221,7 +215,7 @@ def test_exported_controller_matches_retry_paths_and_all_decoder_inputs(protocol
         return protocol.gadgets[f"read_{basis}"].readout.decode(sim.record[-32:])[1]
 
     for basis in ("Z", "X"):
-        for d in (1, 2, 4):
+        for d in (1, 3):
             name = f"prep_{basis}_d{d}"
             exported[f"prep_{basis.lower()}_d{d}"] = lambda ancilla, name=name: preparation(name)
         exported[f"read_{basis.lower()}"] = lambda data, ancilla, basis=basis: read(basis)
@@ -256,6 +250,7 @@ def test_comparison_plots_and_count_audit(tmp_path, monkeypatch):
                 rows.append(dict(protocol_hash=f"protocol-{i}", engine_hash="engine", prepared_state=basis,
                                  p=p, cycles=n, shots=1000, target_shots=1000, accepted=accepted,
                                  logical_errors=errors, total_cnots=1000*(300 + i*100)*n,
+                                 accepted_cnots=accepted*(300 + i*100)*n,
                                  noise=json.dumps(vars(scaled_noise_model(p))), seed=7,
                                  ler_low=low, ler_high=high,
                                  sweeps=json.dumps(["physical_error" if p != .0008 else "cycles"])))
@@ -293,30 +288,3 @@ def test_native_hugr_executes_both_bases(protocols, mode, tmp_path):
         result = run_native(path, tmp_path / basis, prepared_state=basis, cycles=3,
                             incoming_x=1, incoming_z=1 << 17, p=0, shots=4, seed=7)
         assert result["accepted"] == 4 and result["logical_errors"] == 0
-
-
-@pytest.mark.parametrize("mode", ("ladder-ancilla", "ladder-cycle"))
-@pytest.mark.parametrize("basis", ("0", "+"))
-def test_native_retry_branches_reuse_qubits_and_reach_d1(protocols, mode, basis, tmp_path, monkeypatch):
-    pytest.importorskip("guppylang")
-    pytest.importorskip("selene_sim")
-    import spiderwarp.se_native as native
-    original = native.experiment_source
-
-    def forced_flags(protocol, **kwargs):
-        lines = original(protocol, **kwargs).splitlines()
-        force = False
-        for i, line in enumerate(lines):
-            if line.startswith("def "):
-                force = line.startswith("def prep_") and ("_d4(" in line or "_d2(" in line)
-            if force and line.startswith("    return pack_parities("):
-                lines[i] += " | 1"
-        return "\n".join(lines) + "\n"
-
-    # Only the reported flag is forced. The actual preparation, discard,
-    # allocation, d1 readout and frame code execute in serialized HUGR.
-    monkeypatch.setattr(native, "experiment_source", forced_flags)
-    path = protocols[mode].save_bundle(tmp_path / "protocol")
-    result = native.run_native(path, tmp_path / "native", prepared_state=basis, cycles=3,
-                               incoming_x=1, incoming_z=1 << 17, p=0, shots=4, seed=7)
-    assert result["accepted"] == 4 and result["logical_errors"] == 0

@@ -1,0 +1,78 @@
+{
+  "complete": true,
+  "date": "2026-11-13",
+  "methods": [
+    "adaptive_history",
+    "adaptive_no_flags",
+    "steane_fixed_ps"
+  ],
+  "configurations_per_method": 32,
+  "comparison_rows": 96,
+  "default_endpoint_rows": 12,
+  "attempted_shots_per_method": 9329148,
+  "current_cohort_attempted_shots": 27987444,
+  "equal_attempted_counts_per_configuration": true,
+  "rejected_trajectories_excluded_from_ler_and_gate_statistics": true,
+  "gate_cost": "accepted_cnots / accepted / N",
+  "acceptance_rate": "accepted / all attempts",
+  "allowed_adaptive_distance_paths": [
+    [
+      4,
+      4,
+      2
+    ],
+    [
+      4,
+      4
+    ],
+    [
+      4,
+      2
+    ]
+  ],
+  "max_adaptive_extractions": 3,
+  "max_adaptive_d4_extractions": 2,
+  "no_d1": true,
+  "adaptive_path_costs": {
+    "4,4,2": 433,
+    "4,4": 312,
+    "4,2": 277
+  },
+  "zero_flag_path": [
+    4,
+    4
+  ],
+  "zero_flag_accepted_cycle_cnots": 312,
+  "physical_css_one_input_controls": 4356,
+  "first_and_second_single_fault_response_replays": 8040,
+  "additional_alias_single_fault_regression_replays": 4020,
+  "native_clean_shots": 32,
+  "native_gate_only_noisy_shots": 400,
+  "latest_tests_passed": 34,
+  "latest_tests_skipped": 12,
+  "latest_test_log": "build/fault_count_fix_tests.log",
+  "raw_files_hashed": 192,
+  "completed_resume_adds_no_shots": true,
+  "current_data_unchanged_and_retired_data_preserved": true,
+  "fixed_steane_artifacts_preserved": true,
+  "figure_pairs_visually_checked": 6,
+  "notebooks_verified": {
+    "notebooks/32_20_4_steane_comparison.ipynb": "48646a6aa63288e64863868ff0521975a290bec5690bc18d5c399b665a6b4f54",
+    "notebooks/32_20_4_protocol_demo.ipynb": "48646a6aa63288e64863868ff0521975a290bec5690bc18d5c399b665a6b4f54"
+  },
+  "fault_count_fix": "fault_count_fix_validation.json",
+  "controls": "controls.json",
+  "sampling_validation": "sampling_validation.json",
+  "raw_hashes": "raw_hashes.json",
+  "shot_floor": 100000,
+  "shot_cap": 1000000,
+  "normal_budget_extensions_verified": true,
+  "original_batches_preserved": true,
+  "no_duplicate_shot_ranges": true,
+  "original_fixed_steane_dataset_preserved": true,
+  "normal_shot_promotion": "normal_shot_promotion.json",
+  "zero_flag_uncertainty": "zero_flag_uncertainty.json",
+  "normal_shots_tests_passed": 3,
+  "normal_shots_test_log": "build/normal_shots_tests.log",
+  "visual_inspection_pending": false
+}

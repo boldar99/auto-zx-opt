@@ -1,0 +1,459 @@
+{
+  "complete": true,
+  "methods": {
+    "adaptive_history": {
+      "0": {
+        "css_one_inputs": 1089,
+        "accepted_inputs_correct": 1089,
+        "postselected_inputs": 0,
+        "first_fault_classes": 1005,
+        "accepted_faults_correct": 1005,
+        "postselected_faults": 0,
+        "second_fault_classes": 1005,
+        "accepted_second_faults_correct": 1005,
+        "accepted_d2_followup_replays": 771,
+        "rejected_d2_followup_replays": 0,
+        "noiseless_ten_cycle_shots": 100,
+        "native_clean": {
+          "backend": "selene-stim",
+          "noise_model": "gate-noise-including-preparation-and-readout-no-memory-v1",
+          "noise": {
+            "p_1q": 0.0,
+            "p_2q": 0.0,
+            "p_init": 0.0,
+            "p_meas": 0.0
+          },
+          "p": 0,
+          "seed": 20261113,
+          "cycles": 3,
+          "prepared_state": "0",
+          "shots": 8,
+          "accepted": 8,
+          "logical_errors": 0,
+          "ler": 0.0,
+          "ler_interval_95": [
+            0.0,
+            0.32440756488388023
+          ],
+          "survival": 1.0,
+          "versions": {
+            "spiderwarp": "0.1.0",
+            "numpy": "2.2.6",
+            "stim": "1.17.dev1792124270",
+            "guppylang": "0.21.16",
+            "hugr": "0.16.0",
+            "selene-sim": "0.2.18"
+          },
+          "experiment": {
+            "protocol_hash": "62da3175473f60675125c331b7cc2ac9c5bdee5ed71e23f7fe04e8da439cfe44",
+            "prepared_state": "0",
+            "cycles": 3,
+            "incoming_x": 1,
+            "incoming_z": 131072,
+            "source_sha256": "84692f6783dcf9d14dde63d5197b793abc1ed4a1d5721e8a360e55e7569ab7bb",
+            "versions": {
+              "spiderwarp": "0.1.0",
+              "numpy": "2.2.6",
+              "stim": "1.17.dev1792124270",
+              "guppylang": "0.21.16",
+              "hugr": "0.16.0",
+              "selene-sim": "0.2.18"
+            },
+            "compile_hash": "ae7267903a094c81ba5aec64b807d0aafc68462107bdc51fe42880d59f004e3b",
+            "hugr_sha256": "52add1a0cc224f4d4f849a5a7453216bc984b88d9f38ede588a52998b0b2dd09"
+          }
+        },
+        "native_gate_only_noisy": {
+          "backend": "selene-stim",
+          "noise_model": "gate-noise-including-preparation-and-readout-no-memory-v1",
+          "noise": {
+            "p_1q": 3.125e-05,
+            "p_2q": 0.001,
+            "p_init": 0.001,
+            "p_meas": 1.2499999999999999e-06
+          },
+          "p": 0.001,
+          "seed": 20261113,
+          "cycles": 1,
+          "prepared_state": "0",
+          "shots": 100,
+          "accepted": 72,
+          "logical_errors": 7,
+          "ler": 0.09722222222222222,
+          "ler_interval_95": [
+            0.047896319973655774,
+            0.1873504579512686
+          ],
+          "survival": 0.72,
+          "versions": {
+            "spiderwarp": "0.1.0",
+            "numpy": "2.2.6",
+            "stim": "1.17.dev1792124270",
+            "guppylang": "0.21.16",
+            "hugr": "0.16.0",
+            "selene-sim": "0.2.18"
+          },
+          "experiment": {
+            "protocol_hash": "62da3175473f60675125c331b7cc2ac9c5bdee5ed71e23f7fe04e8da439cfe44",
+            "prepared_state": "0",
+            "cycles": 1,
+            "incoming_x": 0,
+            "incoming_z": 0,
+            "source_sha256": "773533d7527057e726a330d4ee6e3149c5cfceaa185de5a50c65f0e93fe74725",
+            "versions": {
+              "spiderwarp": "0.1.0",
+              "numpy": "2.2.6",
+              "stim": "1.17.dev1792124270",
+              "guppylang": "0.21.16",
+              "hugr": "0.16.0",
+              "selene-sim": "0.2.18"
+            },
+            "compile_hash": "cb449422ca39e1888f9fa1633ecd8a1ce422f8d82d29bc7d01737c9430d16ad9",
+            "hugr_sha256": "555c48317730f72b1b1329f1ffafdb47f2d318c5bf4e22214906283e5d654753"
+          }
+        }
+      },
+      "+": {
+        "css_one_inputs": 1089,
+        "accepted_inputs_correct": 1089,
+        "postselected_inputs": 0,
+        "first_fault_classes": 1005,
+        "accepted_faults_correct": 1005,
+        "postselected_faults": 0,
+        "second_fault_classes": 1005,
+        "accepted_second_faults_correct": 1005,
+        "accepted_d2_followup_replays": 771,
+        "rejected_d2_followup_replays": 0,
+        "noiseless_ten_cycle_shots": 100,
+        "native_clean": {
+          "backend": "selene-stim",
+          "noise_model": "gate-noise-including-preparation-and-readout-no-memory-v1",
+          "noise": {
+            "p_1q": 0.0,
+            "p_2q": 0.0,
+            "p_init": 0.0,
+            "p_meas": 0.0
+          },
+          "p": 0,
+          "seed": 20261113,
+          "cycles": 3,
+          "prepared_state": "+",
+          "shots": 8,
+          "accepted": 8,
+          "logical_errors": 0,
+          "ler": 0.0,
+          "ler_interval_95": [
+            0.0,
+            0.32440756488388023
+          ],
+          "survival": 1.0,
+          "versions": {
+            "spiderwarp": "0.1.0",
+            "numpy": "2.2.6",
+            "stim": "1.17.dev1792124270",
+            "guppylang": "0.21.16",
+            "hugr": "0.16.0",
+            "selene-sim": "0.2.18"
+          },
+          "experiment": {
+            "protocol_hash": "62da3175473f60675125c331b7cc2ac9c5bdee5ed71e23f7fe04e8da439cfe44",
+            "prepared_state": "+",
+            "cycles": 3,
+            "incoming_x": 1,
+            "incoming_z": 131072,
+            "source_sha256": "05b0661e8ee879d50fd9f9306bcde032e61395811dde8291e2f73154eacc2f90",
+            "versions": {
+              "spiderwarp": "0.1.0",
+              "numpy": "2.2.6",
+              "stim": "1.17.dev1792124270",
+              "guppylang": "0.21.16",
+              "hugr": "0.16.0",
+              "selene-sim": "0.2.18"
+            },
+            "compile_hash": "a78c04650cf1e0be47e00f0764641940b6e724cbcb88c593568bd82aff2401bc",
+            "hugr_sha256": "ce5b8e8e8f005034717badbd7f64607c6ba832c9968b83b3f2e2541ba63e5d2e"
+          }
+        },
+        "native_gate_only_noisy": {
+          "backend": "selene-stim",
+          "noise_model": "gate-noise-including-preparation-and-readout-no-memory-v1",
+          "noise": {
+            "p_1q": 3.125e-05,
+            "p_2q": 0.001,
+            "p_init": 0.001,
+            "p_meas": 1.2499999999999999e-06
+          },
+          "p": 0.001,
+          "seed": 20261113,
+          "cycles": 1,
+          "prepared_state": "+",
+          "shots": 100,
+          "accepted": 87,
+          "logical_errors": 5,
+          "ler": 0.05747126436781609,
+          "ler_interval_95": [
+            0.02479563779315351,
+            0.12757376490451622
+          ],
+          "survival": 0.87,
+          "versions": {
+            "spiderwarp": "0.1.0",
+            "numpy": "2.2.6",
+            "stim": "1.17.dev1792124270",
+            "guppylang": "0.21.16",
+            "hugr": "0.16.0",
+            "selene-sim": "0.2.18"
+          },
+          "experiment": {
+            "protocol_hash": "62da3175473f60675125c331b7cc2ac9c5bdee5ed71e23f7fe04e8da439cfe44",
+            "prepared_state": "+",
+            "cycles": 1,
+            "incoming_x": 0,
+            "incoming_z": 0,
+            "source_sha256": "c39598f6c709952f6d1b572eae4920d892a12cb9966f21239f333c43e1dd22e6",
+            "versions": {
+              "spiderwarp": "0.1.0",
+              "numpy": "2.2.6",
+              "stim": "1.17.dev1792124270",
+              "guppylang": "0.21.16",
+              "hugr": "0.16.0",
+              "selene-sim": "0.2.18"
+            },
+            "compile_hash": "a998551fa24ab68fda7702668a81f1c0ba7389cea77d5b4d3e7d50601203cf88",
+            "hugr_sha256": "c510420007421ae3900740bd1ba2bc04b8a1e5a7493924894983a27406371c70"
+          }
+        }
+      }
+    },
+    "adaptive_no_flags": {
+      "0": {
+        "css_one_inputs": 1089,
+        "accepted_inputs_correct": 1089,
+        "postselected_inputs": 0,
+        "first_fault_classes": 1005,
+        "accepted_faults_correct": 232,
+        "postselected_faults": 773,
+        "second_fault_classes": 1005,
+        "accepted_second_faults_correct": 232,
+        "accepted_d2_followup_replays": 0,
+        "rejected_d2_followup_replays": 0,
+        "noiseless_ten_cycle_shots": 100,
+        "native_clean": {
+          "backend": "selene-stim",
+          "noise_model": "gate-noise-including-preparation-and-readout-no-memory-v1",
+          "noise": {
+            "p_1q": 0.0,
+            "p_2q": 0.0,
+            "p_init": 0.0,
+            "p_meas": 0.0
+          },
+          "p": 0,
+          "seed": 20261113,
+          "cycles": 3,
+          "prepared_state": "0",
+          "shots": 8,
+          "accepted": 8,
+          "logical_errors": 0,
+          "ler": 0.0,
+          "ler_interval_95": [
+            0.0,
+            0.32440756488388023
+          ],
+          "survival": 1.0,
+          "versions": {
+            "spiderwarp": "0.1.0",
+            "numpy": "2.2.6",
+            "stim": "1.17.dev1792124270",
+            "guppylang": "0.21.16",
+            "hugr": "0.16.0",
+            "selene-sim": "0.2.18"
+          },
+          "experiment": {
+            "protocol_hash": "131e76ee8a48727bc49c57fe1e91192578cd7627931903ad0644f87982874c88",
+            "prepared_state": "0",
+            "cycles": 3,
+            "incoming_x": 1,
+            "incoming_z": 131072,
+            "source_sha256": "4881c5ae8aea856e0476b02389fc7804cae8493a26cb6f059700cba60d305e00",
+            "versions": {
+              "spiderwarp": "0.1.0",
+              "numpy": "2.2.6",
+              "stim": "1.17.dev1792124270",
+              "guppylang": "0.21.16",
+              "hugr": "0.16.0",
+              "selene-sim": "0.2.18"
+            },
+            "compile_hash": "75bf9681fdbbb2ec4bdb31b1333a914b842d57a67632b05c68fa0853ced58cad",
+            "hugr_sha256": "7a471c96a228df3e7ba23e316a9091fc584ed412020bd0699784df6a8bd76258"
+          }
+        },
+        "native_gate_only_noisy": {
+          "backend": "selene-stim",
+          "noise_model": "gate-noise-including-preparation-and-readout-no-memory-v1",
+          "noise": {
+            "p_1q": 3.125e-05,
+            "p_2q": 0.001,
+            "p_init": 0.001,
+            "p_meas": 1.2499999999999999e-06
+          },
+          "p": 0.001,
+          "seed": 20261113,
+          "cycles": 1,
+          "prepared_state": "0",
+          "shots": 100,
+          "accepted": 60,
+          "logical_errors": 6,
+          "ler": 0.1,
+          "ler_interval_95": [
+            0.04664283447388416,
+            0.20149464723978772
+          ],
+          "survival": 0.6,
+          "versions": {
+            "spiderwarp": "0.1.0",
+            "numpy": "2.2.6",
+            "stim": "1.17.dev1792124270",
+            "guppylang": "0.21.16",
+            "hugr": "0.16.0",
+            "selene-sim": "0.2.18"
+          },
+          "experiment": {
+            "protocol_hash": "131e76ee8a48727bc49c57fe1e91192578cd7627931903ad0644f87982874c88",
+            "prepared_state": "0",
+            "cycles": 1,
+            "incoming_x": 0,
+            "incoming_z": 0,
+            "source_sha256": "45d0c1d6b405049f511b7d3be10f07072d5fbe2ddc8df100cfe1aa87d54dd24e",
+            "versions": {
+              "spiderwarp": "0.1.0",
+              "numpy": "2.2.6",
+              "stim": "1.17.dev1792124270",
+              "guppylang": "0.21.16",
+              "hugr": "0.16.0",
+              "selene-sim": "0.2.18"
+            },
+            "compile_hash": "cafc9034da5db9da9569b9f92303992bc89594db766990610a7d881d336bc9b5",
+            "hugr_sha256": "c504746a4408ff08ff6a158d20bb6e9775d7000400f4c1b0eeae2f64c138e595"
+          }
+        }
+      },
+      "+": {
+        "css_one_inputs": 1089,
+        "accepted_inputs_correct": 1089,
+        "postselected_inputs": 0,
+        "first_fault_classes": 1005,
+        "accepted_faults_correct": 232,
+        "postselected_faults": 773,
+        "second_fault_classes": 1005,
+        "accepted_second_faults_correct": 232,
+        "accepted_d2_followup_replays": 0,
+        "rejected_d2_followup_replays": 0,
+        "noiseless_ten_cycle_shots": 100,
+        "native_clean": {
+          "backend": "selene-stim",
+          "noise_model": "gate-noise-including-preparation-and-readout-no-memory-v1",
+          "noise": {
+            "p_1q": 0.0,
+            "p_2q": 0.0,
+            "p_init": 0.0,
+            "p_meas": 0.0
+          },
+          "p": 0,
+          "seed": 20261113,
+          "cycles": 3,
+          "prepared_state": "+",
+          "shots": 8,
+          "accepted": 8,
+          "logical_errors": 0,
+          "ler": 0.0,
+          "ler_interval_95": [
+            0.0,
+            0.32440756488388023
+          ],
+          "survival": 1.0,
+          "versions": {
+            "spiderwarp": "0.1.0",
+            "numpy": "2.2.6",
+            "stim": "1.17.dev1792124270",
+            "guppylang": "0.21.16",
+            "hugr": "0.16.0",
+            "selene-sim": "0.2.18"
+          },
+          "experiment": {
+            "protocol_hash": "131e76ee8a48727bc49c57fe1e91192578cd7627931903ad0644f87982874c88",
+            "prepared_state": "+",
+            "cycles": 3,
+            "incoming_x": 1,
+            "incoming_z": 131072,
+            "source_sha256": "258e13c24fd6cbb70e5865daebad9dcf5deb74d5d993ba15b3c04cbbd358fb2a",
+            "versions": {
+              "spiderwarp": "0.1.0",
+              "numpy": "2.2.6",
+              "stim": "1.17.dev1792124270",
+              "guppylang": "0.21.16",
+              "hugr": "0.16.0",
+              "selene-sim": "0.2.18"
+            },
+            "compile_hash": "6f14bdaa1c82301cd21d29ce6a1780990c65655766723e7c8849228f9d161903",
+            "hugr_sha256": "a3695a1eb9cf7dba9add7177e2817c4d96053ff5570c238b7a08fea76eb0d423"
+          }
+        },
+        "native_gate_only_noisy": {
+          "backend": "selene-stim",
+          "noise_model": "gate-noise-including-preparation-and-readout-no-memory-v1",
+          "noise": {
+            "p_1q": 3.125e-05,
+            "p_2q": 0.001,
+            "p_init": 0.001,
+            "p_meas": 1.2499999999999999e-06
+          },
+          "p": 0.001,
+          "seed": 20261113,
+          "cycles": 1,
+          "prepared_state": "+",
+          "shots": 100,
+          "accepted": 70,
+          "logical_errors": 5,
+          "ler": 0.07142857142857142,
+          "ler_interval_95": [
+            0.03089421703784702,
+            0.1565541221709532
+          ],
+          "survival": 0.7,
+          "versions": {
+            "spiderwarp": "0.1.0",
+            "numpy": "2.2.6",
+            "stim": "1.17.dev1792124270",
+            "guppylang": "0.21.16",
+            "hugr": "0.16.0",
+            "selene-sim": "0.2.18"
+          },
+          "experiment": {
+            "protocol_hash": "131e76ee8a48727bc49c57fe1e91192578cd7627931903ad0644f87982874c88",
+            "prepared_state": "+",
+            "cycles": 1,
+            "incoming_x": 0,
+            "incoming_z": 0,
+            "source_sha256": "d319597ec4b6e63310380a5194e4d3f6d3ea491019c40e40b6b177e047b886ab",
+            "versions": {
+              "spiderwarp": "0.1.0",
+              "numpy": "2.2.6",
+              "stim": "1.17.dev1792124270",
+              "guppylang": "0.21.16",
+              "hugr": "0.16.0",
+              "selene-sim": "0.2.18"
+            },
+            "compile_hash": "5d85c6b582ad1a3f5c01f5ccd0e8c3e8c44759ad11d9a4da64b2e8caaa84eb15",
+            "hugr_sha256": "30e7c452318089ed2ccc98402eaf4b0634d1b455e18924b0151619728e13f3c6"
+          }
+        }
+      }
+    }
+  },
+  "physical_css_one_inputs": 4356,
+  "native_clean_shots": 32,
+  "native_noisy_shots": 400,
+  "native_noise_scope": "Gate-only backend controls; differs from production scheduled-memory noise",
+  "history_method_requires_single_fault_acceptance": true,
+  "zero_flag_experiment_can_postselect_single_faults": true
+}

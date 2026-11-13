@@ -1,0 +1,360 @@
+{
+  "reason": "User requested deletion and rebuild: old arbitrary-input synthesis domain and Adaptive Baseline excluded",
+  "removed": [
+    {
+      "path": "benchmarks/se_100k",
+      "files": 77,
+      "retired_protocol_hash": "07022f2f0e2794e443d17093c8bca92c13537a1c7b5e3046cf52bd455d739e62"
+    },
+    {
+      "path": "benchmarks/se_small",
+      "files": 72,
+      "retired_protocol_hash": "07022f2f0e2794e443d17093c8bca92c13537a1c7b5e3046cf52bd455d739e62"
+    },
+    {
+      "path": "benchmarks/se_controls",
+      "files": 7
+    },
+    {
+      "path": "benchmarks/se_postselected_100k",
+      "files": 79,
+      "retired_protocol_hash": "369e501c3fd7d6bc0fac687fb89c7e76870a44044bafe7ebaafe2519d681e58a"
+    },
+    {
+      "path": "benchmarks/se_postselected_controls",
+      "files": 7
+    },
+    {
+      "path": "benchmarks/adaptive_css_100k",
+      "files": 79,
+      "retired_protocol_hash": "08ebce8890734f155dc0724418347b4a7519ec995127e4149dbccb22b9fa11c7"
+    },
+    {
+      "path": "benchmarks/adaptive_css_recover_exact_100k",
+      "files": 79,
+      "retired_protocol_hash": "3cd43369fd160eb929ef8a78f7351d83fac4599ade7dcc84128317e13edfd931"
+    },
+    {
+      "path": "benchmarks/adaptive_css_recover_safe_100k",
+      "files": 79,
+      "retired_protocol_hash": "c0254535e1e1468c29a81bfbc0214170c1336b29c2a4e66ff6ceb4001dd3e936"
+    },
+    {
+      "path": "analysis/32_20_4_adaptive_improvements",
+      "files": 32
+    },
+    {
+      "path": "analysis/32_20_4_branch_assessment",
+      "files": 21
+    },
+    {
+      "path": "analysis/32_20_4_noise_assessment",
+      "files": 52
+    },
+    {
+      "path": "analysis/32_20_4_postselected_validation",
+      "files": 7
+    },
+    {
+      "path": "analysis/32_20_4_likelihood",
+      "files": 84
+    },
+    {
+      "path": "analysis/32_20_4_read_flag_audit",
+      "files": 5
+    },
+    {
+      "path": "analysis/32_20_4_syndrome_uniqueness",
+      "files": 11
+    },
+    {
+      "path": "build/32_20_4_adaptive_protocol",
+      "files": 10
+    },
+    {
+      "path": "build/32_20_4_protocol",
+      "files": 2
+    },
+    {
+      "path": "build/adaptive_css_32_20_4",
+      "files": 13
+    },
+    {
+      "path": "build/adaptive_css_native_controls",
+      "files": 48
+    },
+    {
+      "path": "build/adaptive_css_recover_exact_32_20_4",
+      "files": 13
+    },
+    {
+      "path": "build/adaptive_css_recover_safe_32_20_4",
+      "files": 13
+    },
+    {
+      "path": "build/se_32_20_4",
+      "files": 12
+    },
+    {
+      "path": "build/se_controls",
+      "files": 7
+    },
+    {
+      "path": "build/se_likelihood_32_20_4",
+      "files": 124
+    },
+    {
+      "path": "build/se_native_32_20_4",
+      "files": 17
+    },
+    {
+      "path": "build/se_postselected_32_20_4",
+      "files": 69
+    },
+    {
+      "path": "build/se_postselected_rebuild_check",
+      "files": 9
+    },
+    {
+      "path": "benchmarks/steane_comparison",
+      "files": 14
+    },
+    {
+      "path": "analysis/32_20_4_steane_single_shot/validation.json",
+      "files": 1
+    },
+    {
+      "path": "analysis/32_20_4_steane_single_shot/preserved_raw_hashes.json",
+      "files": 1
+    },
+    {
+      "path": "analysis/32_20_4_steane_single_shot/preserved_likelihood_notebook_cells.json",
+      "files": 1
+    },
+    {
+      "path": "build/adaptive_improvements_regressions.log",
+      "files": 1
+    },
+    {
+      "path": "build/adaptive_improvements_recover.log",
+      "files": 1
+    },
+    {
+      "path": "build/adaptive_improvements_final_audit.log",
+      "files": 1
+    },
+    {
+      "path": "build/se_postselected_build.log",
+      "files": 1
+    },
+    {
+      "path": "build/adaptive_improvements_export_audit.log",
+      "files": 1
+    },
+    {
+      "path": "build/adaptive_css_recover_safe_production.log",
+      "files": 1
+    },
+    {
+      "path": "build/adaptive_improvements_safe_pilot.log",
+      "files": 1
+    },
+    {
+      "path": "build/stopping_obstruction.log",
+      "files": 1
+    },
+    {
+      "path": "build/se_postselected_export_audit.log",
+      "files": 1
+    },
+    {
+      "path": "build/se_likelihood_notebook_update.log",
+      "files": 1
+    },
+    {
+      "path": "build/adaptive_rescue_stronger_contract.log",
+      "files": 1
+    },
+    {
+      "path": "build/read_flag_audit.log",
+      "files": 1
+    },
+    {
+      "path": "build/adaptive_safe_controls.log",
+      "files": 1
+    },
+    {
+      "path": "build/se_likelihood_release_tests.log",
+      "files": 1
+    },
+    {
+      "path": "build/adaptive_css_recover_exact_production.log",
+      "files": 1
+    },
+    {
+      "path": "build/se_postselected_plot.log",
+      "files": 1
+    },
+    {
+      "path": "build/se_postselected_tests.log",
+      "files": 1
+    },
+    {
+      "path": "build/se_postselected_standalone_plot.log",
+      "files": 1
+    },
+    {
+      "path": "build/se_likelihood_final_regressions.log",
+      "files": 1
+    },
+    {
+      "path": "build/adaptive_improvements_controls.log",
+      "files": 1
+    },
+    {
+      "path": "build/adaptive_css_production.log",
+      "files": 1
+    },
+    {
+      "path": "build/adaptive_improvements_replay.log",
+      "files": 1
+    },
+    {
+      "path": "build/se_likelihood_resume.log",
+      "files": 1
+    },
+    {
+      "path": "build/adaptive_css_recover_safe_compile.log",
+      "files": 1
+    },
+    {
+      "path": "build/se_likelihood_25_pilot.log",
+      "files": 1
+    },
+    {
+      "path": "build/adaptive_improvements_final_candidate_tests.log",
+      "files": 1
+    },
+    {
+      "path": "build/se_likelihood_25_tests.log",
+      "files": 1
+    },
+    {
+      "path": "build/se_likelihood_final_tests.log",
+      "files": 1
+    },
+    {
+      "path": "build/se_likelihood_final_resume.log",
+      "files": 1
+    },
+    {
+      "path": "build/se_likelihood_25_resume.log",
+      "files": 1
+    },
+    {
+      "path": "build/se_postselected_final_audit.log",
+      "files": 1
+    },
+    {
+      "path": "build/adaptive_improvements_separated.log",
+      "files": 1
+    },
+    {
+      "path": "build/se_postselected_100k.log",
+      "files": 1
+    },
+    {
+      "path": "build/se_postselected_final_plot_tests.log",
+      "files": 1
+    },
+    {
+      "path": "build/adaptive_improvements_unit_tests.log",
+      "files": 1
+    },
+    {
+      "path": "build/se_likelihood_native.log",
+      "files": 1
+    },
+    {
+      "path": "build/se_postselected_controls.log",
+      "files": 1
+    },
+    {
+      "path": "build/se_likelihood_build.log",
+      "files": 1
+    },
+    {
+      "path": "build/se_likelihood_25_native.log",
+      "files": 1
+    },
+    {
+      "path": "build/steane_single_final_audit.log",
+      "files": 1
+    },
+    {
+      "path": "build/se_likelihood_25_audit.log",
+      "files": 1
+    },
+    {
+      "path": "build/se_postselected_replay.log",
+      "files": 1
+    },
+    {
+      "path": "build/se_likelihood_final_audit.log",
+      "files": 1
+    },
+    {
+      "path": "build/se_postselected_resume.log",
+      "files": 1
+    },
+    {
+      "path": "build/se_likelihood_rebuild.log",
+      "files": 1
+    },
+    {
+      "path": "build/se_likelihood_25_build.log",
+      "files": 1
+    },
+    {
+      "path": "build/adaptive_css_recover_exact_compile.log",
+      "files": 1
+    },
+    {
+      "path": "build/se_postselected_physical_audit.log",
+      "files": 1
+    },
+    {
+      "path": "build/se_likelihood_audit.log",
+      "files": 1
+    },
+    {
+      "path": "build/se_likelihood_pilot.log",
+      "files": 1
+    },
+    {
+      "path": "build/se_postselected_native.log",
+      "files": 1
+    },
+    {
+      "path": "build/adaptive_compact_evidence_tests.log",
+      "files": 1
+    },
+    {
+      "path": "build/se_likelihood_tests.log",
+      "files": 1
+    },
+    {
+      "path": "build/adaptive_improvements_refinements.log",
+      "files": 1
+    },
+    {
+      "path": "build/adaptive_improvements_tests.log",
+      "files": 1
+    },
+    {
+      "path": "build/adaptive_improvements_pilot.log",
+      "files": 1
+    }
+  ],
+  "archived_raw_data": false
+}

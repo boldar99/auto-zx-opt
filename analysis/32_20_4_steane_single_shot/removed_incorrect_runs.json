@@ -1,0 +1,246 @@
+{
+  "removed": [
+    {
+      "path": "benchmarks/steane_comparison",
+      "reason": "Incorrect repeated-syndrome Steane runs explicitly removed by user request",
+      "files": 16
+    },
+    {
+      "path": "benchmarks/steane_css_ps_d4_100k",
+      "reason": "Incorrect repeated-syndrome Steane runs explicitly removed by user request",
+      "files": 71
+    },
+    {
+      "path": "benchmarks/steane_css_ps_d4_10k",
+      "reason": "Incorrect repeated-syndrome Steane runs explicitly removed by user request",
+      "files": 70
+    },
+    {
+      "path": "benchmarks/steane_css_ps_ladder_ancilla_100k",
+      "reason": "Incorrect repeated-syndrome Steane runs explicitly removed by user request",
+      "files": 71
+    },
+    {
+      "path": "benchmarks/steane_css_ps_ladder_ancilla_10k",
+      "reason": "Incorrect repeated-syndrome Steane runs explicitly removed by user request",
+      "files": 70
+    },
+    {
+      "path": "benchmarks/steane_rus_d4_100k",
+      "reason": "Incorrect repeated-syndrome Steane runs explicitly removed by user request",
+      "files": 69
+    },
+    {
+      "path": "benchmarks/steane_rus_d4_controls",
+      "reason": "Incorrect repeated-syndrome Steane runs explicitly removed by user request",
+      "files": 7
+    },
+    {
+      "path": "benchmarks/steane_rus_ladder_ancilla_100k",
+      "reason": "Incorrect repeated-syndrome Steane runs explicitly removed by user request",
+      "files": 69
+    },
+    {
+      "path": "benchmarks/steane_rus_ladder_ancilla_controls",
+      "reason": "Incorrect repeated-syndrome Steane runs explicitly removed by user request",
+      "files": 7
+    },
+    {
+      "path": "benchmarks/steane_rus_ladder_cycle_100k",
+      "reason": "Incorrect repeated-syndrome Steane runs explicitly removed by user request",
+      "files": 69
+    },
+    {
+      "path": "benchmarks/steane_rus_ladder_cycle_controls",
+      "reason": "Incorrect repeated-syndrome Steane runs explicitly removed by user request",
+      "files": 7
+    },
+    {
+      "path": "build/steane_comparison.log",
+      "reason": "Incorrect repeated-syndrome Steane runs explicitly removed by user request",
+      "files": 1
+    },
+    {
+      "path": "build/steane_comparison_validation_before_css_ps.json",
+      "reason": "Incorrect repeated-syndrome Steane runs explicitly removed by user request",
+      "files": 1
+    },
+    {
+      "path": "build/steane_controls.log",
+      "reason": "Incorrect repeated-syndrome Steane runs explicitly removed by user request",
+      "files": 1
+    },
+    {
+      "path": "build/steane_css_ps_10k.log",
+      "reason": "Incorrect repeated-syndrome Steane runs explicitly removed by user request",
+      "files": 1
+    },
+    {
+      "path": "build/steane_css_ps_controls",
+      "reason": "Incorrect repeated-syndrome Steane runs explicitly removed by user request",
+      "files": 168
+    },
+    {
+      "path": "build/steane_css_ps_controls.log",
+      "reason": "Incorrect repeated-syndrome Steane runs explicitly removed by user request",
+      "files": 1
+    },
+    {
+      "path": "build/steane_css_ps_d4",
+      "reason": "Incorrect repeated-syndrome Steane runs explicitly removed by user request",
+      "files": 4
+    },
+    {
+      "path": "build/steane_css_ps_final_audit.log",
+      "reason": "Incorrect repeated-syndrome Steane runs explicitly removed by user request",
+      "files": 1
+    },
+    {
+      "path": "build/steane_css_ps_final_plot_tests.log",
+      "reason": "Incorrect repeated-syndrome Steane runs explicitly removed by user request",
+      "files": 1
+    },
+    {
+      "path": "build/steane_css_ps_ladder_ancilla",
+      "reason": "Incorrect repeated-syndrome Steane runs explicitly removed by user request",
+      "files": 4
+    },
+    {
+      "path": "build/steane_css_ps_ladder_build.log",
+      "reason": "Incorrect repeated-syndrome Steane runs explicitly removed by user request",
+      "files": 1
+    },
+    {
+      "path": "build/steane_css_ps_plot_tests.log",
+      "reason": "Incorrect repeated-syndrome Steane runs explicitly removed by user request",
+      "files": 1
+    },
+    {
+      "path": "build/steane_css_ps_plots.log",
+      "reason": "Incorrect repeated-syndrome Steane runs explicitly removed by user request",
+      "files": 1
+    },
+    {
+      "path": "build/steane_css_ps_regressions.log",
+      "reason": "Incorrect repeated-syndrome Steane runs explicitly removed by user request",
+      "files": 1
+    },
+    {
+      "path": "build/steane_css_ps_tests.log",
+      "reason": "Incorrect repeated-syndrome Steane runs explicitly removed by user request",
+      "files": 1
+    },
+    {
+      "path": "build/steane_d4_comparison_preview",
+      "reason": "Incorrect repeated-syndrome Steane runs explicitly removed by user request",
+      "files": 11
+    },
+    {
+      "path": "build/steane_forced_retries.log",
+      "reason": "Incorrect repeated-syndrome Steane runs explicitly removed by user request",
+      "files": 1
+    },
+    {
+      "path": "build/steane_forced_retry_controls",
+      "reason": "Incorrect repeated-syndrome Steane runs explicitly removed by user request",
+      "files": 48
+    },
+    {
+      "path": "build/steane_ps_d4_full.log",
+      "reason": "Incorrect repeated-syndrome Steane runs explicitly removed by user request",
+      "files": 1
+    },
+    {
+      "path": "build/steane_ps_descending_full.log",
+      "reason": "Incorrect repeated-syndrome Steane runs explicitly removed by user request",
+      "files": 1
+    },
+    {
+      "path": "build/steane_rus_d4",
+      "reason": "Incorrect repeated-syndrome Steane runs explicitly removed by user request",
+      "files": 46
+    },
+    {
+      "path": "build/steane_rus_ladder_ancilla",
+      "reason": "Incorrect repeated-syndrome Steane runs explicitly removed by user request",
+      "files": 32
+    },
+    {
+      "path": "build/steane_rus_ladder_cycle",
+      "reason": "Incorrect repeated-syndrome Steane runs explicitly removed by user request",
+      "files": 32
+    },
+    {
+      "path": "build/steane_two_baseline_preview",
+      "reason": "Incorrect repeated-syndrome Steane runs explicitly removed by user request",
+      "files": 11
+    },
+    {
+      "path": "build/validate_steane_exports.py",
+      "files": 1,
+      "reason": "Retired repeated-read helper"
+    },
+    {
+      "path": "build/validate_steane_retry_hugr.py",
+      "files": 1,
+      "reason": "Retired repeated-read helper"
+    },
+    {
+      "path": "build/finalize_steane_comparison.py",
+      "files": 1,
+      "reason": "Retired repeated-read helper"
+    },
+    {
+      "path": "analysis/32_20_4_syndrome_uniqueness/quick_steane_ps.py",
+      "files": 1,
+      "reason": "Obsolete repeated-read data or driver"
+    },
+    {
+      "path": "analysis/32_20_4_syndrome_uniqueness/full_steane_ps.py",
+      "files": 1,
+      "reason": "Obsolete repeated-read data or driver"
+    },
+    {
+      "path": "analysis/32_20_4_syndrome_uniqueness/audit_full_steane_ps.py",
+      "files": 1,
+      "reason": "Obsolete repeated-read data or driver"
+    },
+    {
+      "path": "analysis/32_20_4_syndrome_uniqueness/validate_controls.py",
+      "files": 1,
+      "reason": "Obsolete repeated-read data or driver"
+    },
+    {
+      "path": "analysis/32_20_4_syndrome_uniqueness/controls.json",
+      "files": 1,
+      "reason": "Obsolete repeated-read data or driver"
+    },
+    {
+      "path": "analysis/32_20_4_syndrome_uniqueness/steane_d4_gate_accounting.json",
+      "files": 1,
+      "reason": "Obsolete repeated-read data or driver"
+    },
+    {
+      "path": "analysis/32_20_4_adaptive_improvements/focused_comparison",
+      "reason": "Derived comparison contains removed incorrect Steane results; regenerate"
+    },
+    {
+      "path": "analysis/32_20_4_adaptive_improvements/default_endpoints.csv",
+      "reason": "Derived comparison contains removed incorrect Steane results; regenerate"
+    },
+    {
+      "path": "analysis/32_20_4_adaptive_improvements/selection_report.json",
+      "reason": "Derived comparison contains removed incorrect Steane results; regenerate"
+    },
+    {
+      "path": "analysis/32_20_4_adaptive_improvements/figures/acceptance_error_tradeoff.png",
+      "reason": "Derived comparison contains removed incorrect Steane results; regenerate"
+    },
+    {
+      "path": "analysis/32_20_4_adaptive_improvements/figures/acceptance_error_tradeoff.pdf",
+      "reason": "Derived comparison contains removed incorrect Steane results; regenerate"
+    }
+  ],
+  "raw_data_not_archived": true,
+  "preserved_adaptive_and_likelihood_raw_files": 368
+}

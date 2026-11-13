@@ -22,7 +22,7 @@ class Prepared:
 ''']
     n = protocol.code.n
     for basis in ("Z", "X"):
-        for d in (1, 2, 4):
+        for d in sorted(protocol.preparations):
             g = protocol.gadgets[f"prep_{basis}_d{d}"]
             lines += ['@guppy.comptime',
                       f'def prep_{basis.lower()}_d{d}(ancilla: array[qubit, comptime(N_DATA)]) -> int:',
@@ -49,11 +49,9 @@ class Prepared:
         lines += ['@guppy', f'def prepare_{low}(level: int) -> Prepared:',
                   '    while True:',
                   '        ancilla = array(qubit() for _ in range(comptime(N_DATA)))',
-                  f'        flags = prep_{low}_d4(ancilla) if level == 4 else prep_{low}_d2(ancilla) if level == 2 else prep_{low}_d1(ancilla)',
+                  f'        flags = prep_{low}_d3(ancilla) if level == 3 else prep_{low}_d1(ancilla)',
                   '        if flags == 0:', '            return Prepared(ancilla, level)',
                   '        for q in ancilla:', '            measure_bit(q)']
-        if protocol.mode != 'd4':
-            lines += ['        level = 2 if level == 4 else 1']
         lines += ['', '@guppy.comptime',
                   f'def syndrome_{low}(measurements: array[bool, comptime(N_DATA)]) -> int:',
                   f'    return pack_parities(measurements, {protocol.gadgets[f"read_{basis}"].readout.syndromes!r})',
@@ -79,24 +77,18 @@ class Prepared:
             lines += [f'UNIQUE_{basis} = {list(protocol.unique_syndromes[basis])!r}', '']
     lines += ['@guppy',
               'def se_cycle_with_frame(data: array[qubit, comptime(N_DATA)], frame_x: int, frame_z: int) -> CycleResult:',
-              '    level = 4']
+              '    # One data-syndrome read per basis; only ancilla preparation retries.']
     for basis, frame in (("z", "frame_x"), ("x", "frame_z")):
-        lines += ['    previous = -1', '    done = False', '    while not done:']
-        if protocol.mode != 'ladder-cycle':
-            lines += ['        level = 4']
-        lines += [f'        prepared = prepare_{basis}(level)',
-                  '        level = prepared.level',
-                  f'        syndrome = read_{basis}(data, prepared.ancilla)',
-                  '        if syndrome == previous:']
+        lines += [f'    prepared = prepare_{basis}(3)',
+                  f'    syndrome = read_{basis}(data, prepared.ancilla)']
         if protocol.unique_syndromes:
-            lines += [f'            adjusted = syndrome ^ frame_syndrome_{basis}({frame})',
-                      f'            unique = comptime(UNIQUE_{basis.upper()})',
-                      '            if not unique[adjusted]:',
-                      '                return CycleResult(False, frame_x, frame_z)']
+            lines += [f'    adjusted = syndrome ^ frame_syndrome_{basis}({frame})',
+                      f'    unique = comptime(UNIQUE_{basis.upper()})',
+                      '    if not unique[adjusted]:',
+                      '        return CycleResult(False, frame_x, frame_z)']
         lines += [
-                  f'            decoder = comptime(DECODER_{basis.upper()})',
-                  f'            {frame} ^= decoder[syndrome ^ frame_syndrome_{basis}({frame})]',
-                  '            done = True', '        previous = syndrome']
+                  f'    decoder = comptime(DECODER_{basis.upper()})',
+                  f'    {frame} ^= decoder[syndrome ^ frame_syndrome_{basis}({frame})]']
     lines += ['    return CycleResult(True, frame_x, frame_z)', '', '@guppy',
               'def se_cycle(data: array[qubit, comptime(N_DATA)]) -> CycleResult:',
               '    return se_cycle_with_frame(data, 0, 0)', '',

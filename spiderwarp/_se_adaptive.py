@@ -59,10 +59,12 @@ class CompatibleSet:
 class FTContract:
     """Explicit acceptance, logical-correctness, and residual-filter orders.
 
-    Every accepted modeled history passes its internal-fault-count CSS filter.
-    EC A includes arbitrary inputs through t internal faults. Corrections are
-    noiseless classical frames. Clean-input acceptance can extend beyond the
-    logical-correctness order without claiming unachievable logical protection.
+    The default domain retains incoming CSS order r and internal fault count s
+    with r+s<=fault_order. Accepted histories through accepted_filter_order
+    pass their s-filter; higher analyzed orders need not be correctable.
+    input_scope='arbitrary' explicitly selects the legacy broader input domain.
+    Corrections are noiseless classical frames. Mandatory acceptance is separate
+    from logical protection of accepted histories, allowing ambiguous-record PS.
     """
 
     correctable: int
@@ -70,6 +72,8 @@ class FTContract:
     max_syndrome_sectors: int = 65536
     fault_order: int | None = None
     accept_clean_through: int | None = None
+    input_scope: str = "total-order"
+    accepted_filter_order: int | None = None
 
     def __post_init__(self):
         if self.fault_order is None:
@@ -87,6 +91,12 @@ class FTContract:
             raise ValueError("Clean-input acceptance order must lie between t and the fault order")
         if self.max_syndrome_sectors < 1:
             raise ValueError("max_syndrome_sectors must be positive")
+        if self.input_scope not in {"total-order", "arbitrary"}:
+            raise ValueError("Input scope must be total-order or arbitrary")
+        if self.accepted_filter_order is None:
+            object.__setattr__(self, 'accepted_filter_order', self.fault_order)
+        if not self.logical_order <= self.accepted_filter_order <= self.fault_order:
+            raise ValueError("Accepted filter order must lie between logical and analyzed fault orders")
 
     @classmethod
     def for_code(cls, code):
@@ -433,12 +443,16 @@ class HistoryEngine:
             for sz, pz in decoder.classes["Z"].items():
                 signature = sx | (sz << decoder.x_width)
                 r = max(decoder.weights["X"][sx], decoder.weights["Z"][sz])
-                if r <= self.contract.logical_order:
+                maximum = (self.contract.fault_order if self.contract.input_scope == "total-order"
+                           else self.contract.logical_order)
+                if r <= maximum:
                     # If physical inputs differ by a logical Pauli, their
                     # ideal-decoded inputs differ by that same Pauli. Relative
                     # to that input, both start at this decoder representative.
                     histories.add((r, 0, px ^ pz))
-        filters = ((1 << len(self.sectors)) - 1,) + (0,) * self.contract.fault_order
+        filters = (((1 << len(self.sectors)) - 1,) + (0,) * self.contract.fault_order
+                   if self.contract.input_scope == "arbitrary"
+                   else (0,) * (self.contract.fault_order + 1))
         return CompatibleSet(frozenset(histories), filters, self.sectors)
 
     def layers(self, action: ExtractionAction, order):
@@ -474,7 +488,8 @@ class HistoryEngine:
                 spent = s + order
                 needs_logical = r + spent <= self.contract.logical_order
                 mandatory = self.contract.must_accept((r, spent, 0))
-                if not needs_logical and not mandatory and (spent <= self.contract.correctable or self.universal_filter[spent]):
+                bounded = self.contract.input_scope == "total-order"
+                if not bounded and not needs_logical and not mandatory and (spent <= self.contract.correctable or self.universal_filter[spent]):
                     # The same syndrome constraint is already covered by the
                     # arbitrary-input EC A domain, or is the universal filter.
                     continue
@@ -482,7 +497,7 @@ class HistoryEngine:
                     outcome = flags, readout ^ syndrome
                     if observed is not None and outcome != observed:
                         continue
-                    if needs_logical or mandatory:
+                    if bounded or needs_logical or mandatory:
                         residual = error ^ data if needs_logical else decoder.correction(signature ^ data_syndrome)
                         logical[outcome].add((r, spent, residual))
                     else:
@@ -528,6 +543,8 @@ class HistoryEngine:
             shift = 0 if basis == "X" else self.space.n
             mask = ((1 << self.space.n) - 1) << shift
             for r, s, error in sorted(histories.logical, key=lambda h: h[1]):
+                if r >= 0 and r + s > self.contract.accepted_filter_order:
+                    continue
                 allowed_syndromes = self.space.syndrome_errors(basis, s)
                 if r < 0 or r + s > self.contract.logical_order:
                     full_syndrome = error if r < 0 else self.syndrome(error)
@@ -828,8 +845,109 @@ class AdaptivePolicyBuilder:
         self._failures[histories] = max(budget, self._failures.get(histories, -1))
         return None
 
+    def build_paired(self, *, first_action: str, verify: bool = True) -> AdaptivePolicy:
+        """Prescribed d4/d4, d4/d2, or d4/d4/d2 postselected flow.
+
+        First flags zero selects the opposite d4 extraction; otherwise the
+        opposite d2 extraction. Inferred total order two rejects immediately.
+        A second d4 flag or unresolved endpoint can trigger one d2 follow-up.
+        Ambiguous terminal records may reject, including single-fault records.
+        """
+        if self.contract.input_scope != "total-order" or self.contract.fault_order != 2:
+            raise ValueError("Paired d4 flow requires total-order-two histories")
+        actions = {name: action for name, action in self.actions.items()
+                   if action.gadget.distance in {2, 4}}
+        first = actions[first_action]
+        if first.gadget.distance != 4:
+            raise ValueError("Paired flow starts at d4")
+        dual = "X" if first.gadget.basis == "Z" else "Z"
+        choices = {d: next(a for a in actions.values() if a.gadget.basis == dual
+                            and a.gadget.distance == d) for d in (2, 4)}
+        self.progress("Enumerating bounded first-primary outcomes")
+        groups = self.engine.transition(self.engine.initial(), first)
+        children = {}
+        completed = {}
+
+        def low_order(state):
+            return sum(r + s <= 1 for r, s, _ in state.logical)
+
+        def terminal(state):
+            if not low_order(state):
+                return 0
+            frame = self.engine.safe_frame(state)
+            if frame is None:
+                return None
+            if frame not in self._accept_ids:
+                self._accept_ids[frame] = len(self.nodes)
+                self.nodes.append(PolicyNode("accept", frame=frame))
+            return self._accept_ids[frame]
+
+        @lru_cache(None)
+        def followup(state):
+            candidates = []
+            for action in actions.values():
+                if action.gadget.distance != 2:
+                    continue
+                routes, covered, rejected, mandatory_rejected = {}, 0, 0, 0
+                for observed, following in self.engine.transition(state, action).items():
+                    node = terminal(following)
+                    if node is None:
+                        mandatory_rejected += sum(self.contract.must_accept(h) for h in following.logical)
+                        node = 0
+                    routes[observed] = node
+                    if node:
+                        covered += low_order(following)
+                    else:
+                        rejected += low_order(following)
+                # Choose a basis from compatible histories, never from a
+                # prepared-state label or sampled logical outcomes.
+                candidates.append((mandatory_rejected, -covered, rejected, action.name, routes))
+            required, _, _, name, routes = min(candidates, key=lambda item: item[:4])
+            if required:
+                raise PolicySearchError("Neither d2 basis can accept all mandatory histories on this branch")
+            return self.extraction_node(name, routes)
+
+        for number, (outcome, histories) in enumerate(sorted(groups.items(), key=lambda item: -len(item[1])), 1):
+            if not any(r + s <= 1 for r, s, _ in histories.logical):
+                children[outcome] = 0
+                continue
+            label = 4 if outcome[0] == 0 else 2
+            second = choices[label]
+            key = histories, second.name
+            if key not in completed:
+                following = self.engine.transition(histories, second)
+                routes = {}
+                for observed, state in following.items():
+                    if not any(r + s <= 1 for r, s, _ in state.logical):
+                        routes[observed] = 0
+                        continue
+                    node = terminal(state)
+                    if second.gadget.distance == 4 and (observed[0] != 0 or node is None):
+                        node = followup(state)
+                    elif node is None:
+                        if any(self.contract.must_accept(h) for h in state.logical):
+                            raise PolicySearchError(f"Mandatory history has no safe paired frame: {outcome}, {observed}")
+                        node = 0
+                    routes[observed] = node
+                completed[key] = self.extraction_node(second.name, routes)
+            children[outcome] = completed[key]
+            if number % 5000 == 0:
+                self.progress(f"Paired primary: {number:,}/{len(groups):,} first outcomes")
+        root = self.extraction_node(first_action, children)
+        self.actions = actions
+        report = AdaptiveVerificationReport(self.contract, self.engine.decoder.fingerprint)
+        policy = AdaptivePolicy(actions, self.contract, self.engine.decoder, tuple(self.nodes), root,
+                                report, False, self.search_states, self.peak_qubits)
+        compact_policy(policy)
+        if verify:
+            verify_adaptive_policy(policy)
+        self.progress(f"Paired policy verified: {len(policy.nodes):,} nodes; {policy.report.worst_case_cnots} CX/CZ")
+        return policy
+
     def build(self, *, first_action: str, max_cnot_cost: int | None = None,
-              minimize: bool = True, verify: bool = True) -> AdaptivePolicy:
+              minimize: bool = True, verify: bool = True, paired: bool = False) -> AdaptivePolicy:
+        if paired:
+            return self.build_paired(first_action=first_action, verify=verify)
         if first_action not in self.actions:
             raise ValueError("Initial extraction is missing or exceeds the peak-qubit limit")
         first = self.actions[first_action]
@@ -978,7 +1096,8 @@ def verify_adaptive_policy(policy: AdaptivePolicy) -> AdaptiveVerificationReport
                 r, s, error = history
                 signature = error ^ correction_syndrome if r < 0 else space.pauli_syndrome(error ^ correction)
                 sx, sz = signature & decoder.x_mask, signature >> decoder.x_width
-                if (decoder.weights["X"][sx] > s or decoder.weights["Z"][sz] > s):
+                if ((r < 0 or r + s <= policy.contract.accepted_filter_order)
+                        and (decoder.weights["X"][sx] > s or decoder.weights["Z"][sz] > s)):
                     raise AdaptiveVerificationError("Accepted output exceeds CSS fault-count filter", record, history)
                 if (r >= 0 and r + s <= policy.contract.logical_order
                         and space.reduce(error ^ correction ^ decoder.correction(signature))):

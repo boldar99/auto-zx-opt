@@ -76,427 +76,99 @@ syndrome_extraction = steane_se_from_stim_state_prep(
 print(syndrome_extraction.num_qubits)
 ```
 
-## Adaptive Steane syndrome-extraction programs
+## Adaptive and Steane QEC comparison
 
-The default builder retains every flag and syndrome and synthesizes a verified
-adaptive decision graph. It starts with d4 Z-SE for `[[32,20,4]]`; the next basis
-and protection level depend on the complete compatible-history set.
+The [[32,20,4]] adaptive methods have these allowed completed distance paths:
 
-```python
-import stim
-from spiderwarp.csscode import CSSCode
-from spiderwarp.utils import get_project_root
-from spiderwarp.optimized_steane_se import optimized_steane_SE_orchestrator
+- **d4 → d4 → d2**: use one d2 follow-up after a second-d4 flag or an unresolved correction;
+- **d4 → d4**: stop once a safe correction is determined;
+- **d4 → d2**: raised flags in the first d4 select d2 directly.
 
-code = CSSCode.load_code("misc", "32_20_4")
-assets = get_project_root() / "assets/circuits/SECircuits"
-circuits = {
-    d: stim.Circuit.from_file(assets / f"32_20_4_d{d}.stim")
-    for d in (1, 2, 4)
-}
-protocol = optimized_steane_SE_orchestrator(
-    code, circuits,
-    peak_qubits=60,
-    output_dir="build/32_20_4_adaptive_protocol",
-    progress=print,
-)
-print(protocol.verification)
-```
+There is **no d1 and no third d4**. The first reading is Z_d4, the second X_d4
+or X_d2; the follow-up is Z_d2 or X_d2 selected from compatible histories.
+A rejected trajectory may stop at an earlier prefix.
 
-Inputs are finalized X-SE circuits; integer keys are their protection labels.
-The builder derives Z duals for identical `H_x`/`H_z`. Set `optimize=True` to
-apply the existing ZX boundary-bend/reuse pipeline before policy synthesis.
-Alternatively, `build_adaptive_se_protocol` in `spiderwarp.adaptive_steane_se`
-accepts named `SEGadget` variants, including multiple circuits at the same label.
+Incoming CSS component order is `r=max(w_X,w_Z)` and `s` counts internal faulty
+locations. Analyze **r+s≤2** for detection, and **post-select if no r+s≤1
+explanation remains**. Correction/residual guarantees cover **r+s≤1**; hidden
+order-two histories are not an additional correction demand. The history method
+independently verifies mandatory acceptance and correction through order one.
+An internal fault remains one fault after propagation to multiple data qubits;
+its identified correction is allowed to have weight greater than one. The former
+extra raw syndrome/correction-weight guard was incorrect for this full adaptive
+mode and is retired. Its corrected fault-aware interpretation is identical to
+the history policy, so only one such curve is displayed.
+All adaptive methods accept and correct every noiseless CSS-weight-at-most-one input
+in the physical controls. The earlier all-nonzero-input rejection was a modeling
+error and its benchmark was removed.
 
-The minimum eligible protection follows the remaining internal-fault budget:
+The comparison contains:
 
-| Further faults possible in the compatible histories | Minimum circuit label |
-|---:|---:|
-| 2 | d4 |
-| 1 | d2 |
-| 0 | d1 |
+- **Adaptive PS(r+s≤1)**.
+- **Adaptive PS(r+s≤1 or V₂)** preserves every order-one decision and correction.
+  Additional records accept only when all compatible histories through order two
+  have one final data Pauli class modulo stabilizers. This includes incoming-two,
+  incoming-one plus one internal fault, and two distinct internal faulty locations.
+  Parent-rejected records are considered. A d4→d4 record may use one d2 in the
+  basis that separates the most uniquely correctable outcomes. The certificate
+  uses the existing gate/reset/readout fault model; production includes memory
+  noise. It does not promise correctness of every accepted order-two history.
+- **Adaptive PS(r+s≤1 or p_err≤10%)** and **Adaptive PS(r+s≤1 or p_err≤25%)**
+  retain all order-one histories and their original corrections. Other records
+  use the most probable final Pauli class modulo stabilizers as their correction;
+  `p_err = 1 - P(MAP class | complete record)`. The default-noise model includes
+  scheduled memory and an incoming iid Pauli prior, with at most two nonzero
+  response channels. All positive-probability records in that expansion are
+  enumerated without discovery sampling or output labels. The model and prior
+  are frozen before production and reused throughout the physical-noise sweep.
+  Epsilon is a per-correction estimate, not an all-orders or endpoint LER bound.
+- **Adaptive PS(f=0, r_syn≤1)**, with immediate rejection of any raised flag
+  and a direct-readout CSS uniqueness guard. This is the observable “no internal faults” proxy;
+  unflagged faults can still pass. It corrects incoming CSS-one inputs, including
+  split X/Z errors. Its only accepted path is d4→d4, at exactly 312 CX/CZ.
+  This separate direct-readout guard can reject unflagged internal faults;
+  it does not have the full adaptive method's single-fault acceptance guarantee.
+- **Steane d3 RUS PS(r_syn≤1)**, which retries flagged ancilla preparations
+  before coupling and measures the data syndrome once per CSS basis.
 
-The data-code distance stays four. Raised flags certify expenditure through the
-histories, rather than by counting flag bits. d2 transitions include the possible
-new fault; d1 transitions are fault-free. Both bases remain available. A common
-safe correction ends the cycle immediately; a flag does not automatically reject
-the data or discard a syndrome.
+Adaptive Baseline, d1 and the retired V/likelihood experiments are excluded.
+V₂ is the new full order-two uniqueness analysis on the current controller.
+The previous two-total-reading datasets and derived figures were
+removed. Current runs use the normal matching shot budgets, extending the valid
+half-shot samples without duplicating their completed batches.
 
-The fault model includes all 15 nonidentity Pauli alternatives at each two-qubit
-gate as **one event**, X/Y/Z after one-qubit gates, reset flips, and measurement
-flips. The X and Z boundary constraints share the same joint histories and fault
-count. Guppy basis rotations are lowered before enumeration. Implicit idle
-locations and backend-specific gate transformations are outside this exact model.
+**LER and gate-cost statistics exclude rejected data trajectories.** Gate cost
+is `accepted_cnots / accepted / N`, including all preparation retries inside
+accepted Steane trajectories. Even the early cycles of a later-rejected shot
+are excluded. Acceptance rate remains accepted/attempted to show yield. Raw
+all-attempt counts remain only for bookkeeping and audit.
 
-For `r` incoming CSS error order and `s` internal faulty locations, the default
-`[[32,20,4]]` contract is:
+Finalized adaptive d4/d2 extractions include coupling and cost 156/121 CX/CZ.
+Its completed paths therefore cost **433, 312 or 277**; an accepted-cycle mean
+cannot be below **277**. Peak qubits are 60. Steane uses d3 preparation
+`FTStatePrep/misc/32_20_4_zero_d3.stim` (112 CX/CZ), two 32-CX couplings, and
+66 peak qubits: 288 gates before preparation retries.
 
-| (r,s) | Requirement |
-|---|---|
-| (0,0), (1,0) | Accept, zero residual error, preserve logical state. |
-| (0,1) | Accept, preserve ideal-decoded logical state, at most one residual error per CSS component. |
-| (0,2) | Accept, at most two residual errors per component; no logical guarantee at this order. |
-| (1,1) | Reject, or accept with at most one residual error per component. |
-| (2,0) | Reject, or accept with zero residual error. |
-
-The recovery condition additionally checks arbitrary incoming syndrome sectors
-through one internal fault. Its bound is the **internal** fault count. Bounds are
-modulo stabilizers where logical preservation is required and relative to some
-codeword otherwise. A fixed component decoder makes logical tests unambiguous.
-`FTContract` exposes these orders explicitly. The stronger
-`FTContract.correct_or_reject(code)` request can raise
-`FTContractInfeasibleError` with physical silent-terminal-fault witnesses; it is
-not the default contract.
-
-Synthesis first finds a certified ladder policy, then minimizes worst-case total
-CNOT-equivalent entangling gates under `peak_qubits`. Preparation, coupling, and
-all diagnostic extractions count. CX/CZ/XCX each cost one entangling unit.
-Optimality is relative to this library, ladder, fault model, and terminal-frame
-interface. The search report gives the cost and its lower bound. Use
-`minimize=False` for a feasible policy without a minimality claim, or configure
-`max_cnot_cost` and `max_search_states` to bound the search.
-
-Adaptive construction always runs an independent policy check that recomputes
-transitions and tests the supplied leaves without resynthesizing them. Calling
-`protocol.verify()` checks the existing graph again, including the distance
-ladder and termination. The old `verify` keyword controls only legacy mode.
-
-`protocol.run(tableau_simulator)` borrows the existing Stim data block and returns
-`ProtocolResult(accepted, ..., frame_x, frame_z)`. Corrections are **classical
-Pauli-frame masks**; physical correction gates are not applied. Retain the frame
-when composing further computation. Pass an existing frame back with
-`protocol.run(simulator, frame_x=x, frame_z=z)`; the returned frame includes it.
-The generated Guppy `se_cycle(data)` returns
-`CycleResult(accepted, frame_x, frame_z)` with the same semantics.
-Use `se_cycle_with_frame(data, x, z)` to compose an existing frame.
-`postselected_se_cycle(data)` exits on rejection and otherwise returns that result.
-The source and HUGR embed all decision tables; there is no runtime decoder sidecar.
-Reload the HUGR with `hugr.package.Package.from_bytes(path.read_bytes())`.
-Saving also writes `verification.json` and the exact lowered action circuits,
-including hashes that tie the report to the exported files.
-
-Guppy is optional for analysis: pass `export=False` to build and run the Stim
-reference without it. Install `python -m pip install -e ".[guppy]"` to export.
-`protocol.export(output_dir)` verifies and compiles later. The current exact
-implementation supports up to two faults, 65,536 input syndrome sectors, and
-63 data qubits or combined flag/check bits in the Guppy emitter.
-
-`estimate_protocol_ler` in `spiderwarp.se_protocol_simulation` incorporates the
-returned frame in ideal final decoding. It reports conditional LER and discards
-separately for logical `0` or `+` inputs. Its default hardware noise includes
-scheduled memory noise, so sampling and the exact gate-fault certificate have
-different explicitly reported scopes. Classical branch latency is not modeled.
-The [demo notebook](notebooks/32_20_4_protocol_demo.ipynb) shows circuit inspection,
-export/reload, both logical bases, and noise-source diagnostics.
-
-## Saved protocols and noisy repeated-cycle experiments
-
-Run the experiment CLI in your installed Python environment. Building performs
-policy synthesis and independent verification once; subsequent runs load the
-saved decision graph without synthesis. Guppy source generation does not need
-Guppy installed. HUGR compilation is a separate, optional operation.
-
-### Adaptive postselection from the full observation history
-
-**Adaptive history PS**, the order-one postselected controller, rejects as soon as its measured flags and
-syndromes have no explanation with incoming CSS error order plus internal faulty
-locations `r+s <= 1`. It retains benign flagged histories and rejects some
-unflagged histories requiring multiple faults. It uses no hidden noise-event
-counts or ideal final measurements.
+Each method uses the same 32 configurations, noise, seed 20261112 and inverse-square
+allocation: **100,000 floor / 1,000,000 cap**, **9,329,148 attempts per method**.
+Wilson intervals use accepted counts; circles mark adaptive methods and squares
+Steane. Production includes scheduled memory noise with ideal input/final decoding.
 
 ```sh
-python -m spiderwarp.se_experiment build-postselected build/se_32_20_4 \
-    --out build/se_postselected_32_20_4 --emit hugr
-python -m spiderwarp.se_experiment sweep build/se_postselected_32_20_4 \
-    --config benchmarks/se_postselected_100k/config.json \
-    --shots 100000 --max-shots 1000000 --allocation inverse-square \
-    --batch-size 10000 --jobs 8 --seed 20261112 \
-    --results benchmarks/se_postselected_100k
-python -m spiderwarp.se_comparison --plot-only
-```
-
-`build-postselected` derives a separate ordinary adaptive decision graph from
-the saved original. It preserves quantum circuits, actions and returned frames
-on surviving paths, and aborts rejected paths early. The independent fault checker
-verifies mandatory acceptance and logical preservation through `r+s<=1`, with
-the original CSS output filters. Mandatory clean-input two-fault acceptance is
-relaxed. A separate full-Pauli-history checker verifies the postselection guard.
-The controller uses 60 qubits and retains a 589-CNOT worst-case bound; no new
-optimality claim is made. Guppy/HUGR embed the guard as decision tables, without
-runtime fault enumeration or a decoder sidecar. `postselection.json` binds the
-derived graph to its parent hash and records the guard verification.
-
-The full comparison automatically includes the completed
-`benchmarks/se_postselected_100k/` dataset when present; an explicit directory can
-be supplied with `--postselected-results`. The figures show physical-p LER/p²,
-cycle LER/N, survival versus cycles, executed CNOT cost, and survival versus
-physical p. Survival remains linear with a range fitted to the measured data;
-stronger postselection can substantially widen that range. Use
-`se_experiment plot ... --physical-survival` to request the additional physical-p
-survival figure directly. Counts and intervals are available in the populated
-[comparison notebook](notebooks/32_20_4_steane_comparison.ipynb).
-
-### Adaptive syndrome postselection and verified recovery
-
-The adaptive study uses the same CSS-component weight-two assumption as the
-Steane PS baselines. **Adaptive syndrome PS** rejects when the original controller's
-new input-relative correction has an ambiguous syndrome. **Adaptive verified recovery**
-retains the histories accepted by **Adaptive history PS** and admits additional records only when
-all compatible incoming-CSS-order-one plus one-internal-fault histories identify
-one exact data Pauli class. Its correction must preserve the original frame's
-syndrome. That last constraint preserves the arbitrary-input QEC filters; the
-independent verifier checks the same contract as history PS.
-
-```sh
-python analysis/32_20_4_adaptive_improvements/production.py --variant css --jobs 8
-python analysis/32_20_4_adaptive_improvements/production.py --variant css-recover-safe --jobs 8
-python -m spiderwarp.se_comparison --plot-only
-python analysis/32_20_4_adaptive_improvements/report.py
-```
-
-Each new full sweep uses the original 32 configurations and 9,329,148-shot
-budget. The methods retain the original circuits, 60-qubit cap, at most four
-extractions and 589-CNOT worst-case bound. Standalone Guppy/HUGR live in
-`build/adaptive_{css,css_recover_safe}_32_20_4/`; results are in the corresponding
-`benchmarks/adaptive_{css,css_recover_safe}_100k/` directories. The plain CSS
-baseline allows single-fault rejection; verified rescue retains mandatory
-acceptance and logical protection through r+s<=1, with CSS filters through
-order two. Neither claims universal two-fault logical correction.
-
-Ten pilot candidates and their independent production results are documented
-in `analysis/32_20_4_adaptive_improvements/`. Basis reversal, extra final d2
-checks and independent CSS projections were not promoted. Aggressive exact
-frame retargeting failed the original arbitrary-input filter check and remains
-an experimental ablation; it is excluded from the main comparison. The
-AR-versus-LER tradeoff figure shows one and ten cycles without assuming
-independent per-cycle survival. History PS gives the lowest measured adaptive
-LER; verified recovery increases ten-cycle acceptance by about 40%, with higher
-conditional error. The notebooks and `handoff.md` summarize all ten pilots and
-rank untested ideas for likelihood-based PS, history across cycles, selective
-checks and circuit scheduling.
-
-### Conventional Steane RUS comparisons
-
-Two retained conventional Steane controllers use the original encoded-zero d1/d2/d4
-preparation assets, with Hadamard-dual encoded-plus preparations for Z readout:
-
-* **Steane d4 RUS** (`d4`): discard flagged ancillas and repeat d4 until every verification bit is zero.
-* **Steane descending RUS** (`ladder-ancilla`): on each flagged preparation, discard and descend d4 → d2 → d1;
-  restart at d4 for every fresh ancilla, including syndrome confirmation reads.
-
-Each cycle confirms the Z syndrome twice consecutively, then confirms the X
-syndrome twice consecutively. A mismatch requires another fresh ancilla and
-readout until two consecutive syndromes agree. This protects against faulty
-syndrome readout, following the conventional repeated-syndrome construction
-([Preskill, *Reliable quantum computers*](https://www.preskill.caltech.edu/pubs/preskill-1998-reliable.pdf)).
-Corrections update the cumulative Pauli frame. The code remains `[[32,20,4]]`.
-Retry and confirmation loops have no attempt limit; ancilla rejection never
-rejects the data. Thus completed trajectories have survival one. Serial,
-on-demand preparation means the data accumulate memory noise during **every**
-preparation and discarded attempt. There is no parallel ancilla factory or
-classical branch delay. Failed ancillas are destructively measured before reuse.
-
-These baselines require **66 qubits** (32 data + 32 encoded ancilla + two
-verification qubits), compared with the adaptive method's 60-qubit cap.
-They use 632 CNOT-equivalent gates in a noiseless cycle; actual sampled costs
-include failed preparations and extra syndrome readings. These are conventional
-simulation baselines, without the adaptive policy's independent fault certificate.
-
-```sh
-python -m spiderwarp.se_experiment build-steane --mode d4 \
-    --out build/steane_rus_d4 --emit hugr
-python -m spiderwarp.se_experiment build-steane --mode ladder-ancilla \
-    --out build/steane_rus_ladder_ancilla --emit hugr
-# Both retained modes: the same 32 configurations, fixed production budgets and seed as
-# benchmarks/se_100k; 100k-shot floor and 1M cap, resumable in 10k-shot batches.
+python -m spiderwarp.se_experiment build --paired --distances 2 4 \
+    --out build/se_32_20_4 --emit none
+python analysis/32_20_4_bounded_comparison/build.py
 python -m spiderwarp.se_comparison --jobs 8
+python analysis/32_20_4_bounded_comparison/controls.py
+PYTHONPATH=. python analysis/32_20_4_bounded_comparison/order_two_controls.py
+PYTHONPATH=. python analysis/32_20_4_bounded_comparison/probability_controls.py
+# Refresh saved figures and notebook outputs without sampling.
 python -m spiderwarp.se_comparison --plot-only
 ```
 
-The per-cycle ladder is excluded from the default analysis. Its existing code,
-artifacts and raw data remain available for explicit historical reproduction.
-
-For data-syndrome postselection, use `build-steane --postselection unique-css-2`.
-This checks the confirmed syndrome after accounting for the cumulative Pauli
-frame. It accepts only if all errors with each CSS component of weight at most
-two agree modulo stabilizers. For this code, all 31 weight-two syndromes per
-component have 16 distinct logical explanations, so each is rejected. The
-identity and 32 single-error syndromes per component remain accepted.
-This differs from ancilla verification, which retries before coupling to data.
-
-```sh
-python analysis/32_20_4_syndrome_uniqueness/analyze.py
-# Archived 0.1x pilots; run once if these datasets are absent.
-python analysis/32_20_4_syndrome_uniqueness/quick_steane_ps.py --jobs 8
-# Extend each pilot into a separate full-budget directory, retaining every old batch.
-python analysis/32_20_4_syndrome_uniqueness/full_steane_ps.py --mode d4 --jobs 8
-python analysis/32_20_4_syndrome_uniqueness/full_steane_ps.py --mode ladder-ancilla --jobs 8
-python -m spiderwarp.se_comparison --plot-only
-```
-
-The quick sampler builds standalone Guppy/HUGR and preserves its 0.1x pilot data
-in `benchmarks/steane_css_ps_<mode>_10k/`. The full sampler reuses those 932,918
-attempts, adds 8,396,230, and saves each completed **9,329,148-attempt** sweep in
-`benchmarks/steane_css_ps_<mode>_100k/`, with provenance and unchanged pilot hashes.
-The displayed names add **+ syndrome PS** to the two Steane RUS names.
-
-The canonical comparison now requires identical attempted-shot counts at every
-matching configuration for all eight methods: the same 32-point grid, 100k
-floor, 1M cap, inverse-square allocation and seed. It refuses incomplete or
-unequal-budget datasets; it never falls back to the archived quick runs.
-Accepted sample counts differ because acceptance rate is itself an outcome.
-Default-noise repetition points have 100,000 attempts per basis and method.
-Display names are centralized in `spiderwarp/se_comparison_names.py`; protocol
-IDs, bundle paths, source/HUGR hashes and raw original data are preserved.
-
-Each baseline saves 9,329,148 trajectories under
-`benchmarks/steane_rus_<mode>_100k/`, with hyphens replaced by underscores.
-Guppy source and reloaded HUGR are saved under the corresponding `build/`
-directory. The native CLI also accepts these bundles; its separate gate-noise
-model still excludes memory and includes experiment boundaries.
-Combined PDF/PNG figures are in `benchmarks/steane_comparison/figures/`:
-physical-p LER/p², cycle endpoint LER/N, survival on a tight linear axis, and
-mean executed CNOTs per requested cycle. The CNOT normalization includes early
-termination of rejected adaptive trajectories. The saved adaptive production
-data are reused unchanged. Noise rates, ideal experiment boundaries, statistics,
-and shot allocations match across methods; qubit usage and controllers differ.
-
-To overlay other result directories with explicit legend labels:
-
-```sh
-python -m spiderwarp.se_experiment plot benchmarks/se_100k \
-    --compare benchmarks/steane_rus_d4_100k \
-    --labels "Adaptive baseline" "Steane d4 RUS" \
-    --out build/custom_comparison_figures
-```
-
-The [comparison notebook](notebooks/32_20_4_steane_comparison.ipynb) contains
-the default-noise count table, figures, and links to all Guppy/HUGR artifacts.
-
-### Adaptive saved-protocol workflow
-
-```sh
-python -m spiderwarp.se_experiment build --out build/se_32_20_4 --emit guppy
-python -m spiderwarp.se_experiment inspect build/se_32_20_4
-python -m spiderwarp.se_experiment compile build/se_32_20_4 --emit hugr
-
-# A noiseless repeated-cycle control, in both logical bases.
-python -m spiderwarp.se_experiment run build/se_32_20_4 \
-    --p 0 --cycles 5 --shots 1000 --results benchmarks/se_controls
-
-# Repetitions use the exact default_noise_model() when --p is omitted.
-python -m spiderwarp.se_experiment run build/se_32_20_4 \
-    --cycles 5 --shots 100000 --results benchmarks/se_single
-python -m spiderwarp.se_experiment sweep build/se_32_20_4 \
-    --preset small --shots 100000 --max-shots 1000000 --jobs -2 \
-    --seed 20261112 --results benchmarks/se_100k
-python -m spiderwarp.se_experiment plot benchmarks/se_100k
-
-# Resume to larger fixed production budgets without repeating saved work.
-python -m spiderwarp.se_experiment sweep build/se_32_20_4 \
-    --preset small --shots 200000 --max-shots 2000000 --jobs -2 \
-    --seed 20261112 --results benchmarks/se_100k
-```
-
-The small preset has 11 logarithmically spaced p values from 1e-4 to 1e-2 at
-one cycle, using scaled `default_noise_model()` rates. The repetition sweep
-uses the exact `default_noise_model()` at cycle counts 1, 3, 5, 7, 10, in both
-bases. Its p_2q is currently 8e-4, giving 32 distinct configurations. Sweep
-membership is stored so the default-rate N=1 point appears in its intended
-plot. `--ps ... --cycles ...` selects a Cartesian grid. `--config`
-accepts a JSON list of objects with `p`, `cycles`, and `prepared_state` (`"0"`
-or `"+"`). Alternatively each object can supply a `noise` object with explicit
-`CustomErrorModel` probabilities. A single run accepts `--noise-model file.json`.
-
-The default shot floor is 100,000. `sweep` uses `--allocation inverse-square`:
-`num_samples` plans `ceil(shots * (p_reference / p)^2 / N)`, bounded below by
-`shots` and above by `--max-shots` (default ten times `shots`). `p_reference`
-comes from `default_noise_model().p_2q`. Zero-noise/zero-cycle controls use the
-floor. This allocates more samples to rare logical errors: in the low-noise
-regime, p_L is approximately proportional to N*p², so inverse allocation makes
-expected failure counts and relative confidence widths more comparable.
-The floor and cap deliberately limit this approximation. The 100k-floor/1M-cap
-preset plans 9,329,148 attempted trajectories, including one million at each of
-the three lowest p values per basis and 100,000 at each repetition point.
-All budgets are fixed before sampling; there is no stopping on observed errors.
-`--allocation fixed` requests exactly `--shots` per point. Single `run` commands
-default to fixed allocation. Batches contain 10,000 shots by default.
-
-Here p means the **two-qubit Pauli error probability**. All default hardware
-rates scale together by p / 8e-4; p=8e-4 reproduces the current hardware rates.
-Every executed extraction, including d1 recovery, is noisy. Each shot preserves
-the physical data block and carries its cumulative Pauli frame between cycles.
-Preparation is ideal and occurs once; final ideal decoding occurs only after
-the last accepted cycle. A rejection terminates the shot without retrying.
-
-The new workflow accounts for data idles before the first gate in every
-extraction, as well as the existing scheduled internal and trailing idles.
-There is no classical branch latency or additional inter-cycle delay. This is
-model `stim-adaptive-initial-data-idles-v1`; historical notebook sampling omitted
-these initial data idles. `estimate_protocol_ler` retains its old noise default;
-pass `cycles=N, include_initial_idles=True` to use the new convention there.
-
-`protocol.json`, content-addressed code/circuit files, and compressed numeric
-policy arrays form a portable, non-pickle bundle. Hashes cover the executable
-policy and measurement maps. Loading checks hashes, structure, and termination;
-`inspect --verify` also repeats the expensive independent fault check. Generated
-standalone Guppy and HUGR still embed their complete decision tables.
-
-The results directory contains task manifests, one CSV of raw batch counts per
-task, `summary.csv`, and `diagnostics.json`. Task identities include the protocol,
-resolved noise model, cycle count, basis, simulator/decoder source fingerprints,
-dependency versions, architecture, and seed. Jobs and shot targets can change on
-resume; batch size changes the random partition of future shots. Only one
-writer may use a results directory at a time. Atomic checkpoints preserve
-committed batches after interruptions. Seeds reproduce across process counts
-with a fixed batch partition and supported environment.
-
-Figures show conditional **block** LER (any of the 20 logical readouts failing),
-normalized by p² or by N, plus trajectory survival. Each basis is shown
-separately. Survival uses a linear y-axis fitted to the confidence intervals
-with a small margin, rather than the full 0–1 range. Repetition plots default to
-the current default noise model's p_2q; `--cycle-p` selects a different anchor
-for older/custom results. p_L/N is a normalized endpoint probability, not the probability that
-a logical error ever occurred. Wilson intervals are computed from aggregate
-integer counts; zero failures appear as upper endpoints on log plots. No
-accepted shots means undefined conditional LER.
-
-For optional direct serialized-HUGR execution, install the tested native stack
-with `python -m pip install -e ".[native]"`, then run:
-
-```sh
-python -m spiderwarp.se_experiment native build/se_32_20_4 \
-    --basis 0 --cycles 3 --shots 100 --p 0 --out build/se_native_zero
-python -m spiderwarp.se_experiment native build/se_32_20_4 \
-    --basis + --cycles 3 --shots 100 --p 0.001 --out build/se_native_plus
-```
-
-This compiles an executable wrapper with preparation, repeated cycle calls,
-acceptance/frame outputs, and final measurements, reloads the HUGR, and runs
-Selene/Stim. The wrapper is cached by source and compiler identity. Native
-results are stored in `native_results.json` and are **a different noise model**:
-Selene's built-in gate noise also affects preparation and final readout and has
-no scheduled memory term. They are kept separate from the primary sweep.
-There is no interpreter fallback if native execution fails.
-
-The saved pilot under `benchmarks/se_small/` used 1,000 attempted shots
-per configuration and seed `20261112`, with its historical repetition anchor
-p=1e-3. Its `run.json` records that original command. Use `--cycle-p 0.001`
-when plotting that older dataset. At p=1e-3 the one-cycle
-conditional block LER estimates are 22/994 (logical 0) and 68/992 (logical +).
-After ten cycles they are 232/856 and 462/846, respectively. These pilot
-estimates are accompanied by confidence intervals in `summary.csv`.
-
-The completed production run is `benchmarks/se_100k/`: 9,329,148 attempted
-trajectories across 32 configurations. At the exact default noise rates,
-one-cycle conditional block LER is 1.7846% (logical 0) and 3.6352% (logical +);
-after ten cycles it is 20.8408% and 42.0190%. Ten-cycle survival is 90.510% and
-90.390%. `run.json` stores the reproducible command, `validation.json` records
-the checks, and `summary.csv` contains all 95% Wilson intervals. The `figures/`
-directory contains physical-error, repetition, and survival plots.
-
-The earlier fixed primary/recovery implementation remains available explicitly
-with `policy_mode="legacy"`. Its bool-returning Guppy interface and physical
-corrections are preserved for reproducibility. The current SE assets expose its
-previously documented correctable one-fault rejection; it is not the default.
+The [comparison notebook](notebooks/32_20_4_steane_comparison.ipynb) and
+[protocol demo](notebooks/32_20_4_protocol_demo.ipynb) embed count tables and all
+six figure pairs. Guppy/HUGR artifacts, independent verification, physical/native
+controls and raw-batch gate audits are linked from
+[the study](analysis/32_20_4_bounded_comparison/). Legacy arbitrary-input research
+contracts remain explicit and are not used for this comparison.

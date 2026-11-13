@@ -21,9 +21,9 @@ from spiderwarp.noise_model import CustomErrorModel, default_noise_model
 from spiderwarp.se_protocol_io import atomic_write, canonical_json, digest, load_protocol, read_manifest, versions
 from spiderwarp.se_protocol_simulation import ProtocolSampler, _wilson_interval, scaled_noise_model
 
-MODEL_VERSION = "stim-adaptive-initial-data-idles-v1"
+MODEL_VERSION = "stim-adaptive-initial-data-idles-accepted-cost-v2"
 BATCH_FIELDS = ("start", "shots", "seed", "accepted", "logical_errors", "seconds",
-                "cycles_started", "cycles_completed", "total_cnots", "diagnostics")
+                "cycles_started", "cycles_completed", "total_cnots", "accepted_cnots", "diagnostics")
 
 
 def engine_identity():
@@ -94,6 +94,8 @@ def _read_batches(path):
                      "cycles_completed", "total_cnots"):
             row[name] = int(row[name])
         row["seconds"] = float(row["seconds"])
+        if 'accepted_cnots' in row:
+            row['accepted_cnots'] = int(row['accepted_cnots'])
         if (row["start"] != position or row["shots"] <= 0
                 or not 0 <= row["logical_errors"] <= row["accepted"] <= row["shots"]):
             raise ValueError(f"Invalid/duplicate batch ranges in {path}")
@@ -128,13 +130,15 @@ def _sample_batch(path, task, start, shots):
     d = result.diagnostics
     diagnostics = dict(
         stage_counts=[[list(k), v] for k, v in sorted(d.stage_counts.items())],
+        accepted_stage_counts=[[list(k), v] for k, v in sorted(d.accepted_stage_counts.items())],
         flagged_stage_counts=[[list(k), v] for k, v in sorted(d.flagged_stage_counts.items())],
         rejections=[[list(k), v] for k, v in sorted(d.rejections.items())],
         rejection_cycles=sorted(d.rejection_cycles.items()))
     return dict(start=start, shots=shots, seed=seed, accepted=result.accepted,
                 logical_errors=result.logical_errors, seconds=time.monotonic() - begin,
                 cycles_started=d.cycles_started, cycles_completed=d.cycles_completed,
-                total_cnots=d.total_cnots, diagnostics=canonical_json(diagnostics))
+                total_cnots=d.total_cnots, accepted_cnots=d.accepted_cnots,
+                diagnostics=canonical_json(diagnostics))
 
 
 def summarize(directory):
@@ -154,6 +158,8 @@ def summarize(directory):
                   ("shots", "accepted", "logical_errors", "seconds", "cycles_started",
                    "cycles_completed", "total_cnots")}
         shots, accepted, errors = (totals[k] for k in ("shots", "accepted", "logical_errors"))
+        accepted_cnots = (sum(r['accepted_cnots'] for r in rows)
+                          if all('accepted_cnots' in r for r in rows) else None)
         low, high = _wilson_interval(errors, accepted)
         sl, sh = _wilson_interval(accepted, shots)
         summaries.append(dict(task_hash=path.stem, protocol_hash=task["protocol_hash"],
@@ -164,12 +170,15 @@ def summarize(directory):
                               ler=errors / accepted if accepted else math.nan,
                               ler_low=low, ler_high=high, survival=accepted / shots,
                               survival_low=sl, survival_high=sh,
-                              mean_cnots=totals["total_cnots"] / shots,
-                              bad_outcome_rate=(shots - accepted + errors) / shots,
+                              mean_cnots=(accepted_cnots / accepted
+                                  if accepted and accepted_cnots is not None else math.nan),
+                              accepted_cnots=accepted_cnots,
+                              mean_accepted_cnots=(accepted_cnots / accepted
+                                  if accepted and accepted_cnots is not None else math.nan),
                               noise=canonical_json(task["noise"]), seed=task["seed"]))
         summaries[-1]["sweeps"] = canonical_json(m.get("sweeps", []))
         summaries[-1]["target_shots"] = m.get("target_shots", shots)
-        counters = {k: Counter() for k in ("stage_counts", "flagged_stage_counts", "rejections", "rejection_cycles")}
+        counters = {k: Counter() for k in ("stage_counts", "accepted_stage_counts", "flagged_stage_counts", "rejections", "rejection_cycles")}
         for row in rows:
             for key, pairs in json.loads(row["diagnostics"]).items():
                 counters[key].update({tuple(k) if isinstance(k, list) else k: v for k, v in pairs})

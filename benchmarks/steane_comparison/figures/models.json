@@ -1,9 +1,11 @@
 [
   {
     "model": 1,
-    "protocol_hash": "07022f2f0e2794e443d17093c8bca92c13537a1c7b5e3046cf52bd455d739e62",
-    "label": "Adaptive baseline (60 qubits)",
-    "engine_hash": "32df2613f77f025e02f1037e8d2287e5a41d4e13709b41aa8d25976ec8b6f08f",
+    "protocol_hash": "08f58e6d201b0cb04429d0cc6d21ba6bb6e8c626106fdabd801e08108b6a535e",
+    "label": "Adaptive PS($r+s\\leq1\\ \\mathrm{or}\\ p_{\\rm err}\\leq25\\%$) (60 qubits)",
+    "marker": "o",
+    "color": "#8c564b",
+    "engine_hash": "8c2232dc509315c578854396e5267c4ab8a3576f6bdbc26b040f8e1f25e9685d",
     "noise_ratios": {
       "p_1q": 0.03125,
       "p_2q": 1.0,
@@ -16,9 +18,11 @@
   },
   {
     "model": 2,
-    "protocol_hash": "08ebce8890734f155dc0724418347b4a7519ec995127e4149dbccb22b9fa11c7",
-    "label": "Adaptive syndrome PS (60 qubits)",
-    "engine_hash": "7e11414a9176d8f885882abbe4de7574f15db9eafb679f8b9cfe04b777e4ef94",
+    "protocol_hash": "0db6bd03938e2295a1a0e75433858d7713fde76596e123f70ebd6ab56b1c3eaf",
+    "label": "Adaptive PS($r+s\\leq1\\ \\mathrm{or}\\ p_{\\rm err}\\leq10\\%$) (60 qubits)",
+    "marker": "o",
+    "color": "#2ca02c",
+    "engine_hash": "8c2232dc509315c578854396e5267c4ab8a3576f6bdbc26b040f8e1f25e9685d",
     "noise_ratios": {
       "p_1q": 0.03125,
       "p_2q": 1.0,
@@ -31,9 +35,11 @@
   },
   {
     "model": 3,
-    "protocol_hash": "369e501c3fd7d6bc0fac687fb89c7e76870a44044bafe7ebaafe2519d681e58a",
-    "label": "Adaptive history PS (60 qubits)",
-    "engine_hash": "02e8348dfa710cb77a3c46ecd30a5ec44d1a940363eea19dd39fb0c3e04a0db0",
+    "protocol_hash": "131e76ee8a48727bc49c57fe1e91192578cd7627931903ad0644f87982874c88",
+    "label": "Adaptive PS($f=0,\\ r_{\\mathrm{syn}}\\leq1$) (60 qubits)",
+    "marker": "o",
+    "color": "#ff7f0e",
+    "engine_hash": "8c2232dc509315c578854396e5267c4ab8a3576f6bdbc26b040f8e1f25e9685d",
     "noise_ratios": {
       "p_1q": 0.03125,
       "p_2q": 1.0,
@@ -46,9 +52,11 @@
   },
   {
     "model": 4,
-    "protocol_hash": "49ba121cb2ca49059a6639b84d9e85618d121488665d6cf127ddad48915b7694",
-    "label": "Steane d4 RUS + syndrome PS (66 qubits)",
-    "engine_hash": "7e11414a9176d8f885882abbe4de7574f15db9eafb679f8b9cfe04b777e4ef94",
+    "protocol_hash": "62da3175473f60675125c331b7cc2ac9c5bdee5ed71e23f7fe04e8da439cfe44",
+    "label": "Adaptive PS($r+s\\leq1$) (60 qubits)",
+    "marker": "o",
+    "color": "#d62728",
+    "engine_hash": "8c2232dc509315c578854396e5267c4ab8a3576f6bdbc26b040f8e1f25e9685d",
     "noise_ratios": {
       "p_1q": 0.03125,
       "p_2q": 1.0,
@@ -61,9 +69,11 @@
   },
   {
     "model": 5,
-    "protocol_hash": "51bc427dcdece739d7a513217f5d522a65b2eb95fa2c9605f23390a22ca946c5",
-    "label": "Steane descending RUS + syndrome PS (66 qubits)",
-    "engine_hash": "7e11414a9176d8f885882abbe4de7574f15db9eafb679f8b9cfe04b777e4ef94",
+    "protocol_hash": "86479f4f7cd93b1685a6373313a023ec60a9eb9555b9221e0a535da7deee29f0",
+    "label": "Steane d3 RUS PS($r_{\\mathrm{syn}}\\leq1$) (66 qubits)",
+    "marker": "s",
+    "color": "#9467bd",
+    "engine_hash": "8c2232dc509315c578854396e5267c4ab8a3576f6bdbc26b040f8e1f25e9685d",
     "noise_ratios": {
       "p_1q": 0.03125,
       "p_2q": 1.0,
@@ -76,39 +86,11 @@
   },
   {
     "model": 6,
-    "protocol_hash": "6acb77cfb6abf016ae6b808aa8ea9f90764e79505b34d6af267e53a87b54ccea",
-    "label": "Steane d4 RUS (66 qubits)",
-    "engine_hash": "02e8348dfa710cb77a3c46ecd30a5ec44d1a940363eea19dd39fb0c3e04a0db0",
-    "noise_ratios": {
-      "p_1q": 0.03125,
-      "p_2q": 1.0,
-      "p_coherent_mem": 0.0,
-      "p_init": 1.0,
-      "p_leakage": 0.0,
-      "p_linear_mem": 0.01575,
-      "p_meas": 0.00125
-    }
-  },
-  {
-    "model": 7,
-    "protocol_hash": "8ccab9fce005b1f705f0bf4ca4f8b0f39117bbe44aef103e0aafdb5566dbc371",
-    "label": "Steane descending RUS (66 qubits)",
-    "engine_hash": "02e8348dfa710cb77a3c46ecd30a5ec44d1a940363eea19dd39fb0c3e04a0db0",
-    "noise_ratios": {
-      "p_1q": 0.03125,
-      "p_2q": 1.0,
-      "p_coherent_mem": 0.0,
-      "p_init": 1.0,
-      "p_leakage": 0.0,
-      "p_linear_mem": 0.01575,
-      "p_meas": 0.00125
-    }
-  },
-  {
-    "model": 8,
-    "protocol_hash": "c0254535e1e1468c29a81bfbc0214170c1336b29c2a4e66ff6ceb4001dd3e936",
-    "label": "Adaptive verified recovery (60 qubits)",
-    "engine_hash": "7e11414a9176d8f885882abbe4de7574f15db9eafb679f8b9cfe04b777e4ef94",
+    "protocol_hash": "c1886b03bf70e35791d080b5f7b0279871bbbcb9134e9193a841ebd9e9f589be",
+    "label": "Adaptive PS($r+s\\leq1\\ \\mathrm{or}\\ V_2$) (60 qubits)",
+    "marker": "o",
+    "color": "#1f77b4",
+    "engine_hash": "8c2232dc509315c578854396e5267c4ab8a3576f6bdbc26b040f8e1f25e9685d",
     "noise_ratios": {
       "p_1q": 0.03125,
       "p_2q": 1.0,

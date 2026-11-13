@@ -19,7 +19,7 @@ def parent():
     return load_protocol(path)
 
 
-@pytest.fixture(scope='module', params=('css', 'css-recover-exact', 'css-recover-safe'))
+@pytest.fixture(scope='module', params=('css', 'css-no-flags', 'css-recover-exact', 'css-recover-safe'))
 def pair(parent, request):
     variant = request.param
     path = Path(__file__).resolve().parents[1] / ('build/adaptive_' + variant.replace('-', '_') + '_32_20_4')
@@ -79,7 +79,7 @@ def test_compiled_graph_matches_fresh_noisy_adapter_samples(pair, basis, cycles)
     assert (actual.accepted, actual.logical_errors) == (expected.accepted, expected.logical_errors)
 
 
-def test_all_4096_noiseless_input_syndromes_obey_selected_css_bound(pair):
+def test_all_4096_noiseless_input_syndromes_obey_selected_contract(pair):
     variant, _, protocol = pair
     policy, decoder = protocol.policy, protocol.policy.decoder
     space = decoder.space
@@ -100,14 +100,19 @@ def test_all_4096_noiseless_input_syndromes_obey_selected_css_bound(pair):
                     component = 'X' if gadget.basis == 'Z' else 'Z'
                     index = node.children.get((flags, syndrome ^ space.component_syndrome(frame, component)), 0)
             expected = max(decoder.weights['X'][sx], decoder.weights['Z'][sz]) <= 1
-            assert (node.kind == 'accept') == expected
-            if expected:
-                kept += 1
-                assert space.reduce(error ^ frame ^ node.frame) == 0
+            if not expected:
+                if variant != 'css':
+                    assert node.kind == 'reject'
+                # A two-input-error record can be indistinguishable from a
+                # single readout fault. Full adaptive mode preserves the latter.
+                continue
+            assert node.kind == 'accept'
+            kept += 1
+            assert space.reduce(error ^ frame ^ node.frame) == 0
     assert kept == 1089
     assert protocol.verification.verified and protocol.required_qubits == 60
     assert policy.contract.logical_order == 1
-    assert policy.contract.correctable == int(variant.endswith('safe'))
+    assert policy.contract.correctable == int(variant == 'css' or variant.endswith('safe'))
 
 
 def test_safe_rescue_cannot_change_the_parent_syndrome(parent):
@@ -127,4 +132,43 @@ def test_clean_repeated_cycles_and_parent_contract_preserved(pair, parent):
     for basis in ('0', '+'):
         result = ProtocolSampler(protocol, noise_model=CustomErrorModel(), prepared_state=basis, cycles=10).sample(20, 17)
         assert result.accepted == 20 and result.logical_errors == 0
-    assert parent.policy.contract.correctable == 1 and parent.policy.contract.accept_clean_through == 2
+    assert parent.policy.contract.correctable == 1 and parent.policy.contract.accept_clean_through == 1
+    assert parent.policy.contract.input_scope == 'total-order'
+
+
+def test_no_flag_graph_rejects_before_followup(parent):
+    path = Path(__file__).resolve().parents[1] / 'build/adaptive_css_no_flags_32_20_4'
+    protocol = load_protocol(path)
+    nodes = protocol.policy.nodes
+    for node in nodes:
+        if node.kind == 'extract':
+            assert node.action in {'Z_d4', 'X_d4'}
+            assert all(flags == 0 for flags, _ in node.children)
+    assert protocol.verification.max_extractions == 2
+    assert protocol.verification.worst_case_cnots == 312
+
+
+@pytest.mark.parametrize('basis', ('0', '+'))
+def test_one_fault_remains_one_after_propagation(parent, basis):
+    from importlib import import_module
+    from spiderwarp.se_protocol_io import read_manifest
+    from spiderwarp.se_protocol_simulation import _StateExperiment
+    Inject = import_module('analysis.32_20_4_bounded_comparison.controls').InjectFirst
+    root = Path(__file__).resolve().parents[1]
+    path = root / 'build/adaptive_css_32_20_4'
+    protocol = load_protocol(path)
+    assert read_manifest(path)[1]['protocol_hash'] == read_manifest(root / 'build/se_postselected_32_20_4')[1]['protocol_hash']
+    experiment = _StateExperiment(protocol.code, protocol.required_qubits, basis)
+    propagated = 0
+    for name in ('Z_d4', 'X_d4'):
+        gadget = protocol.gadgets[name]
+        for effect in gadget.single_fault_effects:
+            sim = experiment.initial.copy(seed=17)
+            result = protocol.run(Inject(sim, gadget, effect))
+            assert result.accepted
+            assert not experiment.logical_failure(sim, frame_x=result.frame_x, frame_z=result.frame_z)
+            d = protocol.policy.decoder
+            sig = d.space.pauli_syndrome(result.frame_x | (result.frame_z << protocol.code.n))
+            order = max(d.weights['X'][sig & d.x_mask], d.weights['Z'][sig >> d.x_width])
+            propagated += order > 1 and any(f for _, _, _, f, _ in result.measurements)
+    assert propagated > 0

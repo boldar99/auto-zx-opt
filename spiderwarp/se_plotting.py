@@ -13,7 +13,8 @@ from spiderwarp.noise_model import default_noise_model
 
 
 def plot_results(results, output_dir=None, *, cycle_p=None, compare=None, labels=None,
-                 physical_survival=False, sample_note=None):
+                 physical_survival=False, sample_note=None, markers=None, colors=None, legend_note=None,
+                 resource_floor=None):
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -26,11 +27,17 @@ def plot_results(results, output_dir=None, *, cycle_p=None, compare=None, labels
     sources = [source] + [Path(p) / "summary.csv" if Path(p).is_dir() else Path(p) for p in (compare or [])]
     if labels is not None and len(labels) != len(sources):
         raise ValueError("Supply one label for each result directory")
-    rows, names = [], {}
+    if markers is not None and len(markers) != len(sources):
+        raise ValueError("Supply one marker for each result directory")
+    if colors is not None and len(colors) != len(sources):
+        raise ValueError("Supply one color for each result directory")
+    rows, names, point_markers, point_colors = [], {}, {}, {}
     for i, csv_path in enumerate(sources):
         with csv_path.open(newline="") as f:
             selected = list(csv.DictReader(f))
         for row in selected:
+            point_markers[row["protocol_hash"]] = markers[i] if markers is not None else 'o'
+            point_colors[row["protocol_hash"]] = colors[i] if colors is not None else None
             if labels is not None:
                 names[row["protocol_hash"]] = labels[i]
             elif compare:
@@ -38,7 +45,7 @@ def plot_results(results, output_dir=None, *, cycle_p=None, compare=None, labels
         rows.extend(selected)
     if not rows:
         raise ValueError("No simulation results to plot")
-    groups = defaultdict(lambda: defaultdict(lambda: dict(counts=[0, 0, 0, 0], sweeps=set())))
+    groups = defaultdict(lambda: defaultdict(lambda: dict(counts=[0, 0, 0, 0, 0], sweeps=set())))
     for row in rows:
         p, cycles = float(row["p"]), int(row["cycles"])
         if p <= 0 or cycles <= 0:
@@ -49,20 +56,26 @@ def plot_results(results, output_dir=None, *, cycle_p=None, compare=None, labels
         point = groups[key][p, cycles]
         point["sweeps"].update(json.loads(row.get("sweeps") or "[]"))
         totals = point["counts"]
-        for i, name in enumerate(("shots", "accepted", "logical_errors", "total_cnots")):
+        for i, name in enumerate(("shots", "accepted", "logical_errors", "total_cnots", "accepted_cnots")):
+            if name == 'accepted_cnots' and not row.get(name):
+                if compare:
+                    raise ValueError("Accepted-only gate costs require accepted_cnots; replay or resimulate this legacy dataset")
+                continue
             totals[i] += int(row[name])
     if not groups:
         raise ValueError("No positive-p, positive-cycle results to plot")
 
     zero_axes = set()
 
-    def series(ax, x, totals, scale, label, *, survival=False, resources=False):
+    def series(ax, x, totals, scale, label, *, marker='o', color=None, survival=False, resources=False):
         if resources:
-            ax.plot(x, [c[3] / c[0] / divisor for c, divisor in zip(totals, scale)],
-                    "o-", label=label)
+            ax.plot(x, [c[4] / c[1] / divisor if c[1] else np.nan
+                        for c, divisor in zip(totals, scale)],
+                    marker=marker, color=color, linestyle="-", label=label)
             return
         y, lo, hi, zero = [], [], [], []
-        for (shots, accepted, errors, _), divisor in zip(totals, scale):
+        for counts, divisor in zip(totals, scale):
+            shots, accepted, errors = counts[:3]
             k, n = (accepted, shots) if survival else (errors, accepted)
             low, high = _wilson_interval(k, n)
             y.append(k / n / divisor if n else np.nan)
@@ -73,7 +86,7 @@ def plot_results(results, output_dir=None, *, cycle_p=None, compare=None, labels
         valid = np.isfinite(y) & ~zero
         line = ax.errorbar(x[valid], y[valid],
                            yerr=[np.maximum(0, y[valid] - lo[valid]), np.maximum(0, hi[valid] - y[valid])],
-                           fmt="o-", capsize=3, label=label)
+                           fmt=marker + "-", color=color, capsize=3, label=label)
         color = line.lines[0].get_color()
         ax.fill_between(x[valid], lo[valid], hi[valid], color=color, alpha=.12)
         if zero.any():
@@ -86,15 +99,18 @@ def plot_results(results, output_dir=None, *, cycle_p=None, compare=None, labels
     profile_ids = {key: i + 1 for i, key in enumerate(sorted({k[:3] for k in groups}))}
     from spiderwarp.se_protocol_io import atomic_write
     atomic_write(directory / "models.json", json.dumps([
-        dict(model=i, protocol_hash=key[0], label=names.get(key[0]), engine_hash=key[1], noise_ratios=dict(key[2]))
+        dict(model=i, protocol_hash=key[0], label=names.get(key[0]), marker=point_markers[key[0]],
+             color=point_colors[key[0]],
+             engine_hash=key[1], noise_ratios=dict(key[2]))
         for key, i in profile_ids.items()], indent=2) + "\n")
     modes = ("physical_error", "cycles", "survival") + (("cnot_cost",) if compare else ())
     if physical_survival:
         modes += ("physical_survival",)
-    shared_legend = len(sources) > 3
+    shared_legend = len(sources) >= 3
+    legend_columns = 2
     for mode in modes:
         physical_mode = mode in {"physical_error", "physical_survival"}
-        legend_rows = (len(sources) + (mode == "physical_error") + 2) // 3
+        legend_rows = (len(sources) + (mode == "physical_error") + legend_columns - 1) // legend_columns
         fig, axes = plt.subplots(1, 2, figsize=(12, 4.7 + .3*legend_rows if shared_legend else 4.7), squeeze=False)
         plotted = False
         tick_values = set()
@@ -120,6 +136,8 @@ def plot_results(results, output_dir=None, *, cycle_p=None, compare=None, labels
                       for p, n, _ in selected]
             series(ax, xs, [c for _, _, c in selected], scales,
                    names.get(protocol, f"{protocol[:8]} / model {profile_ids[key[:3]]}"),
+                   marker=point_markers[protocol],
+                   color=point_colors[protocol],
                    survival=mode in {"survival", "physical_survival"}, resources=mode == "cnot_cost")
         if not plotted:
             plt.close(fig)
@@ -146,10 +164,13 @@ def plot_results(results, output_dir=None, *, cycle_p=None, compare=None, labels
                 ax.set_xlabel("Number of QEC cycles N")
                 ax.set_xticks(sorted(tick_values))
                 ax.set_ylabel("Conditional block failure probability / N" if mode == "cycles"
-                              else "Mean CNOTs per attempted trajectory / N" if mode == "cnot_cost"
+                              else "Mean CX/CZ per accepted completed cycle" if mode == "cnot_cost"
                               else "Probability all cycles accept")
                 if mode == "cycles":
                     ax.set_yscale("log")
+                if mode == 'cnot_cost' and resource_floor is not None:
+                    ax.axhline(resource_floor, linestyle=':', color='gray',
+                               label=f'Adaptive completed-cycle minimum: {resource_floor:g}')
             if mode in {"survival", "physical_survival"}:
                 ax.set_yscale("linear")
                 # Fit the observed confidence intervals with padding, clipped
@@ -162,19 +183,21 @@ def plot_results(results, output_dir=None, *, cycle_p=None, compare=None, labels
         fig.suptitle("Basis-specific block performance"
                      + (f"; p={cycle_p:g}" if not physical_mode else "")
                      + ('\n' + sample_note if sample_note else ''))
+        if legend_note:
+            fig.text(.5, .012, legend_note, ha="center", fontsize=8.5)
         if shared_legend:
             entries = {}
             for ax in axes[0]:
                 handles, legends = ax.get_legend_handles_labels()
                 for handle, label in zip(handles, legends):
                     entries.setdefault(label, handle)
-            legend_rows = (len(entries) + 2) // 3
-            fig.set_size_inches(12, 4.7 + .3*legend_rows)
+            legend_rows = (len(entries) + legend_columns - 1) // legend_columns
+            fig.set_size_inches(12, 4.7 + .3*legend_rows + (.35 if legend_note else 0))
             fig.legend(list(entries.values()), list(entries), loc="lower center",
-                       bbox_to_anchor=(.5, .005), ncol=3, fontsize=9)
-            fig.tight_layout(rect=(0, .05 + .04*legend_rows, 1, 1))
+                       bbox_to_anchor=(.5, .045 if legend_note else .005), ncol=legend_columns, fontsize=9)
+            fig.tight_layout(rect=(0, .05 + .04*legend_rows + (.055 if legend_note else 0), 1, 1))
         else:
-            fig.tight_layout()
+            fig.tight_layout(rect=(0, .05 if legend_note else 0, 1, 1))
         for suffix in ("pdf", "png"):
             path = directory / f"{mode}.{suffix}"
             fig.savefig(path, dpi=180, bbox_inches="tight")

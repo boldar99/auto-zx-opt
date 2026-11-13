@@ -1,0 +1,678 @@
+{
+  "method": "MAP-Pauli-confidence-rescue",
+  "model_version": 1,
+  "model_sources": {
+    "se_likelihood.py": "305aaf6e1dd4a2c7508112245d2efcd1b5435ae77c003624afe447bffa7c7788",
+    "noise_model.py": "0d36b45b8dbb5ead92e20858d8962db33b469492336d5ea6e9e42d4225727f0a",
+    "se_protocol_simulation.py": "5991986f8d0bcce803701babb1ce7b70041d3179bf07a3ac7cdea86144691e8c",
+    "_se_circuit.py": "b0f043a851b99f851c3909a4e9513da26497f1a5494aab40cd781571374bdf71",
+    "_se_adaptive.py": "2882a4f796588ffe47619a500d3a538d70ab323f1d4836faa8a8db9dd3ecc071",
+    "se_postselection.py": "c357701f61d6dfb8468e43bc41db305a9b63ea6b45f1bbf27c2f2a6a9e703f3b"
+  },
+  "expansion_nonzero_channels": 2,
+  "noise": {
+    "p_1q": 2.5e-05,
+    "p_2q": 0.0008,
+    "p_meas": 1e-06,
+    "p_init": 0.0008,
+    "p_linear_mem": 1.2600000000000001e-05,
+    "p_coherent_mem": 0,
+    "p_leakage": 0.0
+  },
+  "input_error_probability": 0.0008,
+  "input_prior": "independent depolarizing data qubits, reset each cycle",
+  "include_initial_idles": true,
+  "risk": "Incorrect final data Pauli class after MAP correction",
+  "threshold_scope": "Estimated per-cycle wrong-Pauli-class risk on additional records only",
+  "approximation": "condition on at most two nonzero response channels; omitted mass is reported",
+  "all_orders_ler_guarantee": false,
+  "epsilon": 0.25,
+  "acceptance": "Order-one compatibility OR estimated MAP correction-error probability <= epsilon",
+  "error_probability": "1 - posterior probability of most likely final Pauli class modulo stabilizers",
+  "correction": "Inverse of MAP final data Pauli class; mandatory order-one frames unchanged",
+  "scored_records": 637391,
+  "mandatory_records": 2375,
+  "additional_accepted_records": 346138,
+  "saved_nodes": 36572,
+  "parent_rejected_records_considered": true,
+  "discovery_sampling": false,
+  "probabilities_used": true,
+  "noise_profile_frozen": true,
+  "output_labels_used": false,
+  "unknown_record_rule": "Reject outside the two-event response support unless order-one-compatible",
+  "fixed_schedule": "Parent third-reading routes retained; otherwise complete two readings",
+  "examples": [
+    {
+      "record": [
+        [
+          "Z_d4",
+          0,
+          63
+        ],
+        [
+          "X_d4",
+          128,
+          25
+        ]
+      ],
+      "correction": 0,
+      "estimated_error": 0.2412224550096627,
+      "evidence_probability": 2.1400287785814678e-07,
+      "omitted_probability": 0.009900222259294877,
+      "all_orders_risk_upper_bound": 0.9999835986441423
+    },
+    {
+      "record": [
+        [
+          "Z_d4",
+          0,
+          63
+        ],
+        [
+          "X_d4",
+          384,
+          25
+        ]
+      ],
+      "correction": 0,
+      "estimated_error": 0.2412224550096627,
+      "evidence_probability": 2.1400287785814678e-07,
+      "omitted_probability": 0.009900222259294877,
+      "all_orders_risk_upper_bound": 0.9999835986441423
+    },
+    {
+      "record": [
+        [
+          "Z_d4",
+          0,
+          63
+        ],
+        [
+          "X_d4",
+          512,
+          33
+        ]
+      ],
+      "correction": 0,
+      "estimated_error": 0.24122245500966266,
+      "evidence_probability": 1.6050501404983986e-07,
+      "omitted_probability": 0.009900222259294877,
+      "all_orders_risk_upper_bound": 0.9999876986977757
+    },
+    {
+      "record": [
+        [
+          "Z_d4",
+          0,
+          63
+        ],
+        [
+          "X_d4",
+          1536,
+          33
+        ]
+      ],
+      "correction": 0,
+      "estimated_error": 0.24122245500966266,
+      "evidence_probability": 1.6050501404983986e-07,
+      "omitted_probability": 0.009900222259294877,
+      "all_orders_risk_upper_bound": 0.9999876986977757
+    },
+    {
+      "record": [
+        [
+          "Z_d4",
+          0,
+          63
+        ],
+        [
+          "X_d4",
+          320,
+          13
+        ]
+      ],
+      "correction": 2097152,
+      "estimated_error": 0.24122245500966263,
+      "evidence_probability": 5.350357512076646e-08,
+      "omitted_probability": 0.009900222259294877,
+      "all_orders_risk_upper_bound": 0.9999958993756991
+    },
+    {
+      "record": [
+        [
+          "Z_d4",
+          0,
+          63
+        ],
+        [
+          "X_d4",
+          352,
+          13
+        ]
+      ],
+      "correction": 2097152,
+      "estimated_error": 0.24122245500966263,
+      "evidence_probability": 5.350357512076646e-08,
+      "omitted_probability": 0.009900222259294877,
+      "all_orders_risk_upper_bound": 0.9999958993756991
+    },
+    {
+      "record": [
+        [
+          "Z_d4",
+          0,
+          63
+        ],
+        [
+          "X_d4",
+          32,
+          21
+        ]
+      ],
+      "correction": 0,
+      "estimated_error": 0.24122245500966263,
+      "evidence_probability": 5.350357512076646e-08,
+      "omitted_probability": 0.009900222259294877,
+      "all_orders_risk_upper_bound": 0.9999958993756991
+    },
+    {
+      "record": [
+        [
+          "Z_d4",
+          0,
+          63
+        ],
+        [
+          "X_d4",
+          288,
+          21
+        ]
+      ],
+      "correction": 2097152,
+      "estimated_error": 0.24122245500966263,
+      "evidence_probability": 1.0700715024153292e-07,
+      "omitted_probability": 0.009900222259294877,
+      "all_orders_risk_upper_bound": 0.9999917987957198
+    },
+    {
+      "record": [
+        [
+          "Z_d4",
+          0,
+          63
+        ],
+        [
+          "X_d4",
+          64,
+          5
+        ]
+      ],
+      "correction": 0,
+      "estimated_error": 0.24122245500966266,
+      "evidence_probability": 1.6050501404983986e-07,
+      "omitted_probability": 0.009900222259294877,
+      "all_orders_risk_upper_bound": 0.9999876986977757
+    },
+    {
+      "record": [
+        [
+          "Z_d4",
+          0,
+          63
+        ],
+        [
+          "X_d4",
+          96,
+          5
+        ]
+      ],
+      "correction": 0,
+      "estimated_error": 0.24122245500966266,
+      "evidence_probability": 1.6050501404983986e-07,
+      "omitted_probability": 0.009900222259294877,
+      "all_orders_risk_upper_bound": 0.9999876986977757
+    },
+    {
+      "record": [
+        [
+          "Z_d4",
+          0,
+          63
+        ],
+        [
+          "X_d4",
+          1664,
+          10
+        ]
+      ],
+      "correction": 118427407,
+      "estimated_error": 0.24122245500966263,
+      "evidence_probability": 5.350357512076646e-08,
+      "omitted_probability": 0.009900222259294877,
+      "all_orders_risk_upper_bound": 0.9999958993756991
+    },
+    {
+      "record": [
+        [
+          "Z_d4",
+          0,
+          63
+        ],
+        [
+          "X_d4",
+          1920,
+          10
+        ]
+      ],
+      "correction": 118427407,
+      "estimated_error": 0.24122245500966263,
+      "evidence_probability": 5.350357512076646e-08,
+      "omitted_probability": 0.009900222259294877,
+      "all_orders_risk_upper_bound": 0.9999958993756991
+    },
+    {
+      "record": [
+        [
+          "Z_d4",
+          0,
+          63
+        ],
+        [
+          "X_d4",
+          256,
+          9
+        ]
+      ],
+      "correction": 0,
+      "estimated_error": 0.24122245500966263,
+      "evidence_probability": 5.350357512076646e-08,
+      "omitted_probability": 0.009900222259294877,
+      "all_orders_risk_upper_bound": 0.9999958993756991
+    },
+    {
+      "record": [
+        [
+          "Z_d4",
+          0,
+          63
+        ],
+        [
+          "X_d4",
+          1792,
+          9
+        ]
+      ],
+      "correction": 118427407,
+      "estimated_error": 0.24122245500966263,
+      "evidence_probability": 1.0700715024153292e-07,
+      "omitted_probability": 0.009900222259294877,
+      "all_orders_risk_upper_bound": 0.9999917987957198
+    },
+    {
+      "record": [
+        [
+          "Z_d4",
+          0,
+          63
+        ],
+        [
+          "X_d4",
+          1664,
+          3
+        ]
+      ],
+      "correction": 118427407,
+      "estimated_error": 0.24122245500966263,
+      "evidence_probability": 5.350357512076646e-08,
+      "omitted_probability": 0.009900222259294877,
+      "all_orders_risk_upper_bound": 0.9999958993756991
+    },
+    {
+      "record": [
+        [
+          "Z_d4",
+          0,
+          63
+        ],
+        [
+          "X_d4",
+          1920,
+          3
+        ]
+      ],
+      "correction": 118427407,
+      "estimated_error": 0.24122245500966263,
+      "evidence_probability": 5.350357512076646e-08,
+      "omitted_probability": 0.009900222259294877,
+      "all_orders_risk_upper_bound": 0.9999958993756991
+    },
+    {
+      "record": [
+        [
+          "Z_d4",
+          0,
+          63
+        ],
+        [
+          "X_d4",
+          512,
+          29
+        ]
+      ],
+      "correction": 0,
+      "estimated_error": 0.24122245500966266,
+      "evidence_probability": 1.6050501404983986e-07,
+      "omitted_probability": 0.009900222259294877,
+      "all_orders_risk_upper_bound": 0.9999876986977757
+    },
+    {
+      "record": [
+        [
+          "Z_d4",
+          0,
+          63
+        ],
+        [
+          "X_d4",
+          1536,
+          29
+        ]
+      ],
+      "correction": 0,
+      "estimated_error": 0.24122245500966266,
+      "evidence_probability": 1.6050501404983986e-07,
+      "omitted_probability": 0.009900222259294877,
+      "all_orders_risk_upper_bound": 0.9999876986977757
+    },
+    {
+      "record": [
+        [
+          "Z_d4",
+          0,
+          63
+        ],
+        [
+          "X_d4",
+          1056,
+          0
+        ]
+      ],
+      "correction": 357913941,
+      "estimated_error": 0.24122245500966263,
+      "evidence_probability": 1.0700715024153292e-07,
+      "omitted_probability": 0.009900222259294877,
+      "all_orders_risk_upper_bound": 0.9999917987957198
+    },
+    {
+      "record": [
+        [
+          "Z_d4",
+          0,
+          63
+        ],
+        [
+          "X_d4",
+          1088,
+          5
+        ]
+      ],
+      "correction": 357913941,
+      "estimated_error": 0.24122245500966263,
+      "evidence_probability": 5.350357512076646e-08,
+      "omitted_probability": 0.009900222259294877,
+      "all_orders_risk_upper_bound": 0.9999958993756991
+    },
+    {
+      "record": [
+        [
+          "Z_d4",
+          0,
+          63
+        ],
+        [
+          "X_d4",
+          1120,
+          5
+        ]
+      ],
+      "correction": 357913941,
+      "estimated_error": 0.24122245500966263,
+      "evidence_probability": 5.350357512076646e-08,
+      "omitted_probability": 0.009900222259294877,
+      "all_orders_risk_upper_bound": 0.9999958993756991
+    },
+    {
+      "record": [
+        [
+          "Z_d4",
+          0,
+          63
+        ],
+        [
+          "X_d4",
+          32,
+          33
+        ]
+      ],
+      "correction": 0,
+      "estimated_error": 0.24122245500966263,
+      "evidence_probability": 5.350357512076646e-08,
+      "omitted_probability": 0.009900222259294877,
+      "all_orders_risk_upper_bound": 0.9999958993756991
+    },
+    {
+      "record": [
+        [
+          "Z_d4",
+          0,
+          63
+        ],
+        [
+          "X_d4",
+          64,
+          36
+        ]
+      ],
+      "correction": 0,
+      "estimated_error": 0.24122245500966263,
+      "evidence_probability": 1.0700715024153292e-07,
+      "omitted_probability": 0.009900222259294877,
+      "all_orders_risk_upper_bound": 0.9999917987957198
+    },
+    {
+      "record": [
+        [
+          "Z_d4",
+          0,
+          63
+        ],
+        [
+          "X_d4",
+          96,
+          36
+        ]
+      ],
+      "correction": 0,
+      "estimated_error": 0.24122245500966275,
+      "evidence_probability": 2.675121642913728e-07,
+      "omitted_probability": 0.009900222259294877,
+      "all_orders_risk_upper_bound": 0.9999794977594076
+    },
+    {
+      "record": [
+        [
+          "Z_d4",
+          0,
+          63
+        ],
+        [
+          "X_d4",
+          1056,
+          33
+        ]
+      ],
+      "correction": 357913941,
+      "estimated_error": 0.24122245500966263,
+      "evidence_probability": 1.0700715024153292e-07,
+      "omitted_probability": 0.009900222259294877,
+      "all_orders_risk_upper_bound": 0.9999917987957198
+    },
+    {
+      "record": [
+        [
+          "Z_d4",
+          0,
+          63
+        ],
+        [
+          "X_d4",
+          1088,
+          36
+        ]
+      ],
+      "correction": 357913941,
+      "estimated_error": 0.24122245500966263,
+      "evidence_probability": 5.350357512076646e-08,
+      "omitted_probability": 0.009900222259294877,
+      "all_orders_risk_upper_bound": 0.9999958993756991
+    },
+    {
+      "record": [
+        [
+          "Z_d4",
+          0,
+          63
+        ],
+        [
+          "X_d4",
+          1120,
+          36
+        ]
+      ],
+      "correction": 357913941,
+      "estimated_error": 0.24122245500966263,
+      "evidence_probability": 5.350357512076646e-08,
+      "omitted_probability": 0.009900222259294877,
+      "all_orders_risk_upper_bound": 0.9999958993756991
+    },
+    {
+      "record": [
+        [
+          "Z_d4",
+          0,
+          63
+        ],
+        [
+          "X_d4",
+          1024,
+          29
+        ]
+      ],
+      "correction": 65536,
+      "estimated_error": 0.24122245500966263,
+      "evidence_probability": 5.350357512076646e-08,
+      "omitted_probability": 0.009900222259294877,
+      "all_orders_risk_upper_bound": 0.9999958993756991
+    },
+    {
+      "record": [
+        [
+          "Z_d4",
+          0,
+          63
+        ],
+        [
+          "X_d4",
+          1024,
+          61
+        ]
+      ],
+      "correction": 0,
+      "estimated_error": 0.24122245500966263,
+      "evidence_probability": 5.350357512076646e-08,
+      "omitted_probability": 0.009900222259294877,
+      "all_orders_risk_upper_bound": 0.9999958993756991
+    },
+    {
+      "record": [
+        [
+          "Z_d4",
+          0,
+          63
+        ],
+        [
+          "X_d4",
+          512,
+          32
+        ]
+      ],
+      "correction": 0,
+      "estimated_error": 0.24122245500966272,
+      "evidence_probability": 2.489235646920892e-07,
+      "omitted_probability": 0.009900222259294877,
+      "all_orders_risk_upper_bound": 0.9999809223613889
+    },
+    {
+      "record": [
+        [
+          "Z_d4",
+          0,
+          63
+        ],
+        [
+          "X_d4",
+          1536,
+          32
+        ]
+      ],
+      "correction": 0,
+      "estimated_error": 0.24122245500966266,
+      "evidence_probability": 1.6050501404983986e-07,
+      "omitted_probability": 0.009900222259294877,
+      "all_orders_risk_upper_bound": 0.9999876986977757
+    },
+    {
+      "record": [
+        [
+          "Z_d4",
+          0,
+          63
+        ],
+        [
+          "X_d4",
+          1536,
+          61
+        ]
+      ],
+      "correction": 65536,
+      "estimated_error": 0.24122245500966263,
+      "evidence_probability": 1.0700715024153292e-07,
+      "omitted_probability": 0.009900222259294877,
+      "all_orders_risk_upper_bound": 0.9999917987957198
+    }
+  ],
+  "protocol_hash": "08f58e6d201b0cb04429d0cc6d21ba6bb6e8c626106fdabd801e08108b6a535e",
+  "parent_protocol_hash": "2cfaffef72bbc5d63d97e75f62f156a2f074d2d800950357ed29ada6173b690b",
+  "verification": {
+    "contract": {
+      "correctable": 1,
+      "logical_order": 1,
+      "max_syndrome_sectors": 65536,
+      "fault_order": 2,
+      "accept_clean_through": 1,
+      "input_scope": "total-order",
+      "accepted_filter_order": 1
+    },
+    "decoder_hash": "c2ac2ba6d1bd79dfa0080e57c091eed7c8316f1a0361855d9218ae10f3910e24",
+    "verified": true,
+    "checked_transitions": 4809438,
+    "accepted_contexts": 478266,
+    "discarded_contexts": 1472369,
+    "ec_a_input_syndromes": 0,
+    "worst_case_cnots": 433,
+    "max_extractions": 3,
+    "peak_qubits": 60,
+    "lower_bound_cnots": 0,
+    "noise_model": "All 15 nonidentity Paulis per two-qubit gate; X/Y/Z per one-qubit gate; reset and measurement flips; no implicit idles; terminal Pauli frames."
+  }
+}

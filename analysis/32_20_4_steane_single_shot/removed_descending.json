@@ -1,0 +1,41 @@
+{
+  "reason": "User removed descending d3-to-d1 from simulation and requested deletion of data and Python files",
+  "removed": [
+    {
+      "path": "benchmarks/steane_single_d3_descending_ps_100k",
+      "files": 70,
+      "python_files": 0
+    },
+    {
+      "path": "build/steane_single_d3_descending_ps",
+      "files": 4,
+      "python_files": 1
+    },
+    {
+      "path": "build/steane_single_controls/descending",
+      "files": 84,
+      "python_files": 6
+    },
+    {
+      "path": "build/steane_single_descending_build.log",
+      "files": 1,
+      "python_files": 0
+    },
+    {
+      "path": "build/steane_single_controls.log",
+      "files": 1,
+      "python_files": 0
+    },
+    {
+      "path": "build/observed_syndrome_orders.log",
+      "files": 1,
+      "python_files": 0
+    },
+    {
+      "path": "build/steane_single_final_audit.log",
+      "files": 1,
+      "python_files": 0
+    }
+  ],
+  "no_resampling": true
+}

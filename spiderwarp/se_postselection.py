@@ -28,7 +28,7 @@ class OrderOneEvidence:
 
     def __init__(self, protocol):
         policy = protocol.policy
-        if policy.contract.correctable != 1 or policy.contract.logical_order != 1:
+        if policy.contract.correctable not in {0, 1} or policy.contract.logical_order != 1:
             raise ValueError("Order-one postselection requires the one-error logical contract")
         self.space, self.decoder = policy.decoder.space, policy.decoder
         self.actions = policy.actions
@@ -126,7 +126,7 @@ def postselect_order_one(parent, *, verify=True, progress=None):
     """
     evidence = OrderOneEvidence(parent)
     old = parent.policy
-    contract = replace(old.contract, accept_clean_through=1)
+    contract = replace(old.contract, accept_clean_through=min(old.contract.accept_clean_through, 1))
     decoder = FixedCSSDecoder(evidence.space, contract)
     nodes = [PolicyNode("reject")]
     interned = {("reject",): 0}
