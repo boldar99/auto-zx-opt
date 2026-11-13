@@ -137,11 +137,19 @@ single faults are postselected; they are not exceptions to the incoming-syndrome
 rule. Logical preservation of accepted histories is independently checked
 through total order one. No additional circuit-distance claim is made.
 
-The six displayed methods are the standard base; **r+s≤1 or V₂**;
+The seven displayed methods are the standard base; **shorter-d2 r+s≤1**; **r+s≤1 or V₂**;
 **r+s≤1 or p_err≤10%**; **r+s≤1 or p_err≤25%**;
 **f=0, r_syn≤1**; and **Steane d3 RUS PS(r_syn≤1)**.
 The previous history-only implementation and separate flag-recovery curve are
 removed, together with their prior simulation data.
+
+**Shorter d2** uses exactly the standard base controller, accepted records and
+Pauli corrections. It uses 60 qubits for each d2 extraction, reducing X_d2 from
+92 to 45 scheduled layers and Z_d2 from 86 to 43, with 121 entangling gates each.
+The d4 circuits are identical. Single-fault response sets and independent
+gate-only noise-channel distributions are preserved. Memory noise is linear in
+scheduled idle duration, so data idles decrease from 2,912 to 1,408 for X_d2 and
+from 2,720 to 1,344 for Z_d2. This allocation-frontier search claims no depth optimum.
 
 **V₂** preserves every accepted base path and correction. Other records accept
 only when all compatible histories through r+s≤2 agree on one final Pauli class
@@ -168,7 +176,8 @@ or third d4. Each adaptive uses 60 peak qubits, with completed-cycle costs
 312, 277 or 433 CX/CZ respectively. Steane uses 66 qubits and 288 gates before
 its noisy ancilla-preparation retries. It reads each data CSS syndrome once.
 
-All five adaptive datasets are fresh reruns after deleting the previous data.
+The original five adaptive datasets are fresh reruns after deleting the previous data.
+The shorter-d2 method is an additional fresh dataset with the same shot budgets.
 The independent Steane dataset is retained byte-for-byte. Every method uses
 32 matching configurations, SHOT_FLOOR floor / SHOT_CAP cap and TOTAL_ATTEMPTS
 attempts, with inverse-square allocation and seed 20261112.
@@ -310,14 +319,16 @@ def main():
     base_controls = json.loads((OUT / 'standard_base_controls.json').read_text())
     v2_controls = json.loads((OUT / 'order_two_controls.json').read_text())
     probability_controls = json.loads((OUT / 'probability_controls.json').read_text())
+    scheduled_controls = json.loads((OUT / 'scheduled_controls.json').read_text())
     v2_export = json.loads((OUT / 'order_two_export_audit.json').read_text())
-    assert all(c['complete'] for c in (controls, base_controls, v2_controls, probability_controls))
+    assert all(c['complete'] for c in (controls, base_controls, v2_controls, probability_controls, scheduled_controls))
+    assert scheduled_controls['protocol_hash'] == audits['adaptive_scheduled']['protocol_hash']
     assert v2_export['complete'] and v2_export['transitions_checked'] > 1000000
     validation.update(
         standard_base_rule='No flags: incoming CSS order <=1; flags: fault-history recovery',
         all_adaptive_methods_use_standard_base=True,
         old_history_only_implementation_removed=True, old_simulation_data_deleted=True,
-        adaptive_methods_rerun=5, independent_steane_data_retained=True,
+        adaptive_methods_rerun=5, additional_scheduled_method=True, independent_steane_data_retained=True,
         no_d1=True, max_adaptive_extractions_per_cycle=3,
         allowed_distance_paths=[[4, 4, 2], [4, 4], [4, 2]],
         gate_cost='accepted_cnots / accepted / N; complete accepted trajectories only',
@@ -327,6 +338,7 @@ def main():
         standard_base_controls=base_controls, order_two_controls=v2_controls,
         order_two_export_audit=v2_export,
         probability_controls=probability_controls,
+        scheduled_controls=scheduled_controls,
         notebooks_refreshed=True, six_figure_pairs_generated=True,
         visual_inspection_pending=True)
     write(COMPARISON / 'validation.json', validation)

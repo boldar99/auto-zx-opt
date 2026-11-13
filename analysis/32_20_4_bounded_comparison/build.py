@@ -60,15 +60,32 @@ def build_order_two(parent):
     write(OUT / 'order_two_build_validation.json', provenance)
 
 
+def build_scheduled(parent):
+    from spiderwarp.se_scheduling import reschedule_d2
+    protocol, provenance = reschedule_d2(parent)
+    path = ROOT / 'build' / study.BUNDLES['adaptive_scheduled']
+    protocol.save_bundle(path)
+    emit_protocol(protocol, path, 'hugr')
+    provenance.update(protocol_hash=read_manifest(path)[1]['protocol_hash'],
+        parent_protocol_hash=read_manifest(ROOT / 'build' / study.BUNDLES['adaptive_history'])[1]['protocol_hash'],
+        verification=asdict(protocol.verification), inspection=inspect(protocol))
+    write(path / 'experiment.json', provenance)
+    write(OUT / 'scheduled_build_validation.json', provenance)
+    print('Shorter d2:', provenance['protocol_hash'], flush=True)
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--only', choices=('adaptive_history', 'adaptive_no_flags', 'adaptive_order_two',
+    parser.add_argument('--only', choices=('adaptive_history', 'adaptive_scheduled', 'adaptive_no_flags', 'adaptive_order_two',
                                          'adaptive_probability_10', 'adaptive_probability_25'))
     args = parser.parse_args(argv)
     if args.only and args.only.startswith('adaptive_probability_'):
         import_module('analysis.32_20_4_bounded_comparison.build_probability').main([])
         return
     base_path = ROOT / 'build' / study.BUNDLES['adaptive_history']
+    if args.only == 'adaptive_scheduled':
+        build_scheduled(load_protocol(base_path))
+        return
     if args.only == 'adaptive_order_two':
         build_order_two(load_protocol(base_path))
         return
@@ -110,6 +127,7 @@ def main(argv=None):
             base_rule='No flags: incoming CSS order <=1; raised flags: fault-history recovery',
             allowed_distance_paths=[[4, 4, 2], [4, 4], [4, 2]]))
     if not args.only:
+        build_scheduled(base)
         build_order_two(base)
         import_module('analysis.32_20_4_bounded_comparison.build_probability').main([])
 

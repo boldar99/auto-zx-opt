@@ -18,6 +18,7 @@ SHOT_FLOOR = 100000
 SHOT_CAP = 1000000
 BUNDLES = {
     'adaptive_history': 'se_postselected_32_20_4',
+    'adaptive_scheduled': 'adaptive_scheduled_32_20_4',
     'adaptive_order_two': 'adaptive_order_two_32_20_4',
     'adaptive_probability_10': 'adaptive_probability_10_32_20_4',
     'adaptive_probability_25': 'adaptive_probability_25_32_20_4',
@@ -63,7 +64,10 @@ def sweep(key, *, jobs=8, shots=SHOT_FLOOR, max_shots=SHOT_CAP):
                       mandatory_acceptance='Standard flag-conditioned base; all noiseless CSS-one inputs',
                       base_rule='No flags: incoming CSS syndromes with r_syn<=1; flags: history recovery',
                       single_internal_fault_acceptance_guarantee=False)
-        if key == 'adaptive_no_flags':
+        if key == 'adaptive_scheduled':
+            record.update(scheduling='Shorter d2 allocations at 60 qubits; unchanged standard controller',
+                          parent_method='adaptive_history')
+        elif key == 'adaptive_no_flags':
             record.update(observed_flag_postselection='Reject any nonzero measured flag immediately',
                           flag_zero_is_not_actual_fault_zero=True,
                           max_extractions_per_cycle=2, allowed_distance_paths=[[4, 4]],

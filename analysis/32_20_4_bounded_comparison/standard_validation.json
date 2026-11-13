@@ -2,6 +2,7 @@
   "complete": true,
   "methods": [
     "adaptive_history",
+    "adaptive_scheduled",
     "adaptive_order_two",
     "adaptive_probability_10",
     "adaptive_probability_25",
@@ -20,11 +21,14 @@
     "adaptive_probability_25",
     "adaptive_no_flags"
   ],
+  "additional_fresh_methods": [
+    "adaptive_scheduled"
+  ],
   "configurations_per_method": 32,
   "attempts_per_method": 9329148,
-  "new_attempts": 46645740,
-  "total_comparison_attempts": 55974888,
-  "raw_files_verified": 384,
+  "new_attempts": 55974888,
+  "total_comparison_attempts": 65304036,
+  "raw_files_verified": 448,
   "independent_steane_files_preserved": 69,
   "resume_additional_shots": 0,
   "tests": {
@@ -32,6 +36,11 @@
     "skipped": 12,
     "log": "build/standard_final_tests.log",
     "remaining_budget_regression": "build/standard_remaining_budget_test.log"
+  },
+  "scheduled_tests": {
+    "passed": 31,
+    "skipped": 0,
+    "log": "build/scheduled_tests.log"
   },
   "notebooks": [
     {
@@ -50,30 +59,21 @@
   "implementation_sha256": {
     "se_postselection.py": "f290f4b938d4e31801239294da34a0963f3f1dfa9da593fa4df16c86d6ba4bad",
     "se_order_two.py": "531edf39568a83e8c8ab42eb3d47ee9ea472fc9b7710656f8e725622538e6290",
-    "se_probability.py": "12d4080d62736c7602e79243ae49f607a307a27fca9a547271991cb83f7cdf60"
+    "se_probability.py": "12d4080d62736c7602e79243ae49f607a307a27fca9a547271991cb83f7cdf60",
+    "se_scheduling.py": "40ef1e4b6608363c628a20497d9fbf937a498e042aabd6fe9f115cd966dd4a7f"
   },
   "statistics": "LER and cost condition on accepted full trajectories; AR uses all attempts",
-  "visual_inspection_passed": true,
-  "visually_inspected_figures": [
-    "physical_error",
-    "cycles",
-    "survival",
-    "cnot_cost",
-    "physical_survival",
-    "acceptance_error_tradeoff"
-  ],
-  "figure_sha256": {
-    "physical_error.png": "adc0f03b53a0919941af2ad5737d046f2132a5c66c0e4310b984fee5cdc0f3e2",
-    "physical_error.pdf": "27471120861e10b8208157ecde93d5b9f718aba1ce4320400f8eefc73d67fb13",
-    "cycles.png": "97088b896a8050f3230f9588b925a4f2442536f5d3ae44b94b4762eb200400c3",
-    "cycles.pdf": "e35821432d467a22007946ff5524ef90685baa9069324b51bf38bafbc8a80c62",
-    "survival.png": "8c0269b1c812b2c72268610ddbcf11b189d9dc232ca6f040b161b861a9b21d92",
-    "survival.pdf": "148b73b45a88e2ade3380a4a1045ae8664cbbd3bfa9c83e766e7caa6ef454f93",
-    "cnot_cost.png": "5e2a7e76ca7fbd5cd713aff59839d09917116bd926430a7d3123f38359aeef6c",
-    "cnot_cost.pdf": "1b6d2a0d59d7f9ba4b1c7c499462fd484f149689b4945aa089c268c04fda4a8f",
-    "physical_survival.png": "fc7867a8979bc8128e31200f740419711f87b0b8d0314d375e7592c0e34751d9",
-    "physical_survival.pdf": "0b158d87f07e4d6f12c8a278865faad134676dfd95b29727eb595571eb1fc8b6",
-    "acceptance_error_tradeoff.png": "5bb84f9bb33c3fce72f4196eda2e4c3a7634bb211169502790f7390147c91c4c",
-    "acceptance_error_tradeoff.pdf": "3a339c9194a84b723182daa5559a42e79ea540920ebfd960e650c02c782595bf"
+  "visual_inspection": {
+    "complete": true,
+    "figures": [
+      "physical_error",
+      "cycles",
+      "survival",
+      "cnot_cost",
+      "physical_survival",
+      "acceptance_error_tradeoff"
+    ],
+    "review": "build/scheduled_figure_review.png",
+    "note": "All six regenerated scientific figure layouts inspected; legends include seven methods without clipping."
   }
 }

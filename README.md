@@ -90,6 +90,11 @@ independently verified for logical preservation.
 All adaptive methods share this base:
 
 - **Adaptive PS(r+s≤1)**.
+- **Adaptive shorter d2 PS(r+s≤1)** uses the same controller and corrections,
+  with d2 ancilla reuse relaxed to use the full 60-qubit budget. X_d2 decreases
+  from 92 to 45 scheduled layers and Z_d2 from 86 to 43; both retain 121 CX/CZ.
+  The d4 circuits are identical. Linear memory noise scales with scheduled
+  idle duration, which decreases even though the number of gates is unchanged.
 - **Adaptive PS(r+s≤1 or V₂)** preserves accepted base records and adds records
   only when all compatible r+s≤2 histories agree on one final Pauli class modulo
   stabilizers. Any additional d2 measurement includes the remaining fault budget.
@@ -113,10 +118,11 @@ accepted Steane trajectory. Earlier cycles of later-rejected shots are excluded.
 Acceptance uses all attempted trajectories; intervals are 95% Wilson.
 
 The previous history-only base, duplicate flag-recovery method, simulation data
-and attribution study have been removed. All five adaptive methods are rerun
+and attribution study have been removed. The original five adaptive methods were rerun
 from empty datasets with 32 matching configurations, seed 20261112 and
 100,000 floor / 1,000,000 cap: 9,329,148 attempts each. The independent Steane
-results are retained. Production includes scheduled memory noise, with ideal
+results are retained. The shorter-d2 method adds a fresh dataset with the same
+32 configurations and shot budgets. Production includes scheduled memory noise, with ideal
 preparation and final decoding once per trajectory.
 
 ```sh
@@ -129,6 +135,9 @@ PYTHONPATH=. python analysis/32_20_4_bounded_comparison/controls.py
 PYTHONPATH=. python analysis/32_20_4_bounded_comparison/order_two_controls.py
 PYTHONPATH=. python analysis/32_20_4_bounded_comparison/probability_controls.py
 PYTHONPATH=. python analysis/32_20_4_bounded_comparison/finalize.py
+# Build or sample only the shorter-d2 method.
+PYTHONPATH=. python analysis/32_20_4_bounded_comparison/build.py --only adaptive_scheduled
+python -m spiderwarp.se_comparison --only adaptive_scheduled --jobs 8
 # Refresh figures and notebooks without sampling.
 python -m spiderwarp.se_comparison --plot-only
 ```

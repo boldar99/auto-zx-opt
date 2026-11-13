@@ -45,6 +45,7 @@ class ComparisonMethod:
 
 METHODS = {
     'adaptive_history': ComparisonMethod('Adaptive', 60, 'se_postselected_100k', postselection='history'),
+    'adaptive_scheduled': ComparisonMethod('Adaptive shorter d2', 60, 'adaptive_scheduled_100k', postselection='history'),
     'adaptive_order_two': ComparisonMethod('Adaptive', 60, 'adaptive_order_two_100k', postselection='order_two'),
     'adaptive_probability_10': ComparisonMethod('Adaptive', 60, 'adaptive_probability_10_100k', postselection='probability_10'),
     'adaptive_probability_25': ComparisonMethod('Adaptive', 60, 'adaptive_probability_25_100k', postselection='probability_25'),
@@ -54,6 +55,7 @@ METHODS = {
 
 METHOD_COLORS = {
     'adaptive_history': '#d62728',
+    'adaptive_scheduled': '#17becf',
     'adaptive_order_two': '#1f77b4',
     'adaptive_probability_10': '#2ca02c',
     'adaptive_probability_25': '#8c564b',

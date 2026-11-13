@@ -1,0 +1,158 @@
+{
+  "method": "standard-order-one-shorter-d2",
+  "peak_qubit_limit": 60,
+  "unchanged_controller": true,
+  "unchanged_frames": true,
+  "unchanged_d4": true,
+  "selection": "Minimize scheduled data idles, depth, ancilla idles, then qubits on reuse frontier",
+  "optimal": false,
+  "stages": {
+    "X_d2": {
+      "before": {
+        "qubits": 51,
+        "depth": 92,
+        "cnots": 121,
+        "data_idle_units": 2912,
+        "ancilla_idle_units": 1341
+      },
+      "after": {
+        "qubits": 60,
+        "depth": 45,
+        "cnots": 121,
+        "data_idle_units": 1408,
+        "ancilla_idle_units": 699
+      },
+      "feasible_allocations": 10,
+      "identical_single_fault_responses": true,
+      "circuit_changed": true
+    },
+    "X_d4": {
+      "before": {
+        "qubits": 60,
+        "depth": 83,
+        "cnots": 156,
+        "data_idle_units": 2624,
+        "ancilla_idle_units": 1738
+      },
+      "after": {
+        "qubits": 60,
+        "depth": 83,
+        "cnots": 156,
+        "data_idle_units": 2624,
+        "ancilla_idle_units": 1738
+      },
+      "feasible_allocations": 0,
+      "identical_single_fault_responses": true,
+      "circuit_changed": false
+    },
+    "Z_d2": {
+      "before": {
+        "qubits": 51,
+        "depth": 86,
+        "cnots": 121,
+        "data_idle_units": 2720,
+        "ancilla_idle_units": 1248
+      },
+      "after": {
+        "qubits": 60,
+        "depth": 43,
+        "cnots": 121,
+        "data_idle_units": 1344,
+        "ancilla_idle_units": 667
+      },
+      "feasible_allocations": 10,
+      "identical_single_fault_responses": true,
+      "circuit_changed": true
+    },
+    "Z_d4": {
+      "before": {
+        "qubits": 60,
+        "depth": 83,
+        "cnots": 156,
+        "data_idle_units": 2624,
+        "ancilla_idle_units": 1762
+      },
+      "after": {
+        "qubits": 60,
+        "depth": 83,
+        "cnots": 156,
+        "data_idle_units": 2624,
+        "ancilla_idle_units": 1762
+      },
+      "feasible_allocations": 0,
+      "identical_single_fault_responses": true,
+      "circuit_changed": false
+    }
+  },
+  "order_one_guard": {
+    "states": 1666,
+    "nonreject_edges": 2614,
+    "accepts": 1345
+  },
+  "protocol_hash": "e6530c6fedd15fef528307f63e7354d999aa0bafea679d908e81cd01a5335a23",
+  "parent_protocol_hash": "84bc3315c7b9365c882ecb2d77197fe63e42c43f65f6c94322745026d0f765f6",
+  "verification": {
+    "contract": {
+      "correctable": 0,
+      "logical_order": 1,
+      "max_syndrome_sectors": 65536,
+      "fault_order": 2,
+      "accept_clean_through": 0,
+      "input_scope": "total-order",
+      "accepted_filter_order": 1
+    },
+    "decoder_hash": "c2ac2ba6d1bd79dfa0080e57c091eed7c8316f1a0361855d9218ae10f3910e24",
+    "verified": true,
+    "checked_transitions": 3947446,
+    "accepted_contexts": 261122,
+    "discarded_contexts": 2026325,
+    "ec_a_input_syndromes": 0,
+    "worst_case_cnots": 433,
+    "max_extractions": 3,
+    "peak_qubits": 60,
+    "lower_bound_cnots": 0,
+    "noise_model": "All 15 nonidentity Paulis per two-qubit gate; X/Y/Z per one-qubit gate; reset and measurement flips; no implicit idles; terminal Pauli frames."
+  },
+  "inspection": {
+    "contract": {
+      "correctable": 0,
+      "logical_order": 1,
+      "max_syndrome_sectors": 65536,
+      "fault_order": 2,
+      "accept_clean_through": 0,
+      "input_scope": "total-order",
+      "accepted_filter_order": 1
+    },
+    "paths": [
+      [
+        "Z_d4"
+      ],
+      [
+        "Z_d4",
+        "X_d2"
+      ],
+      [
+        "Z_d4",
+        "X_d4"
+      ],
+      [
+        "Z_d4",
+        "X_d4",
+        "X_d2"
+      ],
+      [
+        "Z_d4",
+        "X_d4",
+        "Z_d2"
+      ]
+    ],
+    "zero_record_path": [
+      "Z_d4",
+      "X_d4"
+    ],
+    "max_d4_extractions": 2,
+    "max_extractions": 3,
+    "no_d1": true,
+    "worst_case_cnots": 433
+  }
+}

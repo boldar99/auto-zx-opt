@@ -2,6 +2,7 @@
   "complete": true,
   "methods": [
     "Adaptive PS(r+s\u22641) (60 qubits)",
+    "Adaptive shorter d2 PS(r+s\u22641) (60 qubits)",
     "Adaptive PS(r+s\u22641 or V\u2082) (60 qubits)",
     "Adaptive PS(r+s\u22641 or p_err\u226410%) (60 qubits)",
     "Adaptive PS(r+s\u22641 or p_err\u226425%) (60 qubits)",
@@ -11,6 +12,7 @@
   "configurations_per_method": 32,
   "attempted_shots": {
     "Adaptive PS(r+s\u22641) (60 qubits)": 9329148,
+    "Adaptive shorter d2 PS(r+s\u22641) (60 qubits)": 9329148,
     "Adaptive PS(r+s\u22641 or V\u2082) (60 qubits)": 9329148,
     "Adaptive PS(r+s\u22641 or p_err\u226410%) (60 qubits)": 9329148,
     "Adaptive PS(r+s\u22641 or p_err\u226425%) (60 qubits)": 9329148,
@@ -27,6 +29,7 @@
   "timing": "Serial noisy ancilla attempts, including persistent data idles; ideal experiment boundaries",
   "peak_qubits": {
     "Adaptive PS(r+s\u22641) (60 qubits)": 60,
+    "Adaptive shorter d2 PS(r+s\u22641) (60 qubits)": 60,
     "Adaptive PS(r+s\u22641 or V\u2082) (60 qubits)": 60,
     "Adaptive PS(r+s\u22641 or p_err\u226410%) (60 qubits)": 60,
     "Adaptive PS(r+s\u22641 or p_err\u226425%) (60 qubits)": 60,
@@ -41,6 +44,7 @@
   "old_history_only_implementation_removed": true,
   "old_simulation_data_deleted": true,
   "adaptive_methods_rerun": 5,
+  "additional_scheduled_method": true,
   "independent_steane_data_retained": true,
   "no_d1": true,
   "max_adaptive_extractions_per_cycle": 3,
@@ -76,6 +80,17 @@
       "source_sha256": "0031a4a897121338d839743086f265f4a2dae43bb5434219b9f3911bfa134d5d",
       "hugr_reloaded": true,
       "hugr_sha256": "891bc40e758d3b71d5b85e77b9a369aae6a6a13abf0c0316a07642caa633124f"
+    },
+    "adaptive_scheduled": {
+      "configurations": 32,
+      "attempted_shots": 9329148,
+      "raw_gate_counts_verified": true,
+      "batch_counts_verified": true,
+      "protocol_hash": "e6530c6fedd15fef528307f63e7354d999aa0bafea679d908e81cd01a5335a23",
+      "source_regenerates_identically": true,
+      "source_sha256": "1f1a40ae2d3865e1db5f2f8d9be3b793c76a0c4b33e379d6a9fd37a6c5414a10",
+      "hugr_reloaded": true,
+      "hugr_sha256": "c789329b6f7415b27bfb2ae799857d0257cdc06d54f9e50166542789eefc5bb9"
     },
     "adaptive_order_two": {
       "configurations": 32,
@@ -583,11 +598,235 @@
             }
           }
         }
+      },
+      "adaptive_scheduled": {
+        "0": {
+          "css_one_inputs": 1089,
+          "accepted_inputs_correct": 1089,
+          "postselected_inputs": 0,
+          "first_fault_classes": 1005,
+          "accepted_faults_correct": 1003,
+          "postselected_faults": 2,
+          "second_fault_classes": 1005,
+          "accepted_second_faults_correct": 1003,
+          "accepted_d2_followup_replays": 771,
+          "rejected_d2_followup_replays": 0,
+          "noiseless_ten_cycle_shots": 100,
+          "native_clean": {
+            "backend": "selene-stim",
+            "noise_model": "gate-noise-including-preparation-and-readout-no-memory-v1",
+            "noise": {
+              "p_1q": 0.0,
+              "p_2q": 0.0,
+              "p_init": 0.0,
+              "p_meas": 0.0
+            },
+            "p": 0,
+            "seed": 20261113,
+            "cycles": 3,
+            "prepared_state": "0",
+            "shots": 8,
+            "accepted": 8,
+            "logical_errors": 0,
+            "ler": 0.0,
+            "ler_interval_95": [
+              0.0,
+              0.32440756488388023
+            ],
+            "survival": 1.0,
+            "versions": {
+              "spiderwarp": "0.1.0",
+              "numpy": "2.2.6",
+              "stim": "1.17.dev1792124270",
+              "guppylang": "0.21.16",
+              "hugr": "0.16.0",
+              "selene-sim": "0.2.18"
+            },
+            "experiment": {
+              "protocol_hash": "e6530c6fedd15fef528307f63e7354d999aa0bafea679d908e81cd01a5335a23",
+              "prepared_state": "0",
+              "cycles": 3,
+              "incoming_x": 1,
+              "incoming_z": 131072,
+              "source_sha256": "c5f600b7e944db6bf21e9ac3a1a860af5053477307207ac4558a7f45adef84ac",
+              "versions": {
+                "spiderwarp": "0.1.0",
+                "numpy": "2.2.6",
+                "stim": "1.17.dev1792124270",
+                "guppylang": "0.21.16",
+                "hugr": "0.16.0",
+                "selene-sim": "0.2.18"
+              },
+              "compile_hash": "707f34a59c039719fd295fc789a4ba9d9e766a2b2f51e2942b70b0f61f44a6c3",
+              "hugr_sha256": "e75e92a62c1ac92c5425b27d23fea677ae4ae3e4df60f0a8ab43fc1c7d7e7340"
+            }
+          },
+          "native_gate_only_noisy": {
+            "backend": "selene-stim",
+            "noise_model": "gate-noise-including-preparation-and-readout-no-memory-v1",
+            "noise": {
+              "p_1q": 3.125e-05,
+              "p_2q": 0.001,
+              "p_init": 0.001,
+              "p_meas": 1.2499999999999999e-06
+            },
+            "p": 0.001,
+            "seed": 20261113,
+            "cycles": 1,
+            "prepared_state": "0",
+            "shots": 100,
+            "accepted": 71,
+            "logical_errors": 7,
+            "ler": 0.09859154929577464,
+            "ler_interval_95": [
+              0.048582823723969326,
+              0.18980722240592854
+            ],
+            "survival": 0.71,
+            "versions": {
+              "spiderwarp": "0.1.0",
+              "numpy": "2.2.6",
+              "stim": "1.17.dev1792124270",
+              "guppylang": "0.21.16",
+              "hugr": "0.16.0",
+              "selene-sim": "0.2.18"
+            },
+            "experiment": {
+              "protocol_hash": "e6530c6fedd15fef528307f63e7354d999aa0bafea679d908e81cd01a5335a23",
+              "prepared_state": "0",
+              "cycles": 1,
+              "incoming_x": 0,
+              "incoming_z": 0,
+              "source_sha256": "17dc8da539a82343354e045b60aaac7129e15800d1331ea8b2f38331a8ca61c9",
+              "versions": {
+                "spiderwarp": "0.1.0",
+                "numpy": "2.2.6",
+                "stim": "1.17.dev1792124270",
+                "guppylang": "0.21.16",
+                "hugr": "0.16.0",
+                "selene-sim": "0.2.18"
+              },
+              "compile_hash": "8aaa55ee06342b30a63d74eab33e5ac5f773ca60ea7b8353ad58404cd4d2f898",
+              "hugr_sha256": "1c6356277232bd59e011a312e8bdaf848bfe415d777bfe835dc3ec0ea3fcd362"
+            }
+          }
+        },
+        "+": {
+          "css_one_inputs": 1089,
+          "accepted_inputs_correct": 1089,
+          "postselected_inputs": 0,
+          "first_fault_classes": 1005,
+          "accepted_faults_correct": 1003,
+          "postselected_faults": 2,
+          "second_fault_classes": 1005,
+          "accepted_second_faults_correct": 1003,
+          "accepted_d2_followup_replays": 771,
+          "rejected_d2_followup_replays": 0,
+          "noiseless_ten_cycle_shots": 100,
+          "native_clean": {
+            "backend": "selene-stim",
+            "noise_model": "gate-noise-including-preparation-and-readout-no-memory-v1",
+            "noise": {
+              "p_1q": 0.0,
+              "p_2q": 0.0,
+              "p_init": 0.0,
+              "p_meas": 0.0
+            },
+            "p": 0,
+            "seed": 20261113,
+            "cycles": 3,
+            "prepared_state": "+",
+            "shots": 8,
+            "accepted": 8,
+            "logical_errors": 0,
+            "ler": 0.0,
+            "ler_interval_95": [
+              0.0,
+              0.32440756488388023
+            ],
+            "survival": 1.0,
+            "versions": {
+              "spiderwarp": "0.1.0",
+              "numpy": "2.2.6",
+              "stim": "1.17.dev1792124270",
+              "guppylang": "0.21.16",
+              "hugr": "0.16.0",
+              "selene-sim": "0.2.18"
+            },
+            "experiment": {
+              "protocol_hash": "e6530c6fedd15fef528307f63e7354d999aa0bafea679d908e81cd01a5335a23",
+              "prepared_state": "+",
+              "cycles": 3,
+              "incoming_x": 1,
+              "incoming_z": 131072,
+              "source_sha256": "2bec9b8e23c7043ce07f72d6e2e28d8625184883f422690744d72bd073cb6c1d",
+              "versions": {
+                "spiderwarp": "0.1.0",
+                "numpy": "2.2.6",
+                "stim": "1.17.dev1792124270",
+                "guppylang": "0.21.16",
+                "hugr": "0.16.0",
+                "selene-sim": "0.2.18"
+              },
+              "compile_hash": "4cc49f31bbc979feb6258c9297bb9d9a301837db60bd518dfa04c06ef7e5a6bc",
+              "hugr_sha256": "b61ec87ff26f9f2cbdfeb977d025b3c5af885151454f0ffa7217e5f4d396c18b"
+            }
+          },
+          "native_gate_only_noisy": {
+            "backend": "selene-stim",
+            "noise_model": "gate-noise-including-preparation-and-readout-no-memory-v1",
+            "noise": {
+              "p_1q": 3.125e-05,
+              "p_2q": 0.001,
+              "p_init": 0.001,
+              "p_meas": 1.2499999999999999e-06
+            },
+            "p": 0.001,
+            "seed": 20261113,
+            "cycles": 1,
+            "prepared_state": "+",
+            "shots": 100,
+            "accepted": 87,
+            "logical_errors": 5,
+            "ler": 0.05747126436781609,
+            "ler_interval_95": [
+              0.02479563779315351,
+              0.12757376490451622
+            ],
+            "survival": 0.87,
+            "versions": {
+              "spiderwarp": "0.1.0",
+              "numpy": "2.2.6",
+              "stim": "1.17.dev1792124270",
+              "guppylang": "0.21.16",
+              "hugr": "0.16.0",
+              "selene-sim": "0.2.18"
+            },
+            "experiment": {
+              "protocol_hash": "e6530c6fedd15fef528307f63e7354d999aa0bafea679d908e81cd01a5335a23",
+              "prepared_state": "+",
+              "cycles": 1,
+              "incoming_x": 0,
+              "incoming_z": 0,
+              "source_sha256": "b578acb16bebc082b96411de5562f66f965afe234c3d3643f59c974ce5d8993a",
+              "versions": {
+                "spiderwarp": "0.1.0",
+                "numpy": "2.2.6",
+                "stim": "1.17.dev1792124270",
+                "guppylang": "0.21.16",
+                "hugr": "0.16.0",
+                "selene-sim": "0.2.18"
+              },
+              "compile_hash": "80f1f88257cf94ed55cf9f273938df1ebb0bb081144478cec113db0f6e5311a1",
+              "hugr_sha256": "01510821eda3e2efc98f5b486f54344204d98a8d00993492deb324811ec8ccc7"
+            }
+          }
+        }
       }
     },
-    "physical_css_one_inputs": 4356,
-    "native_clean_shots": 32,
-    "native_noisy_shots": 400,
+    "physical_css_one_inputs": 6534,
+    "native_clean_shots": 48,
+    "native_noisy_shots": 600,
     "native_noise_scope": "Gate-only backend controls; differs from production scheduled-memory noise",
     "history_method_requires_single_fault_acceptance": false,
     "zero_flag_experiment_can_postselect_single_faults": true
@@ -1352,6 +1591,241 @@
     "seed": 2026111315,
     "note": "Correction confidence checked using independent pointwise meet-in-the-middle posterior; no production labels"
   },
+  "scheduled_controls": {
+    "complete": true,
+    "protocol_hash": "e6530c6fedd15fef528307f63e7354d999aa0bafea679d908e81cd01a5335a23",
+    "accepted_records": 2371,
+    "all_records_and_frames_match_parent": true,
+    "physical_native_controls": {
+      "0": {
+        "css_one_inputs": 1089,
+        "accepted_inputs_correct": 1089,
+        "postselected_inputs": 0,
+        "first_fault_classes": 1005,
+        "accepted_faults_correct": 1003,
+        "postselected_faults": 2,
+        "second_fault_classes": 1005,
+        "accepted_second_faults_correct": 1003,
+        "accepted_d2_followup_replays": 771,
+        "rejected_d2_followup_replays": 0,
+        "noiseless_ten_cycle_shots": 100,
+        "native_clean": {
+          "backend": "selene-stim",
+          "noise_model": "gate-noise-including-preparation-and-readout-no-memory-v1",
+          "noise": {
+            "p_1q": 0.0,
+            "p_2q": 0.0,
+            "p_init": 0.0,
+            "p_meas": 0.0
+          },
+          "p": 0,
+          "seed": 20261113,
+          "cycles": 3,
+          "prepared_state": "0",
+          "shots": 8,
+          "accepted": 8,
+          "logical_errors": 0,
+          "ler": 0.0,
+          "ler_interval_95": [
+            0.0,
+            0.32440756488388023
+          ],
+          "survival": 1.0,
+          "versions": {
+            "spiderwarp": "0.1.0",
+            "numpy": "2.2.6",
+            "stim": "1.17.dev1792124270",
+            "guppylang": "0.21.16",
+            "hugr": "0.16.0",
+            "selene-sim": "0.2.18"
+          },
+          "experiment": {
+            "protocol_hash": "e6530c6fedd15fef528307f63e7354d999aa0bafea679d908e81cd01a5335a23",
+            "prepared_state": "0",
+            "cycles": 3,
+            "incoming_x": 1,
+            "incoming_z": 131072,
+            "source_sha256": "c5f600b7e944db6bf21e9ac3a1a860af5053477307207ac4558a7f45adef84ac",
+            "versions": {
+              "spiderwarp": "0.1.0",
+              "numpy": "2.2.6",
+              "stim": "1.17.dev1792124270",
+              "guppylang": "0.21.16",
+              "hugr": "0.16.0",
+              "selene-sim": "0.2.18"
+            },
+            "compile_hash": "707f34a59c039719fd295fc789a4ba9d9e766a2b2f51e2942b70b0f61f44a6c3",
+            "hugr_sha256": "e75e92a62c1ac92c5425b27d23fea677ae4ae3e4df60f0a8ab43fc1c7d7e7340"
+          }
+        },
+        "native_gate_only_noisy": {
+          "backend": "selene-stim",
+          "noise_model": "gate-noise-including-preparation-and-readout-no-memory-v1",
+          "noise": {
+            "p_1q": 3.125e-05,
+            "p_2q": 0.001,
+            "p_init": 0.001,
+            "p_meas": 1.2499999999999999e-06
+          },
+          "p": 0.001,
+          "seed": 20261113,
+          "cycles": 1,
+          "prepared_state": "0",
+          "shots": 100,
+          "accepted": 71,
+          "logical_errors": 7,
+          "ler": 0.09859154929577464,
+          "ler_interval_95": [
+            0.048582823723969326,
+            0.18980722240592854
+          ],
+          "survival": 0.71,
+          "versions": {
+            "spiderwarp": "0.1.0",
+            "numpy": "2.2.6",
+            "stim": "1.17.dev1792124270",
+            "guppylang": "0.21.16",
+            "hugr": "0.16.0",
+            "selene-sim": "0.2.18"
+          },
+          "experiment": {
+            "protocol_hash": "e6530c6fedd15fef528307f63e7354d999aa0bafea679d908e81cd01a5335a23",
+            "prepared_state": "0",
+            "cycles": 1,
+            "incoming_x": 0,
+            "incoming_z": 0,
+            "source_sha256": "17dc8da539a82343354e045b60aaac7129e15800d1331ea8b2f38331a8ca61c9",
+            "versions": {
+              "spiderwarp": "0.1.0",
+              "numpy": "2.2.6",
+              "stim": "1.17.dev1792124270",
+              "guppylang": "0.21.16",
+              "hugr": "0.16.0",
+              "selene-sim": "0.2.18"
+            },
+            "compile_hash": "8aaa55ee06342b30a63d74eab33e5ac5f773ca60ea7b8353ad58404cd4d2f898",
+            "hugr_sha256": "1c6356277232bd59e011a312e8bdaf848bfe415d777bfe835dc3ec0ea3fcd362"
+          }
+        }
+      },
+      "+": {
+        "css_one_inputs": 1089,
+        "accepted_inputs_correct": 1089,
+        "postselected_inputs": 0,
+        "first_fault_classes": 1005,
+        "accepted_faults_correct": 1003,
+        "postselected_faults": 2,
+        "second_fault_classes": 1005,
+        "accepted_second_faults_correct": 1003,
+        "accepted_d2_followup_replays": 771,
+        "rejected_d2_followup_replays": 0,
+        "noiseless_ten_cycle_shots": 100,
+        "native_clean": {
+          "backend": "selene-stim",
+          "noise_model": "gate-noise-including-preparation-and-readout-no-memory-v1",
+          "noise": {
+            "p_1q": 0.0,
+            "p_2q": 0.0,
+            "p_init": 0.0,
+            "p_meas": 0.0
+          },
+          "p": 0,
+          "seed": 20261113,
+          "cycles": 3,
+          "prepared_state": "+",
+          "shots": 8,
+          "accepted": 8,
+          "logical_errors": 0,
+          "ler": 0.0,
+          "ler_interval_95": [
+            0.0,
+            0.32440756488388023
+          ],
+          "survival": 1.0,
+          "versions": {
+            "spiderwarp": "0.1.0",
+            "numpy": "2.2.6",
+            "stim": "1.17.dev1792124270",
+            "guppylang": "0.21.16",
+            "hugr": "0.16.0",
+            "selene-sim": "0.2.18"
+          },
+          "experiment": {
+            "protocol_hash": "e6530c6fedd15fef528307f63e7354d999aa0bafea679d908e81cd01a5335a23",
+            "prepared_state": "+",
+            "cycles": 3,
+            "incoming_x": 1,
+            "incoming_z": 131072,
+            "source_sha256": "2bec9b8e23c7043ce07f72d6e2e28d8625184883f422690744d72bd073cb6c1d",
+            "versions": {
+              "spiderwarp": "0.1.0",
+              "numpy": "2.2.6",
+              "stim": "1.17.dev1792124270",
+              "guppylang": "0.21.16",
+              "hugr": "0.16.0",
+              "selene-sim": "0.2.18"
+            },
+            "compile_hash": "4cc49f31bbc979feb6258c9297bb9d9a301837db60bd518dfa04c06ef7e5a6bc",
+            "hugr_sha256": "b61ec87ff26f9f2cbdfeb977d025b3c5af885151454f0ffa7217e5f4d396c18b"
+          }
+        },
+        "native_gate_only_noisy": {
+          "backend": "selene-stim",
+          "noise_model": "gate-noise-including-preparation-and-readout-no-memory-v1",
+          "noise": {
+            "p_1q": 3.125e-05,
+            "p_2q": 0.001,
+            "p_init": 0.001,
+            "p_meas": 1.2499999999999999e-06
+          },
+          "p": 0.001,
+          "seed": 20261113,
+          "cycles": 1,
+          "prepared_state": "+",
+          "shots": 100,
+          "accepted": 87,
+          "logical_errors": 5,
+          "ler": 0.05747126436781609,
+          "ler_interval_95": [
+            0.02479563779315351,
+            0.12757376490451622
+          ],
+          "survival": 0.87,
+          "versions": {
+            "spiderwarp": "0.1.0",
+            "numpy": "2.2.6",
+            "stim": "1.17.dev1792124270",
+            "guppylang": "0.21.16",
+            "hugr": "0.16.0",
+            "selene-sim": "0.2.18"
+          },
+          "experiment": {
+            "protocol_hash": "e6530c6fedd15fef528307f63e7354d999aa0bafea679d908e81cd01a5335a23",
+            "prepared_state": "+",
+            "cycles": 1,
+            "incoming_x": 0,
+            "incoming_z": 0,
+            "source_sha256": "b578acb16bebc082b96411de5562f66f965afe234c3d3643f59c974ce5d8993a",
+            "versions": {
+              "spiderwarp": "0.1.0",
+              "numpy": "2.2.6",
+              "stim": "1.17.dev1792124270",
+              "guppylang": "0.21.16",
+              "hugr": "0.16.0",
+              "selene-sim": "0.2.18"
+            },
+            "compile_hash": "80f1f88257cf94ed55cf9f273938df1ebb0bb081144478cec113db0f6e5311a1",
+            "hugr_sha256": "01510821eda3e2efc98f5b486f54344204d98a8d00993492deb324811ec8ccc7"
+          }
+        }
+      }
+    },
+    "export": {
+      "nodes_checked": 287,
+      "transitions_checked": 2546,
+      "missing_edges_reject": true
+    }
+  },
   "notebooks_refreshed": true,
   "six_figure_pairs_generated": true,
   "visual_inspection_pending": false,
@@ -1362,32 +1836,27 @@
     "log": "build/standard_final_tests.log",
     "remaining_budget_regression": "build/standard_remaining_budget_test.log"
   },
+  "scheduled_tests": {
+    "passed": 31,
+    "skipped": 0,
+    "log": "build/scheduled_tests.log"
+  },
   "completed_run_resume": {
     "additional_shots": 0,
-    "raw_files": 384,
+    "raw_files": 448,
     "all_hashes_preserved": true
   },
-  "visual_inspection_passed": true,
-  "visually_inspected_figures": [
-    "physical_error",
-    "cycles",
-    "survival",
-    "cnot_cost",
-    "physical_survival",
-    "acceptance_error_tradeoff"
-  ],
-  "figure_sha256": {
-    "physical_error.png": "adc0f03b53a0919941af2ad5737d046f2132a5c66c0e4310b984fee5cdc0f3e2",
-    "physical_error.pdf": "27471120861e10b8208157ecde93d5b9f718aba1ce4320400f8eefc73d67fb13",
-    "cycles.png": "97088b896a8050f3230f9588b925a4f2442536f5d3ae44b94b4762eb200400c3",
-    "cycles.pdf": "e35821432d467a22007946ff5524ef90685baa9069324b51bf38bafbc8a80c62",
-    "survival.png": "8c0269b1c812b2c72268610ddbcf11b189d9dc232ca6f040b161b861a9b21d92",
-    "survival.pdf": "148b73b45a88e2ade3380a4a1045ae8664cbbd3bfa9c83e766e7caa6ef454f93",
-    "cnot_cost.png": "5e2a7e76ca7fbd5cd713aff59839d09917116bd926430a7d3123f38359aeef6c",
-    "cnot_cost.pdf": "1b6d2a0d59d7f9ba4b1c7c499462fd484f149689b4945aa089c268c04fda4a8f",
-    "physical_survival.png": "fc7867a8979bc8128e31200f740419711f87b0b8d0314d375e7592c0e34751d9",
-    "physical_survival.pdf": "0b158d87f07e4d6f12c8a278865faad134676dfd95b29727eb595571eb1fc8b6",
-    "acceptance_error_tradeoff.png": "5bb84f9bb33c3fce72f4196eda2e4c3a7634bb211169502790f7390147c91c4c",
-    "acceptance_error_tradeoff.pdf": "3a339c9194a84b723182daa5559a42e79ea540920ebfd960e650c02c782595bf"
+  "visual_inspection": {
+    "complete": true,
+    "figures": [
+      "physical_error",
+      "cycles",
+      "survival",
+      "cnot_cost",
+      "physical_survival",
+      "acceptance_error_tradeoff"
+    ],
+    "review": "build/scheduled_figure_review.png",
+    "note": "All six regenerated scientific figure layouts inspected; legends include seven methods without clipping."
   }
 }

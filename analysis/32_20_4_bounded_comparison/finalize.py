@@ -23,7 +23,11 @@ def main():
     for name, expected in reset['retained_independent_steane'].items():
         assert hashlib.sha256((study.ROOT / name).read_bytes()).hexdigest() == expected
     adaptive = [key for key, method in study.METHODS.items() if method.family == 'adaptive']
-    assert len(adaptive) == 5 and 'adaptive_flag_recovery' not in study.METHODS
+    assert set(adaptive) == set(reset['adaptive_methods_to_rerun']) | {'adaptive_scheduled'}
+    assert 'adaptive_flag_recovery' not in study.METHODS
+    previous_hashes = json.loads((study.OUT / 'standard_raw_hashes.json').read_text())
+    for name, expected in previous_hashes.items():
+        assert hashlib.sha256((study.ROOT / name).read_bytes()).hexdigest() == expected
     for obsolete in ('benchmarks/adaptive_flag_recovery_100k', 'benchmarks/se_postselected_50k',
                      'benchmarks/adaptive_css_no_flags_50k', 'benchmarks/retired',
                      'analysis/32_20_4_history_attribution', 'spiderwarp/se_flag_recovery.py'):
@@ -36,7 +40,7 @@ def main():
         assert all(path.stat().st_mtime >= since for path in (directory / 'batches').glob('*.csv'))
     import_module('analysis.32_20_4_bounded_comparison.present').main()
     before = raw_hashes()
-    assert len(before) == 384
+    assert len(before) == 64 * len(study.METHODS)
     for key in adaptive:
         study.sweep(key, jobs=8)
     assert before == raw_hashes()
@@ -44,11 +48,11 @@ def main():
     comparison = study.ROOT / 'benchmarks/steane_comparison'
     rows = list(csv.DictReader((comparison / 'comparison.csv').open()))
     endpoints = list(csv.DictReader((comparison / 'default_endpoints.csv').open()))
-    assert len(rows) == 192 and len(endpoints) == 24
+    assert len(rows) == 32 * len(study.METHODS) and len(endpoints) == 4 * len(study.METHODS)
     base_hash = import_module('spiderwarp.se_protocol_io').read_manifest(
         study.ROOT / 'build' / study.BUNDLES['adaptive_history'])[1]['protocol_hash']
     for name in ('order_two_build_validation.json', 'probability_10_build.json',
-                 'probability_25_build.json'):
+                 'probability_25_build.json', 'scheduled_build_validation.json'):
         data = json.loads((study.OUT / name).read_text())
         assert data['parent_protocol_hash'] == base_hash
     no_flags = json.loads((study.ROOT / 'build' / study.BUNDLES['adaptive_no_flags'] / 'experiment.json').read_text())
@@ -72,29 +76,38 @@ def main():
     extra_tests = (study.ROOT / 'build/standard_remaining_budget_test.log').read_text()
     extra_match = re.search(r'(\d+) passed', extra_tests)
     assert extra_match and not re.search(r'\d+ failed', extra_tests)
+    scheduled_tests = (study.ROOT / 'build/scheduled_tests.log').read_text()
+    scheduled_match = re.search(r'(\d+) passed(?:, (\d+) skipped)?', scheduled_tests)
+    assert scheduled_match and not re.search(r'\d+ failed', scheduled_tests)
     validation = dict(complete=True, methods=list(study.METHODS),
         standard_base_protocol_hash=base_hash,
         base_rule='No flags: incoming CSS order <=1; raised flags: fault-history recovery',
         old_history_only_implementation_removed=True,
         previous_adaptive_simulation_data_deleted=True, previous_data_archived=False,
-        adaptive_methods_freshly_rerun=adaptive, configurations_per_method=32,
-        attempts_per_method=9329148, new_attempts=46645740, total_comparison_attempts=55974888,
-        raw_files_verified=384, independent_steane_files_preserved=len(reset['retained_independent_steane']),
+        adaptive_methods_freshly_rerun=reset['adaptive_methods_to_rerun'],
+        additional_fresh_methods=['adaptive_scheduled'], configurations_per_method=32,
+        attempts_per_method=9329148, new_attempts=9329148 * len(adaptive),
+        total_comparison_attempts=9329148 * len(study.METHODS),
+        raw_files_verified=len(before), independent_steane_files_preserved=len(reset['retained_independent_steane']),
         resume_additional_shots=0,
         tests=dict(passed=int(matched[1]), skipped=int(matched[2] or 0),
                    log='build/standard_final_tests.log',
                    remaining_budget_regression='build/standard_remaining_budget_test.log'),
+        scheduled_tests=dict(passed=int(scheduled_match[1]), skipped=int(scheduled_match[2] or 0),
+                             log='build/scheduled_tests.log'),
         notebooks=books, six_figure_pairs_generated=True, visual_inspection_pending=True,
         implementation_sha256={name: hashlib.sha256((study.ROOT / 'spiderwarp' / name).read_bytes()).hexdigest()
-            for name in ('se_postselection.py', 'se_order_two.py', 'se_probability.py')},
+            for name in ('se_postselection.py', 'se_order_two.py', 'se_probability.py', 'se_scheduling.py')},
         statistics='LER and cost condition on accepted full trajectories; AR uses all attempts')
     study.write(study.OUT / 'standard_validation.json', validation)
     for path in (comparison / 'validation.json', study.OUT / 'sampling_validation.json'):
         data = json.loads(path.read_text())
         data.update(standard_validation='standard_validation.json', targeted_tests=validation['tests'],
-                    completed_run_resume=dict(additional_shots=0, raw_files=384, all_hashes_preserved=True))
+                    scheduled_tests=validation['scheduled_tests'],
+                    completed_run_resume=dict(additional_shots=0, raw_files=len(before), all_hashes_preserved=True))
         study.write(path, data)
-    print('Audited five fresh adaptive sweeps, 192 comparison rows, 24 endpoints and 384 raw files; resumes add zero shots.', flush=True)
+    print(f'Audited {len(adaptive)} adaptive sweeps, {len(rows)} comparison rows, '
+          f'{len(endpoints)} endpoints and {len(before)} raw files; resumes add zero shots.', flush=True)
 
 
 if __name__ == '__main__':

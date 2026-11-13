@@ -232,7 +232,7 @@ def default_noise_model() -> CustomErrorModel:
         p_2q=8e-4,
         p_meas=1e-6,
         p_init=8e-4,
-        p_linear_mem=6.3e-4 * 0.02,
+        p_linear_mem=6.3e-3 * 0.03,
     )
 
 

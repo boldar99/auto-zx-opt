@@ -2,6 +2,80 @@
 
 Last updated: 2026-11-13
 
+## Shorter-d2 scheduling extension (2026-11-13)
+
+The user authorized a new **r+s≤1-only** method using shorter d2 schedules
+under the 60-qubit limit. The method is `adaptive_scheduled`, displayed as
+**Adaptive shorter d2 PS(r+s≤1)**. Its bundle is
+`build/adaptive_scheduled_32_20_4/`, protocol hash
+`e6530c6fedd15fef528307f63e7354d999aa0bafea679d908e81cd01a5335a23`.
+Results are in `benchmarks/adaptive_scheduled_100k/`.
+
+`spiderwarp/se_scheduling.py` expands reused ancilla lifetimes and evaluates
+feasible allocations on the existing reuse frontier with a hard 60-qubit cap.
+It minimizes production-scheduled data idles, then depth, ancilla idles and
+qubits. This is a frontier search, not a depth-optimality claim. Only d2 gadgets
+change; all standard controller nodes, frames, accepted records and d4 circuits
+are preserved. No V₂ or probability variant uses the new schedules.
+
+| Gadget | Qubits before → after | Layers before → after | Data idle units before → after | CX/CZ |
+|---|---:|---:|---:|---:|
+| X_d2 | 51 → 60 | 92 → 45 | 2,912 → 1,408 | 121 |
+| Z_d2 | 51 → 60 | 86 → 43 | 2,720 → 1,344 | 121 |
+
+The user asked why depth matters for linear memory. In the current code,
+`DEPOLARIZE2(p_2q)` after each two-qubit gate is separate from memory.
+`IDLE(gap)` produces `Z_ERROR(min(0.5, gap*p_linear_mem))`, with gaps inferred
+from parallel scheduled layers. Each data qubit has one interaction per
+extraction, so total data idles are `32*(depth-1)`, not a fixed amount per CNOT.
+The noise implementation is unchanged.
+
+Build and verification are complete. All 2,371 accepted records match the
+standard base; single-fault response sets match; the independent FT/guard checks
+pass. Standalone Guppy/HUGR compiles and reloads. Physical and native controls
+pass in both bases, including all CSS-one inputs and single-fault primary
+replays. Gate-only independent noise-channel distributions match exactly after
+removing memory. Tests: 31 targeted checks passed, followed by 6 allocation
+checks after a measurement-provenance refinement. Logs use `build/scheduled_`.
+Authoritative extension records are `scheduled_build_validation.json` and
+`scheduled_controls.json` in the bounded comparison study.
+
+The matched 32-configuration production sweep is complete: **9,329,148 new
+attempts**, 100,000 floor / 1,000,000 cap, seed 20261112, eight workers, about
+445 seconds. The final audit passed: **224 comparison rows, 28 default endpoints,
+448 raw task/batch files**, zero additional shots on resume, and all 384 original
+raw files plus the 69 independent Steane files preserved. All six figure pairs
+were regenerated and visually inspected; both comparison notebooks were
+refreshed and executed. See `build/scheduled_finalize.log`. The comparison now
+has seven methods and 65,304,036 attempts in total.
+
+At default noise after ten cycles (100,000 attempts each):
+
+| Method | 0 failures / accepted | 0 LER | + failures / accepted | + LER | 0 acceptance | + acceptance |
+|---|---:|---:|---:|---:|---:|---:|
+| Standard r+s≤1 | 100 / 36,034 | 0.2775% | 238 / 36,057 | 0.6601% | 36.034% | 36.057% |
+| Shorter d2 r+s≤1 | 87 / 37,360 | 0.2329% | 190 / 37,324 | 0.5091% | 37.360% | 37.324% |
+
+The shorter-d2 95% Wilson LER intervals are 0.1888–0.2871% for 0 and
+0.4418–0.5865% for +. Both LER and AR point estimates improve against the
+standard base. The logical-0 LER intervals overlap, so its reduction is not
+conclusive at this shot budget. One-cycle shorter-d2 results are 118 / 94,122
+(0.1254% LER, 94.122% AR) for 0 and 138 / 94,004 (0.1468% LER, 94.004% AR) for +.
+A deterministic rebuild from the final source matches the sampled protocol hash.
+
+Reproduce the extension only:
+
+```sh
+PYTHONPATH=. python analysis/32_20_4_bounded_comparison/build.py --only adaptive_scheduled
+PYTHONPATH=. python analysis/32_20_4_bounded_comparison/controls.py --only adaptive_scheduled
+PYTHONPATH=. python -m spiderwarp.se_comparison --only adaptive_scheduled --jobs 8
+PYTHONPATH=. python analysis/32_20_4_bounded_comparison/finalize.py
+```
+
+The following section records the earlier standard-base migration. Its five
+adaptive methods and counts describe that completed migration; the shorter-d2
+method is an additional method and dataset.
+
 ## Standard-base migration completed
 
 The user's latest instruction makes the flag-conditioned rule the sole standard

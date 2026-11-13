@@ -58,7 +58,7 @@ def accepted_records(protocol):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    keys = ('adaptive_history', 'adaptive_no_flags')
+    keys = ('adaptive_history', 'adaptive_scheduled', 'adaptive_no_flags')
     parser.add_argument('--only', choices=keys)
     args = parser.parse_args(argv)
     path = study.OUT / 'controls.json'
@@ -122,7 +122,7 @@ def main(argv=None):
                 assert fault_reject > 0 and second_accept < len(second.single_fault_effects)
             else:
                 assert followup_accept > 0
-            if key == 'adaptive_history':
+            if key in ('adaptive_history', 'adaptive_scheduled'):
                 assert fault_reject == 2 and second_accept == len(second.single_fault_effects) - 2
             clean = ProtocolSampler(protocol, noise_model=CustomErrorModel(), prepared_state=basis,
                                     cycles=10).sample(100, 20261113)
@@ -146,6 +146,17 @@ def main(argv=None):
                                   native_gate_only_noisy=native_noisy)
             print(key, basis, 'physical and native controls passed', flush=True)
         checks[key] = results
+        if key == 'adaptive_scheduled':
+            parent = load_protocol(study.ROOT / 'build' / study.BUNDLES['adaptive_history'])
+            assert protocol.policy.nodes == parent.policy.nodes
+            assert accepted_records(protocol) == accepted_records(parent)
+            audit = import_module('analysis.32_20_4_bounded_comparison.probability_controls')
+            source = (bundle / 'steane_se_protocol.py').read_text()
+            export = audit.audit_export(protocol, audit.emitted_bodies(source))
+            study.write(study.OUT / 'scheduled_controls.json', dict(complete=True,
+                protocol_hash=import_module('spiderwarp.se_protocol_io').read_manifest(bundle)[1]['protocol_hash'],
+                accepted_records=2371, all_records_and_frames_match_parent=True,
+                physical_native_controls=results, export=export))
     records = [r for method in checks.values() for r in method.values()]
     study.write(study.OUT / 'controls.json', dict(complete=True, methods=checks,
                 physical_css_one_inputs=sum(r['css_one_inputs'] for r in records),

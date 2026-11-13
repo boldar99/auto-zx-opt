@@ -100,5 +100,22 @@
       "p_linear_mem": 0.01575,
       "p_meas": 0.00125
     }
+  },
+  {
+    "model": 7,
+    "protocol_hash": "e6530c6fedd15fef528307f63e7354d999aa0bafea679d908e81cd01a5335a23",
+    "label": "Adaptive shorter d2 PS($r+s\\leq1$) (60 qubits)",
+    "marker": "o",
+    "color": "#17becf",
+    "engine_hash": "8c2232dc509315c578854396e5267c4ab8a3576f6bdbc26b040f8e1f25e9685d",
+    "noise_ratios": {
+      "p_1q": 0.03125,
+      "p_2q": 1.0,
+      "p_coherent_mem": 0.0,
+      "p_init": 1.0,
+      "p_leakage": 0.0,
+      "p_linear_mem": 0.01575,
+      "p_meas": 0.00125
+    }
   }
 ]
