@@ -106,8 +106,8 @@ from guppylang.std.builtins import array, output
 from guppylang.std.quantum import qubit, x
 from selene_sim.backends import ClassicalReplay
 from sol_experiment.logical_measurement import decode_z_readout, logical_z_meas
-from sol_experiment.state_preparation import state_prep_32_20_4_zero_d3
-from sol_experiment.SPAM_experiment import make_spam_experiment, summarize_result
+from sol_experiment.logical_state_preparation import state_prep_32_20_4_zero_d3
+from sol_experiment.experiment_SPAM import make_spam_experiment, summarize_result
 
 
 @guppy
@@ -203,7 +203,7 @@ def test_spam_statistics_and_empty_acceptance(run_guppy_check):
 from contextlib import redirect_stdout
 from io import StringIO
 from hugr.qsystem.result import QsysResult
-from sol_experiment.SPAM_experiment import summarize_result, print_summary
+from sol_experiment.experiment_SPAM import summarize_result, print_summary
 
 # Rejected shots never enter the LER numerator, even if an external result
 # supplies an error bit for them.
@@ -243,8 +243,8 @@ from guppylang import guppy, OptimizationLevel
 from guppylang.std.builtins import array
 from guppylang.std.quantum import qubit
 from selene_sim.backends import ClassicalReplay
-from sol_experiment.SPAM_experiment import PREPARATION_METHODS, make_spam_experiment
-from sol_experiment.state_preparation import state_prep_32_20_4_zero_d1
+from sol_experiment.experiment_SPAM import PREPARATION_METHODS, make_spam_experiment
+from sol_experiment.logical_state_preparation import state_prep_32_20_4_zero_d1
 
 # Build every program before compiling any of them. Each must retain its own
 # preparation, even though the returned functions share the name experiment.

@@ -10,10 +10,10 @@ from guppylang import guppy, OptimizationLevel
 from guppylang.std.builtins import array, output
 from guppylang.std.quantum import qubit, measure
 from selene_sim.backends import ClassicalReplay
-from sol_experiment.state_preparation import (
+from sol_experiment.logical_state_preparation import (
     repeat_until_success, state_prep_32_20_4_zero_d1, state_prep_32_20_4_zero_d3,
 )
-from sol_experiment.SPAM_experiment import make_spam_experiment, summarize_result
+from sol_experiment.experiment_SPAM import make_spam_experiment, summarize_result
 
 
 @guppy
@@ -82,7 +82,7 @@ def test_bounded_rus_resets_every_data_qubit_before_retry(run_guppy_check):
 from guppylang import guppy, OptimizationLevel
 from guppylang.std.builtins import array, output
 from guppylang.std.quantum import qubit, measure, cx, x
-from sol_experiment.state_preparation import repeat_until_success
+from sol_experiment.logical_state_preparation import repeat_until_success
 
 
 @guppy
@@ -126,7 +126,7 @@ for limit, program in programs.items():
 
 def test_bounded_rus_validates_retry_limit(run_guppy_check):
     run_guppy_check('''
-from sol_experiment.state_preparation import repeat_until_success, state_prep_32_20_4_zero_d3
+from sol_experiment.logical_state_preparation import repeat_until_success, state_prep_32_20_4_zero_d3
 
 for value, expected in ((-1, ValueError), (1.5, TypeError), (True, TypeError),
                         (None, TypeError), ("4", TypeError)):

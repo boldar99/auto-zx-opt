@@ -9,7 +9,7 @@ all-zero state. LER is conditional on acceptance; AR uses all attempted shots.
 
 Run from the repository root, for example::
 
-    uv run --project local_sol_example --no-sync python -m sol_experiment.SPAM_experiment --method d3 --shots 10000
+    uv run --project local_sol_example --no-sync python -m sol_experiment.experiment_SPAM --method d3 --shots 10000
 
 Use --methods d1 d2 d3 d4 to compare preparations. Each method is bound to a
 separate zero-argument Guppy program before compilation. A custom method can
@@ -24,7 +24,7 @@ from guppylang.std.builtins import array, output
 from guppylang.std.quantum import qubit
 
 from sol_experiment.logical_measurement import logical_z_meas
-from sol_experiment.state_preparation import (
+from sol_experiment.logical_state_preparation import (
     state_prep_32_20_4_zero_d1,
     state_prep_32_20_4_zero_d2,
     state_prep_32_20_4_zero_d3,

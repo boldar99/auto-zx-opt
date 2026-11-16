@@ -13,7 +13,7 @@ denominator. Zero cycles runs an initialization/readout baseline.
 
 From the repository root::
 
-    uv run --project local_sol_example --no-sync python -m sol_experiment.memory_experiment --initial-prep d4_RUS --qec-method steane_d3_RUS --num-cycles 10 --shots 10000
+    uv run --project local_sol_example --no-sync python -m sol_experiment.experiment_memory --initial-prep d4_RUS --qec-method steane_d3_RUS --num-cycles 10 --shots 10000
 
 The JSON report is saved under out/memory/ unless --output specifies a file.
 The factory can also accept custom Guppy methods. Z readout is used throughout;
@@ -36,7 +36,7 @@ from local_sol_example.sol.sim import run_hugr
 
 from sol_experiment.logical_measurement import logical_z_meas
 from sol_experiment.QEC_Steane import make_steane_qec_cycle
-from sol_experiment.SPAM_experiment import (
+from sol_experiment.experiment_SPAM import (
     PREPARATION_METHODS, SPAMStatistics, print_summary, summarize_result,
 )
 

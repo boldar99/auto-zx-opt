@@ -13,7 +13,7 @@ from spiderwarp.utils import load_state_prep_circuit
 @pytest.mark.parametrize("distance", range(1, 5))
 def test_operation_descriptions_match_reference(distance):
     pytest.importorskip("guppylang", minversion="1")
-    from sol_experiment import state_preparation as state_prep
+    from sol_experiment import logical_state_preparation as state_prep
 
     circuit = stim.Circuit()
     for name, targets in getattr(
@@ -29,7 +29,7 @@ def test_operation_descriptions_match_reference(distance):
 ])
 def test_preparation_compiles(name):
     pytest.importorskip("guppylang", minversion="1")
-    from sol_experiment import state_preparation as state_prep
+    from sol_experiment import logical_state_preparation as state_prep
 
     getattr(state_prep, name).compile_function()
 
@@ -58,7 +58,7 @@ from guppylang.std.builtins import array, output
 from guppylang.std.quantum import qubit, h, cx, measure
 from selene_sim.backends import ClassicalReplay
 from datetime import timedelta
-from sol_experiment.state_preparation import (
+from sol_experiment.logical_state_preparation import (
     state_prep_32_20_4_zero, repeat_until_success,
     state_prep_32_20_4_zero_d1, state_prep_32_20_4_zero_d2,
     state_prep_32_20_4_zero_d3, state_prep_32_20_4_zero_d4,

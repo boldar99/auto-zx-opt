@@ -33,10 +33,7 @@ so it can also be passed to ``make_spam_experiment``. It makes one initial
 attempt and up to four retries by default, resetting the block between failed
 attempts. A nonzero return value means every allowed attempt failed.
 
-The distance-based ``prepare_zero_rus(4)`` instead allocates and returns an
-accepted block, discarding failed blocks and retrying without a bound.
-
-The executable SPAM experiment lives in ``sol_experiment.SPAM_experiment``.
+The executable SPAM experiment lives in ``sol_experiment.experiment_SPAM``.
 It combines preparation verification with corrected logical Z readout and
 reports acceptance and logical error rates. Use the local_sol_example Python
 environment, with the stabilizer simulator, to run the 34-qubit experiment.
@@ -45,7 +42,9 @@ environment, with the stabilizer simulator, to run the 34-qubit experiment.
 from guppylang import guppy
 from guppylang.defs import GuppyFunctionDefinition
 from guppylang.std.builtins import array, comptime, exit
-from guppylang.std.quantum import cx, cz, discard_array, h, measure, qubit, reset
+from guppylang.std.quantum import qubit, reset
+
+from sol_experiment.circuit_utils import emit_circuit
 
 
 def state_prep_ops_32_20_4_zero_d4() -> list[tuple[str, list[int]]]:
@@ -167,59 +166,38 @@ def _append_bit(mask: int, bit: bool, index: int) -> int:
     return mask
 
 
-def _emit_state_prep(data, operations):
-    """Python helper called only while tracing a @guppy.comptime function."""
-    register = dict(enumerate(data))
+def _pack_flags(measurements):
+    """Read and pack preparation verification results during Guppy tracing."""
+    if len(measurements) > 63:
+        raise ValueError("Preparation flag masks support at most 63 measurements")
     mask = 0
-    measurement_index = 0
-    for name, targets in operations:
-        if name in {"R", "RX"}:
-            for q in targets:
-                if q >= 32:
-                    register[q] = qubit()
-                # Data qubits are already |0>; do not add a second reset.
-                if name == "RX":
-                    h(register[q])
-        elif name in {"CX", "CZ"}:
-            gate = cx if name == "CX" else cz
-            for control, target in zip(targets[::2], targets[1::2]):
-                gate(register[control], register[target])
-        elif name in {"M", "MX"}:
-            for q in targets:
-                if name == "MX":
-                    h(register[q])
-                # Measurement consumes the ancilla; the next R/RX allocates
-                # a fresh lifetime at the same circuit index.
-                bit = measure(register.pop(q)).read()
-                mask = _append_bit(mask, bit, measurement_index)
-                measurement_index += 1
-        else:
-            raise ValueError(f"Unsupported state-preparation operation: {name}")
+    for i, measurement in enumerate(measurements):
+        mask = _append_bit(mask, measurement.read(), i)
     return mask
 
 
 @guppy.comptime
 def state_prep_32_20_4_zero_d1(data: array[qubit, 32]) -> int:
     """Prepare a fresh zero-initialised block; no verification measurements."""
-    return _emit_state_prep(data, state_prep_ops_32_20_4_zero_d1())
+    return _pack_flags(emit_circuit(data, state_prep_ops_32_20_4_zero_d1(), fresh_data=True))
 
 
 @guppy.comptime
 def state_prep_32_20_4_zero_d2(data: array[qubit, 32]) -> int:
     """Prepare a fresh zero-initialised block; return the six verification bits."""
-    return _emit_state_prep(data, state_prep_ops_32_20_4_zero_d2())
+    return _pack_flags(emit_circuit(data, state_prep_ops_32_20_4_zero_d2(), fresh_data=True))
 
 
 @guppy.comptime
 def state_prep_32_20_4_zero_d3(data: array[qubit, 32]) -> int:
     """Prepare a fresh zero-initialised block; return the nine verification bits."""
-    return _emit_state_prep(data, state_prep_ops_32_20_4_zero_d3())
+    return _pack_flags(emit_circuit(data, state_prep_ops_32_20_4_zero_d3(), fresh_data=True))
 
 
 @guppy.comptime
 def state_prep_32_20_4_zero_d4(data: array[qubit, 32]) -> int:
     """Prepare a fresh zero-initialised block; return the eleven verification bits."""
-    return _emit_state_prep(data, state_prep_ops_32_20_4_zero_d4())
+    return _pack_flags(emit_circuit(data, state_prep_ops_32_20_4_zero_d4(), fresh_data=True))
 
 
 @guppy

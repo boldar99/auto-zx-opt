@@ -7,12 +7,12 @@ def test_memory_experiment_runs_real_qec_methods(run_guppy_check):
     run_guppy_check('''
 from datetime import timedelta
 from guppylang import OptimizationLevel
-from sol_experiment.memory_experiment import make_memory_experiment, QEC_METHODS
-from sol_experiment.SPAM_experiment import PREPARATION_METHODS, summarize_result
+from sol_experiment.experiment_memory import make_memory_experiment, QEC_METHODS
+from sol_experiment.experiment_SPAM import PREPARATION_METHODS, summarize_result
 
 settings = [("d1", "steane_d1", 0), ("d2_RUS", "steane_d3_RUS", 1),
             ("d4_RUS", "steane_d4_RUS", 3)]
-programs = [make_memory_experiment(PREPARATION_METHODS[initial], QEC_METHODS[qec], cycles)
+programs = [make_memory_experiment(PREPARATION_METHODS[initial], QEC_METHODS[qec], cycles, "Z")
             for initial, qec, cycles in settings]
 for config, program in zip(settings, programs):
     program = program.with_opt_level(OptimizationLevel.Minimal)
@@ -26,15 +26,15 @@ for config, program in zip(settings, programs):
 ''')
 
 
-def test_memory_cycle_counts_expected_state_and_validation(run_guppy_check):
+def test_memory_cycle_counts_and_validation(run_guppy_check):
     run_guppy_check('''
 from guppylang import guppy, OptimizationLevel
 from guppylang.std.builtins import array, output
 from guppylang.std.quantum import qubit, x
-from sol_experiment.memory_experiment import make_memory_experiment
+from sol_experiment.experiment_memory import make_memory_experiment
 from sol_experiment.logical_measurement import LOGICAL_Z_MASKS
-from sol_experiment.state_preparation import state_prep_32_20_4_zero_d1
-from sol_experiment.SPAM_experiment import summarize_result
+from sol_experiment.logical_state_preparation import state_prep_32_20_4_zero_d1
+from sol_experiment.experiment_SPAM import summarize_result
 
 
 @guppy
@@ -54,7 +54,7 @@ def logical_flip(data: array[qubit, 32]) -> bool:
     return True
 
 
-programs = {cycles: make_memory_experiment(initial, logical_flip, cycles)
+programs = {cycles: make_memory_experiment(initial, logical_flip, cycles, "Z")
             for cycles in (0, 1, 2, 3)}
 for cycles in (3, 0, 2, 1):
     result = (programs[cycles].with_opt_level(OptimizationLevel.Minimal)
@@ -66,25 +66,13 @@ for cycles in (3, 0, 2, 1):
         assert shot["logical_error"] == [cycles % 2]
     assert summarize_result(result).ler == cycles % 2
 
-# Support an explicit nonzero expected computational-basis target.
-expected = sum(((0x505 & mask).bit_count() % 2) << i
-               for i, mask in enumerate(LOGICAL_Z_MASKS))
-assert expected != 0
-program = make_memory_experiment(initial, logical_flip, 1, expected_logicals=expected)
-result = (program.with_opt_level(OptimizationLevel.Minimal).emulator(n_qubits=34)
-          .stabilizer_sim().with_shots(2).run())
-assert summarize_result(result).ler == 0
-
-for cycles, expected_mask, exception in (
-    (-1, 0, ValueError), (True, 0, TypeError), (1.5, 0, TypeError),
-    (0, -1, ValueError), (0, 1 << 20, ValueError), (0, True, TypeError),
-):
+for cycles, exception in ((-1, ValueError), (True, TypeError), (1.5, TypeError)):
     try:
-        make_memory_experiment(initial, logical_flip, cycles, expected_logicals=expected_mask)
+        make_memory_experiment(initial, logical_flip, cycles, "Z")
     except exception:
         pass
     else:
-        raise AssertionError((cycles, expected_mask, exception))
+        raise AssertionError((cycles, exception))
 ''')
 
 
@@ -98,9 +86,9 @@ from guppylang import guppy, OptimizationLevel
 from guppylang.std.builtins import array, output
 from guppylang.std.quantum import qubit, measure
 from selene_sim.backends import ClassicalReplay
-from sol_experiment.memory_experiment import make_memory_experiment, save_results
-from sol_experiment.state_preparation import state_prep_32_20_4_zero_d1
-from sol_experiment.SPAM_experiment import PREPARATION_METHODS, summarize_result
+from sol_experiment.experiment_memory import make_memory_experiment, save_results
+from sol_experiment.logical_state_preparation import state_prep_32_20_4_zero_d1
+from sol_experiment.experiment_SPAM import PREPARATION_METHODS, summarize_result
 
 
 @guppy
@@ -122,7 +110,7 @@ def replay(program, records):
             .with_timeout(timedelta(seconds=10)).run())
 
 
-program = make_memory_experiment(state_prep_32_20_4_zero_d1, controlled_qec, 3)
+program = make_memory_experiment(state_prep_32_20_4_zero_d1, controlled_qec, 3, "Z")
 logical_word = [bool(0x505 & (1 << q)) for q in range(32)]
 records = [
     [False] * 3 + [False] * 32,           # complete success
@@ -141,14 +129,14 @@ assert (stats.shots, stats.accepted, stats.logical_errors) == (5, 2, 1)
 assert stats.ar == 0.4 and stats.ler == 0.5
 
 # Initialization rejection requests neither QEC nor terminal readout results.
-program = make_memory_experiment(failed_initial, controlled_qec, 3)
+program = make_memory_experiment(failed_initial, controlled_qec, 3, "Z")
 result = replay(program, [[]])
 assert result.collated_shots() == [{"accepted": [0], "logical_error": [0]}]
 rejected_stats = summarize_result(result)
 assert rejected_stats.ar == 0 and rejected_stats.ler is None
 
 # A bounded RUS initial preparation can also exhaust before the memory begins.
-program = make_memory_experiment(PREPARATION_METHODS["d3_RUS"], controlled_qec, 3)
+program = make_memory_experiment(PREPARATION_METHODS["d3_RUS"], controlled_qec, 3, "Z")
 result = replay(program, [([True] + [False] * 8) * 5])
 assert result.collated_shots() == [{"accepted": [0], "logical_error": [0]}]
 
