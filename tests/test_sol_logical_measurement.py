@@ -107,7 +107,7 @@ from guppylang.std.quantum import qubit, x
 from selene_sim.backends import ClassicalReplay
 from sol_experiment.logical_measurement import decode_z_readout, logical_z_meas
 from sol_experiment.state_preparation import state_prep_32_20_4_zero_d3
-from sol_experiment.SPAM_experiment import estimate_SPAM_LER, summarize_result
+from sol_experiment.SPAM_experiment import make_spam_experiment, summarize_result
 
 
 @guppy
@@ -157,7 +157,8 @@ for mode, entry in (("classical", decode_entry), ("quantum", measure_entry)):
     print(mode, len(records), "cases passed", flush=True)
 
 # The example's acceptance must combine preparation and readout acceptance.
-example = estimate_SPAM_LER.with_opt_level(OptimizationLevel.Minimal).emulator(n_qubits=34)
+experiment = make_spam_experiment(state_prep_32_20_4_zero_d3)
+example = experiment.with_opt_level(OptimizationLevel.Minimal).emulator(n_qubits=34)
 result = example.stabilizer_sim().with_shots(4).run()
 for shot in result.collated_shots():
     assert shot == {"accepted": [1], "logical_error": [0]}
@@ -232,4 +233,52 @@ for result in (QsysResult(), QsysResult([[("accepted", 0), ("logical_error", 0)]
     with redirect_stdout(text):
         print_summary(stats)
     assert "LER: undefined (no accepted shots)" in text.getvalue()
+''')
+
+
+def test_spam_method_factories_bind_distinct_preparations(run_guppy_check):
+    run_guppy_check('''
+from datetime import timedelta
+from guppylang import guppy, OptimizationLevel
+from guppylang.std.builtins import array
+from guppylang.std.quantum import qubit
+from selene_sim.backends import ClassicalReplay
+from sol_experiment.SPAM_experiment import PREPARATION_METHODS, make_spam_experiment
+from sol_experiment.state_preparation import state_prep_32_20_4_zero_d1
+
+# Build every program before compiling any of them. Each must retain its own
+# preparation, even though the returned functions share the name experiment.
+programs = {name: make_spam_experiment(method)
+            for name, method in PREPARATION_METHODS.items()}
+flag_counts = {"d1": 0, "d2": 6, "d3": 9, "d4": 11}
+for name in ("d4", "d1", "d3", "d2", "d4"):
+    program = programs[name].with_opt_level(OptimizationLevel.Minimal)
+    program.compile()  # Requires an executable entrypoint with no arguments.
+    emulator = program.emulator(n_qubits=34).with_timeout(timedelta(seconds=10))
+    result = emulator.stabilizer_sim().with_shots(2).run()
+    assert result.collated_shots() == [{"accepted": [1], "logical_error": [0]}] * 2
+
+    # Replay requires exactly this many measurements. This catches accidentally
+    # compiling a different preparation, which ideal acceptance alone cannot.
+    count = flag_counts[name]
+    records = [[False] * (count + 32)]
+    expected = [{"accepted": [1], "logical_error": [0]}]
+    if count:
+        records.append([False] * (count - 1) + [True] + [False] * 32)
+        expected.append({"accepted": [0], "logical_error": [0]})
+    result = (emulator.with_simulator(ClassicalReplay(measurements=records))
+              .with_shots(len(records)).run())
+    assert result.collated_shots() == expected, name
+
+# The factory also accepts a custom regular @guppy function, without adding
+# any runtime method selector or changing the shared SPAM measurement logic.
+@guppy
+def custom_preparation(data: array[qubit, 32]) -> int:
+    state_prep_32_20_4_zero_d1(data)
+    return 1
+
+custom = make_spam_experiment(custom_preparation)
+result = (custom.with_opt_level(OptimizationLevel.Minimal).emulator(n_qubits=34)
+          .stabilizer_sim().with_shots(2).run())
+assert result.collated_shots() == [{"accepted": [0], "logical_error": [0]}] * 2
 ''')

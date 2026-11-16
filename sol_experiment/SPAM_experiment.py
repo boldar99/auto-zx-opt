@@ -1,4 +1,4 @@
-"""Estimate accepted-block SPAM error and acceptance rates for d3 preparation.
+"""Estimate accepted-block SPAM error and acceptance rates by preparation method.
 
 Each shot makes one preparation attempt, without RUS retries. Acceptance
 requires both zero preparation flags and accepted decoded Z readout. A logical
@@ -7,31 +7,59 @@ all-zero state. LER is conditional on acceptance; AR uses all attempted shots.
 
 Run from the repository root, for example::
 
-    uv run --project local_sol_example --no-sync python -m sol_experiment.SPAM_experiment --shots 10000
+    uv run --project local_sol_example --no-sync python -m sol_experiment.SPAM_experiment --method d3 --shots 10000
+
+Use --methods d1 d2 d3 d4 to compare preparations. Each method is bound to a
+separate zero-argument Guppy program before compilation. A custom method can
+be added to PREPARATION_METHODS or passed directly to make_spam_experiment.
 """
 
 from dataclasses import dataclass
 
 from guppylang import guppy
+from guppylang.defs import GuppyFunctionDefinition
 from guppylang.std.builtins import array, output
 from guppylang.std.quantum import qubit
 
 from sol_experiment.logical_measurement import logical_z_meas
-from sol_experiment.state_preparation import state_prep_32_20_4_zero_d3
+from sol_experiment.state_preparation import (
+    state_prep_32_20_4_zero_d1,
+    state_prep_32_20_4_zero_d2,
+    state_prep_32_20_4_zero_d3,
+    state_prep_32_20_4_zero_d4,
+)
 
 
-@guppy
-def estimate_SPAM_LER() -> None:
-    """One d3 preparation/readout attempt, emitting only two summary bits."""
-    data = array(qubit() for _ in range(32))
-    flags = state_prep_32_20_4_zero_d3(data)
-    logical_measurement = logical_z_meas(data)
-    accepted = flags == 0 and logical_measurement.accepted
-    logical_error = False
-    for bit in logical_measurement.logicals:
-        logical_error |= bit
-    output("accepted", accepted)
-    output("logical_error", accepted and logical_error)
+PREPARATION_METHODS = {
+    "d1": state_prep_32_20_4_zero_d1,
+    "d2": state_prep_32_20_4_zero_d2,
+    "d3": state_prep_32_20_4_zero_d3,
+    "d4": state_prep_32_20_4_zero_d4,
+}
+
+
+def make_spam_experiment(prepare_state: GuppyFunctionDefinition) -> GuppyFunctionDefinition:
+    """Bind a preparation to an executable Guppy program with no input arguments.
+
+    prepare_state must borrow a fresh array[qubit, 32] and return an int flag
+    mask (zero means accept), leaving the block available for measurement.
+    The function reference is resolved during compilation. Each factory call
+    captures its own preparation, including when several programs are built
+    before any are compiled. Measurement-dependent decisions stay in Guppy.
+    """
+    @guppy
+    def experiment() -> None:
+        data = array(qubit() for _ in range(32))
+        flags = prepare_state(data)
+        logical_measurement = logical_z_meas(data)
+        accepted = flags == 0 and logical_measurement.accepted
+        logical_error = False
+        for bit in logical_measurement.logicals:
+            logical_error |= bit
+        output("accepted", accepted)
+        output("logical_error", accepted and logical_error)
+
+    return experiment
 
 
 @dataclass(frozen=True)
@@ -80,6 +108,11 @@ def main() -> None:
     from local_sol_example.sol.sim import run_hugr, shot_viewer
 
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+    parser.add_argument(
+        "--method", "--methods", dest="methods", nargs="+",
+        choices=PREPARATION_METHODS, default=["d3"],
+        help="Preparation method(s) to run, in order (default: d3)",
+    )
     parser.add_argument("--shots", type=int, default=10000, help="Number of preparation attempts")
     parser.add_argument("--seed", type=int, help="Simulation seed")
     parser.add_argument("--processes", type=int, default=8, help="Parallel simulation processes")
@@ -88,15 +121,18 @@ def main() -> None:
     if args.shots < 1 or args.processes < 1:
         parser.error("--shots and --processes must be positive")
 
-    hugr = estimate_SPAM_LER.with_opt_level(OptimizationLevel.Minimal).compile()
-    result = run_hugr(
-        hugr, n_shots=args.shots, n_qubits=34, stabilizer=True,
-        n_processes=args.processes, seed=args.seed,
-    )
-    print_summary(summarize_result(result))
+    for name in args.methods:
+        experiment = make_spam_experiment(PREPARATION_METHODS[name])
+        hugr = experiment.with_opt_level(OptimizationLevel.Minimal).compile()
+        print(f"Method: {name}", flush=True)
+        result = run_hugr(
+            hugr, n_shots=args.shots, n_qubits=34, stabilizer=True,
+            n_processes=args.processes, seed=args.seed,
+        )
+        print_summary(summarize_result(result))
 
-    if args.view_shot:
-        shot_viewer(hugr)
+        if args.view_shot:
+            shot_viewer(hugr)
 
 
 if __name__ == "__main__":
