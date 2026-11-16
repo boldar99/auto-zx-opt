@@ -141,7 +141,7 @@ def main(argv: list[str] | None = None) -> Path:
         help="Complete QEC cycle; suffix names its ancilla preparation",
     )
     parser.add_argument("--num-cycles", type=int, default=1, help="QEC cycles per trajectory")
-    parser.add_argument("--basis", type=str, default="X", choices=["Z", "X"], help="QEC cycles per trajectory")
+    parser.add_argument("--basis", type=str, default="Z", choices=["Z", "X"], help="QEC cycles per trajectory")
     parser.add_argument("--shots", type=int, default=1000, help="Number of trajectories")
     parser.add_argument("--processes", type=int, default=8, help="Parallel simulation processes")
     parser.add_argument("--seed", type=int, help="Simulation seed; generated and saved if omitted")
