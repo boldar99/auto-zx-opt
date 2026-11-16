@@ -141,7 +141,7 @@ def main(argv: list[str] | None = None) -> Path:
         help="Initial data-block preparation",
     )
     parser.add_argument(
-        "--qec-method", choices=QEC_METHODS, default="steane_d3_RUS",
+        "--qec-method", choices=QEC_METHODS, default="optimized_steane",
         help="Complete QEC cycle; suffix names its ancilla preparation",
     )
     parser.add_argument("--num-cycles", type=int, default=1, help="QEC cycles per trajectory")
@@ -163,10 +163,10 @@ def main(argv: list[str] | None = None) -> Path:
         PREPARATION_METHODS[args.initial_prep], QEC_METHODS[args.qec_method],
         args.num_cycles, args.basis,
     )
-    hugr = program.with_opt_level(OptimizationLevel.Minimal).compile()
+    hugr = program.with_opt_level(OptimizationLevel.Default).compile()
     result = run_hugr(
         hugr, n_shots=args.shots, n_qubits=66, stabilizer=True,
-        n_processes=args.processes, seed=seed,
+        n_processes=args.processes, seed=seed, leakage_repumping=True,
     )
     stats = summarize_result(result)
     if stats.shots != args.shots:
