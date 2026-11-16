@@ -25,11 +25,14 @@ from datetime import datetime, timezone
 import json
 from pathlib import Path
 import secrets
+from typing import Literal
 
-from guppylang import guppy
+from guppylang import guppy, OptimizationLevel
 from guppylang.defs import GuppyFunctionDefinition
 from guppylang.std.builtins import array, comptime, output
-from guppylang.std.quantum import discard_array, qubit
+from guppylang.std.quantum import discard_array, qubit, h
+
+from local_sol_example.sol.sim import run_hugr
 
 from sol_experiment.logical_measurement import logical_z_meas
 from sol_experiment.QEC_Steane import make_steane_qec_cycle
@@ -48,8 +51,7 @@ def make_memory_experiment(
     initial_state_prep: GuppyFunctionDefinition,
     qec_method: GuppyFunctionDefinition,
     num_cycles: int,
-    *,
-    expected_logicals: int = 0,
+    basis: Literal["Z", "X"]
 ) -> GuppyFunctionDefinition:
     """Return a zero-argument Guppy memory program emitting two bits per shot.
 
@@ -68,15 +70,13 @@ def make_memory_experiment(
         raise TypeError("num_cycles must be an integer")
     if num_cycles < 0:
         raise ValueError("num_cycles must be nonnegative")
-    if isinstance(expected_logicals, bool) or not isinstance(expected_logicals, int):
-        raise TypeError("expected_logicals must be an integer bit mask")
-    if not 0 <= expected_logicals < (1 << 20):
-        raise ValueError("expected_logicals must fit in twenty bits")
 
     @guppy
     def experiment() -> None:
         data = array(qubit() for _ in range(32))
         flags = initial_state_prep(data)
+        if comptime(basis == "X"):
+            for i in range(32): h(data[i])
         if flags != 0:
             discard_array(data)
             output("accepted", False)
@@ -90,10 +90,12 @@ def make_memory_experiment(
                 output("logical_error", False)
                 return
 
+        if comptime(basis == "X"):
+            for i in range(32): h(data[i])
         readout = logical_z_meas(data)
         logical_error = False
         for i in range(20):
-            expected = (comptime(expected_logicals) & (1 << i)) != 0
+            expected = (0 & (1 << i)) != 0
             logical_error |= readout.logicals[i] != expected
         output("accepted", readout.accepted)
         output("logical_error", readout.accepted and logical_error)
@@ -139,31 +141,23 @@ def main(argv: list[str] | None = None) -> Path:
         help="Complete QEC cycle; suffix names its ancilla preparation",
     )
     parser.add_argument("--num-cycles", type=int, default=1, help="QEC cycles per trajectory")
+    parser.add_argument("--basis", type=str, default="X", choices=["Z", "X"], help="QEC cycles per trajectory")
     parser.add_argument("--shots", type=int, default=1000, help="Number of trajectories")
     parser.add_argument("--processes", type=int, default=8, help="Parallel simulation processes")
     parser.add_argument("--seed", type=int, help="Simulation seed; generated and saved if omitted")
-    parser.add_argument(
-        "--expected-logicals", type=lambda value: int(value, 0), default=0,
-        help="Expected twenty-bit logical Z mask (decimal, 0x..., or 0b...)",
-    )
     parser.add_argument("--output", type=Path, help="JSON report path; otherwise out/memory/<timestamp>.json")
     args = parser.parse_args(argv)
     if args.num_cycles < 0:
         parser.error("--num-cycles must be nonnegative")
     if args.shots < 1 or args.processes < 1:
         parser.error("--shots and --processes must be positive")
-    if not 0 <= args.expected_logicals < (1 << 20):
-        parser.error("--expected-logicals must fit in twenty bits")
     if args.seed is not None and not 0 <= args.seed < (1 << 64):
         parser.error("--seed must be an unsigned 64-bit integer")
-
-    from guppylang import OptimizationLevel
-    from local_sol_example.sol.sim import run_hugr
 
     seed = args.seed if args.seed is not None else secrets.randbits(32)
     program = make_memory_experiment(
         PREPARATION_METHODS[args.initial_prep], QEC_METHODS[args.qec_method],
-        args.num_cycles, expected_logicals=args.expected_logicals,
+        args.num_cycles, args.basis,
     )
     hugr = program.with_opt_level(OptimizationLevel.Minimal).compile()
     result = run_hugr(
@@ -178,7 +172,6 @@ def main(argv: list[str] | None = None) -> Path:
         "initial_state_prep": args.initial_prep,
         "qec_method": args.qec_method,
         "num_cycles": args.num_cycles,
-        "expected_logicals": args.expected_logicals,
         "seed": seed,
         "processes": args.processes,
         "n_qubits": 66,
