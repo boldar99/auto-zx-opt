@@ -73,7 +73,7 @@ import sys
 from guppylang import guppy, OptimizationLevel
 from guppylang.std.builtins import array, output
 from guppylang.std.quantum import qubit, h, cx, x, z, measure
-from sol_experiment.QEC_Steane import make_steane_qec_from_state_prep, make_steane_qec_cycle
+from sol_experiment.QEC_steane import make_steane_qec_from_state_prep, make_steane_qec_cycle
 from sol_experiment.logical_state_preparation import state_prep_32_20_4_zero_d1, state_prep_32_20_4_zero_d3
 
 request = json.loads(Path(sys.argv[1]).read_text())
@@ -180,7 +180,7 @@ from guppylang import guppy, OptimizationLevel
 from guppylang.std.builtins import array, output
 from guppylang.std.quantum import qubit, measure
 from selene_sim.backends import ClassicalReplay
-from sol_experiment.QEC_Steane import make_steane_qec_from_state_prep, make_steane_qec_cycle
+from sol_experiment.QEC_steane import make_steane_qec_from_state_prep, make_steane_qec_cycle
 from sol_experiment.logical_state_preparation import state_prep_32_20_4_zero_d1
 from sol_experiment.experiment_SPAM import PREPARATION_METHODS
 

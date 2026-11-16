@@ -88,7 +88,7 @@ def test_emit_circuit_rejects_invalid_operations(quantum_calls, operations):
 def test_optimized_operations_and_detectors_match_stim(run_guppy_check):
     ops, detectors = json.loads(run_guppy_check('''
 import json
-from sol_experiment.QEC_optimized_Steane import optimized_steane_32_20_4_X_d4
+from sol_experiment.QEC_optimized_steane import optimized_steane_32_20_4_X_d4
 ops, detectors = optimized_steane_32_20_4_X_d4()
 print(json.dumps([ops, detectors.flags + detectors.syndrome]))
 '''))
@@ -124,7 +124,7 @@ from guppylang.std.builtins import array, output
 from guppylang.std.quantum import Measurement, qubit, measure, h, cx, x, z
 from selene_sim.backends import ClassicalReplay
 from sol_experiment.logical_state_preparation import state_prep_32_20_4_zero_d1
-from sol_experiment.QEC_optimized_Steane import optimized_steane_32_20_4_X_d4
+from sol_experiment.QEC_optimized_steane import optimized_steane_32_20_4_X_d4
 from sol_experiment.circuit_utils import emit_circuit
 
 request = json.loads(Path(sys.argv[1]).read_text())

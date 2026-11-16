@@ -64,7 +64,7 @@ from guppylang import guppy, OptimizationLevel
 from guppylang.std.builtins import array, output
 from guppylang.std.quantum import qubit, measure
 from selene_sim.backends import ClassicalReplay
-from sol_experiment.QEC_optimized_Steane import (
+from sol_experiment.QEC_optimized_steane import (
     make_optimized_steane_d4, make_optimized_steane_qec_cycle,
 )
 from sol_experiment.logical_measurement import decode_syndrome
@@ -174,7 +174,7 @@ import sys
 from guppylang import guppy, OptimizationLevel
 from guppylang.std.builtins import array, output
 from guppylang.std.quantum import qubit, h, cx, x, z, measure
-from sol_experiment.QEC_optimized_Steane import make_optimized_steane_d4
+from sol_experiment.QEC_optimized_steane import make_optimized_steane_d4
 from sol_experiment.logical_state_preparation import state_prep_32_20_4_zero_d1
 
 request = json.loads(Path(sys.argv[1]).read_text())

@@ -33,13 +33,14 @@ from guppylang.std.builtins import array, comptime, output
 from guppylang.std.quantum import discard_array, qubit, h
 
 from local_sol_example.sol.sim import run_hugr
-from sol_experiment.QEC_optimized_Steane import make_optimized_steane_qec_cycle
 
 from sol_experiment.logical_measurement import logical_z_meas
-from sol_experiment.QEC_Steane import make_steane_qec_cycle
+from sol_experiment.logical_state_preparation import PREPARATION_METHODS
 from sol_experiment.experiment_SPAM import (
-    PREPARATION_METHODS, SPAMStatistics, print_summary, summarize_result,
+    SPAMStatistics, print_summary, summarize_result,
 )
+from sol_experiment.QEC_optimized_steane import make_optimized_steane_qec_cycle
+from sol_experiment.QEC_steane import make_steane_qec_cycle
 
 
 QEC_METHODS = {
@@ -143,9 +144,9 @@ def main(argv: list[str] | None = None) -> Path:
         "--qec-method", choices=QEC_METHODS, default="steane_d3_RUS",
         help="Complete QEC cycle; suffix names its ancilla preparation",
     )
-    parser.add_argument("--num-cycles", type=int, default=10, help="QEC cycles per trajectory")
+    parser.add_argument("--num-cycles", type=int, default=1, help="QEC cycles per trajectory")
     parser.add_argument("--basis", type=str, default="Z", choices=["Z", "X"], help="QEC cycles per trajectory")
-    parser.add_argument("--shots", type=int, default=100, help="Number of trajectories")
+    parser.add_argument("--shots", type=int, default=1000, help="Number of trajectories")
     parser.add_argument("--processes", type=int, default=8, help="Parallel simulation processes")
     parser.add_argument("--seed", type=int, help="Simulation seed; generated and saved if omitted")
     parser.add_argument("--output", type=Path, help="JSON report path; otherwise out/memory/<timestamp>.json")
