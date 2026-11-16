@@ -157,55 +157,9 @@ def test_noiseless_multiple_cycles_and_external_frame(compiled, basis):
 
 def check_compact_export(protocol, exported):
     """Evaluate the actual emitted lookup bodies against every stored edge."""
-    pending = [(protocol.policy.root, exported['ROOT_NODE'])]
-    visited, edges = set(), 0
-    while pending:
-        original, index = pending.pop()
-        if original in visited:
-            continue
-        visited.add(original)
-        node = protocol.policy.nodes[original]
-        word, x, z = exported['POLICY_NODES'][index]
-        values = {field: (word >> exported['POLICY_' + field.upper() + '_SHIFT'])
-                  & exported['POLICY_' + field.upper() + '_MASK']
-                  for field in ('kind', 'action', 'transition', 'basis_x', 'basis_z')}
-        kind, transition = values['kind'], values['transition']
-        if node.kind == 'accept':
-            assert kind == 1 and (x | (z << protocol.code.n)) == node.frame
-            continue
-        if node.kind == 'reject':
-            assert kind == 0
-            continue
-        assert node.kind == 'extract' and kind in (2, 3)
-        assert exported['ACTION_NAMES'][values['action']] == node.action
-        gadget = protocol.gadgets[node.action]
-        for (flags, syndrome), child in node.children.items():
-            key = flags | (syndrome << gadget.num_flags)
-            target = protocol.policy.nodes[child]
-            xs, zs = (exported['CONTROL_FRAMES'][transition] if kind == 2
-                      else exported['TERMINAL_DECODERS'][transition][1:])
-            frame = ((exported['expand_frame'](exported['lookup'](xs, key), values['basis_x']) ^ x)
-                | ((exported['expand_frame'](exported['lookup'](zs, key), values['basis_z']) ^ z) << protocol.code.n))
-            if kind == 2:
-                assert frame == 0
-                pending.append((child, exported['lookup_control'](transition, key)))
-            else:
-                accepted = exported['TERMINAL_DECODERS'][transition][0]
-                assert bool(exported['lookup'](accepted, key)) == (target.kind == 'accept')
-                assert target.kind in ('accept', 'reject')
-                if target.kind == 'accept':
-                    assert frame == target.frame
-            edges += 1
-        # Check a missing edge too: sparse compaction must retain rejection.
-        missing = next((s for s in range(1 << gadget.num_detectors)
-                        if (s & ((1 << gadget.num_flags) - 1), s >> gadget.num_flags) not in node.children), None)
-        if missing is not None:
-            if kind == 2:
-                assert exported['lookup_control'](transition, missing) == 0
-            else:
-                assert exported['lookup'](exported['TERMINAL_DECODERS'][transition][0], missing) == 0
-    return dict(nodes_checked=len(visited), transitions_checked=edges,
-                packed_nodes=exported['N_POLICY_NODES'])
+    from importlib import import_module
+    audit = import_module('analysis.32_20_4_bounded_comparison.probability_controls').audit_export
+    return dict(audit(protocol, exported), packed_nodes=exported['N_POLICY_NODES'])
 
 
 def test_compact_export_preserves_all_transitions_and_rejections(parent, monkeypatch):

@@ -152,7 +152,7 @@ def main(argv=None):
             assert accepted_records(protocol) == accepted_records(parent)
             audit = import_module('analysis.32_20_4_bounded_comparison.probability_controls')
             source = (bundle / 'steane_se_protocol.py').read_text()
-            export = audit.audit_export(protocol, audit.emitted_bodies(source))
+            export = audit.audit_export(protocol, audit.emitted_bodies(source, bundle / 'steane_se_protocol.py'))
             study.write(study.OUT / 'scheduled_controls.json', dict(complete=True,
                 protocol_hash=import_module('spiderwarp.se_protocol_io').read_manifest(bundle)[1]['protocol_hash'],
                 accepted_records=2371, all_records_and_frames_match_parent=True,
@@ -173,8 +173,8 @@ def main(argv=None):
     quiet = {r: f for r, f in after.items() if not any(step[1] for step in r)}
     assert len(quiet) == 1089 and len(after) == 2371
     audit = import_module('analysis.32_20_4_bounded_comparison.probability_controls')
-    source = (study.ROOT / 'build' / study.BUNDLES['adaptive_history'] / 'steane_se_protocol.py').read_text()
-    export = audit.audit_export(base, audit.emitted_bodies(source))
+    source_path = study.ROOT / 'build' / study.BUNDLES['adaptive_history'] / 'steane_se_protocol.py'
+    export = audit.audit_export(base, audit.emitted_bodies(source_path.read_text(), source_path))
     study.write(study.OUT / 'standard_base_controls.json', dict(complete=True,
         base_accepted_records=len(after), quiet_accepted_records=len(quiet),
         flagged_accepted_records=len(flagged(after)), flagged_paths_and_frames_preserved=True,

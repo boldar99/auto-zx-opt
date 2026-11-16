@@ -547,12 +547,15 @@ def test_shared_integer_decisions_preserve_sparse_and_product_decoders():
             assert -(node + 1) == table.get(key, 0)
 
 
-def generated_python(source):
+def generated_python(source, source_path=None):
     """Execute generated bodies with Python values to exhaustively check tables.
 
     Compilation/reload is checked separately. Removing only Guppy annotations
     lets these tests cover the actual exported lookup/control-flow bodies.
     """
+    if source_path is not None:
+        from spiderwarp._se_adaptive_guppy import inline_adaptive_source
+        source = inline_adaptive_source(source, source_path)
     tree = ast.parse(source)
     definitions = []
     for node in tree.body:
@@ -666,7 +669,10 @@ def test_real_32_code_verifies_the_confirmed_adaptive_contract(verified_32_adapt
     assert policy.report.verified
     assert policy.report.correctable_faults == 1
     assert policy.report.detectable_faults == 2
-    assert policy.report.ec_a_input_syndromes == 4096
+    # The standard contract covers total-order inputs; it no longer claims
+    # the optional arbitrary-input EC-A verification over all 4096 sectors.
+    assert policy.contract.input_scope == 'total-order'
+    assert policy.report.ec_a_input_syndromes == 0
     assert policy.contract.logical_order == 1
     assert policy.contract.accept_clean_through == 2
     assert policy.report.worst_case_cnots <= 1092

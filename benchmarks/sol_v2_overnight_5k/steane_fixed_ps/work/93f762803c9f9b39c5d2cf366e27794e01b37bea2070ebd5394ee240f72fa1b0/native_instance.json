@@ -1,0 +1,19 @@
+{
+  "identity": {
+    "hugr": "3d288ea794392c80938aa347173d26ff1373d0c6a68fd6d682b725bb22fc3f3f",
+    "utility": "7b2c3c1eaf1befa887950989d6a61eb50da25525d494c2af77f63b7d8a8c2dd3"
+  },
+  "instance": {
+    "root": "/Users/boldizsar.poor/PycharmProjects/auto-zx-opt/benchmarks/sol_v2_overnight_5k/steane_fixed_ps/work/93f762803c9f9b39c5d2cf366e27794e01b37bea2070ebd5394ee240f72fa1b0/selene",
+    "artifacts": "/Users/boldizsar.poor/PycharmProjects/auto-zx-opt/benchmarks/sol_v2_overnight_5k/steane_fixed_ps/work/93f762803c9f9b39c5d2cf366e27794e01b37bea2070ebd5394ee240f72fa1b0/selene/artifacts",
+    "runs": "/Users/boldizsar.poor/PycharmProjects/auto-zx-opt/benchmarks/sol_v2_overnight_5k/steane_fixed_ps/work/93f762803c9f9b39c5d2cf366e27794e01b37bea2070ebd5394ee240f72fa1b0/selene/runs",
+    "executable": "/Users/boldizsar.poor/PycharmProjects/auto-zx-opt/benchmarks/sol_v2_overnight_5k/steane_fixed_ps/work/93f762803c9f9b39c5d2cf366e27794e01b37bea2070ebd5394ee240f72fa1b0/selene/artifacts/program.selene.x",
+    "library_search_dirs": [
+      "/Users/boldizsar.poor/PycharmProjects/auto-zx-opt/local-sol-example/.venv/lib/python3.14/site-packages/selene_sim/_dist/lib",
+      "/Users/boldizsar.poor/PycharmProjects/auto-zx-opt/local-sol-example/.venv/lib/python3.14/site-packages/selene_sol_qis_plugin/_dist/lib",
+      "/Users/boldizsar.poor/PycharmProjects/auto-zx-opt/local-sol-example/.venv/lib/python3.14/site-packages/selene_sol_qis_plugin/_dist/lib",
+      "/Users/boldizsar.poor/PycharmProjects/auto-zx-opt/local-sol-example/.venv/lib/python3.14/site-packages/selene_base_qis_plugin/_dist/lib"
+    ]
+  },
+  "sha256": "84861e186e13997ea9294931320688db31b299b9116ac4daecd599622f0f47d0"
+}

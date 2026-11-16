@@ -242,8 +242,9 @@ def main():
         export = json.loads((bundle / 'export.json').read_text())
         source = (bundle / 'steane_se_protocol.py').read_text()
         if METHODS[key].family == 'adaptive':
-            from spiderwarp._se_adaptive_guppy import generate_adaptive_source
-            assert generate_adaptive_source(protocol) == source
+            from spiderwarp._se_adaptive_guppy import generate_adaptive_source, inline_adaptive_source
+            assert generate_adaptive_source(protocol) == inline_adaptive_source(
+                source, bundle / 'steane_se_protocol.py')
         else:
             from spiderwarp._steane_qec_guppy import generate_source
             assert generate_source(protocol) == source

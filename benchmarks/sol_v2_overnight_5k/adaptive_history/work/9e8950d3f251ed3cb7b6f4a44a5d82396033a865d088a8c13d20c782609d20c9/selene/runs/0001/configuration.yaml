@@ -1,0 +1,71 @@
+artifact_dir: /Users/boldizsar.poor/PycharmProjects/auto-zx-opt/benchmarks/sol_v2_overnight_5k/adaptive_history/work/9e8950d3f251ed3cb7b6f4a44a5d82396033a865d088a8c13d20c782609d20c9/selene/runs/0001/artifacts
+error_model:
+  args:
+  - /Users/boldizsar.poor/PycharmProjects/auto-zx-opt/local-sol-example/.venv/lib/python3.14/site-packages/pecos_selene/_dist/lib/libpecos_selene_error_model_general.dylib
+  - --p-prep=0.0005
+  - --p-meas-0=1e-06
+  - --p-meas-1=1e-06
+  - --single-qubit-error=3.250277777777778e-05
+  - --two-qubit-error=0.0009742769287827803
+  - --p1-emission-ratio=0.514
+  - --p2-emission-ratio=0.152
+  - --p-idle-linear-rate=0.011118000000000001
+  - --p-idle-quadratic-rate=0.016044157815229814
+  - --p1-pauli-model=X=0.3333333333333333,Y=0.3333333333333333,Z=0.3333333333333333
+  - --p1-emission-model=L=0.7777777777777778,X=0.1111111111111111,Y=0.1111111111111111
+  - --p2-pauli-model=IX=0.0519,IY=0.0519,IZ=0.2245,XI=0.0673,XX=0.0007,XY=0.0007,XZ=0.0673,YI=0.0673,YX=0.0007,YY=0.0007,YZ=0.0673,ZI=0.2271,ZX=0.0519,ZY=0.0519,ZZ=0.0688
+  - --p2-emission-model=IX=0.009615398846181738,IY=0.009615398846181738,IZ=0.03846157538468776,IL=0.10576920730764632,XI=0.009615398846181738,XX=0.0,XY=0.0,XZ=0.009615398846181738,XL=0.10576920730764632,YI=0.009615398846181738,YX=0.0,YY=0.0,YZ=0.009615398846181738,YL=0.10576920730764632,ZI=0.03846157538468776,ZX=0.009615398846181738,ZY=0.009615398846181738,ZZ=0.0,ZL=0.10576920730764632,LI=0.10576920730764632,LX=0.10576920730764632,LY=0.10576920730764632,LZ=0.10576920730764632
+  - --p-idle-linear-model=Z=0.18,L=0.82
+  - --p-prep-leak-ratio=0.75
+  - --p1-seepage-prob=0.3333333333333333
+  - --p2-seepage-prob=0.3333333333333333
+  - --scale-overall=1.0
+  - --scale-memory=1.0
+  - --scale-prep=1.0
+  - --scale-meas=1.0
+  - --scale-p1=1.0
+  - --scale-p2=1.0
+  - --scale-emission=1.0
+  - --przz-a=1.518
+  - --przz-b=0.241
+  - --przz-c=1.518
+  - --przz-d=0.241
+  - --przz-power=1.0
+  - --p-meas-crosstalk-global=1.5e-05
+  - --p-meas-crosstalk-local=1.5e-05
+  - --p-meas-crosstalk-model=0->0=0.16,0->1=0.25,0->L=0.59,1->1=0.26,1->0=0.22,1->L=0.52
+  - --p-prep-crosstalk=3.5e-06
+  - --coherent-dephasing=false
+  - --coherent-to-incoherent-factor=1.5
+  - --leak-to-depolar=true
+  - --p-meas-crosstalk-scale=1.0
+  - --p-prep-crosstalk-scale=1.0
+  - --leakage-repump-model=L->0=0.7703071725463451,L->1=0.11071185256235501,L->L=0.11897979703460934
+  file: &id001 /Users/boldizsar.poor/PycharmProjects/auto-zx-opt/benchmarks/sol_v2_overnight_5k/adaptive_history/work/9e8950d3f251ed3cb7b6f4a44a5d82396033a865d088a8c13d20c782609d20c9/boundary_10cc24711c3e7754f001c4d664af255e8a5871ffc6e3a8746503a78af4d16f88.dylib
+  name: __main__.components.<locals>.BoundaryErrorModel
+  seed: 550601360439572687
+event_hooks:
+  provide_metrics: true
+n_qubits: 192
+output_stream: tcp://127.0.0.1:56018
+runtime:
+  args:
+  - /Users/boldizsar.poor/PycharmProjects/auto-zx-opt/local-sol-example/.venv/lib/python3.14/site-packages/selene_narsil/_dist/lib/libselene_narsil.dylib
+  - '60'
+  - --verbose-panics=false
+  - --leakage-repump-enabled=true
+  - --control-system=DCS
+  file: *id001
+  name: __main__.components.<locals>.BoundaryRuntime
+  seed: 550601360439572687
+seed_mode: default
+shots:
+  count: 5000
+  increment: 1
+  offset: 0
+simulator:
+  args:
+  - --angle-threshold=0.0001
+  file: /Users/boldizsar.poor/PycharmProjects/auto-zx-opt/local-sol-example/.venv/lib/python3.14/site-packages/selene_stim_plugin/_dist/lib/libselene_stim_plugin.dylib
+  name: selene_stim_plugin.plugin.StimPlugin
+  seed: 550601360439572687

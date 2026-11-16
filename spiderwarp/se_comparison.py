@@ -93,9 +93,16 @@ def save_comparison(directories, labels, directory="benchmarks/steane_comparison
 
 
 def main(argv=None):
-    """Run the current bounded, no-d1 comparison with matched full budgets."""
+    """Run Sol by default; retain explicit access to the historical reference."""
+    import argparse
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument('--backend', choices=['sol', 'stim-reference'], default='sol')
+    args, remaining = parser.parse_known_args(argv)
+    if args.backend == 'sol':
+        from spiderwarp.se_sol_comparison import main as sol_main
+        return sol_main(remaining)
     from importlib import import_module
-    return import_module('analysis.32_20_4_bounded_comparison.study').main(argv)
+    return import_module('analysis.32_20_4_bounded_comparison.study').main(remaining)
 
 
 if __name__ == "__main__":

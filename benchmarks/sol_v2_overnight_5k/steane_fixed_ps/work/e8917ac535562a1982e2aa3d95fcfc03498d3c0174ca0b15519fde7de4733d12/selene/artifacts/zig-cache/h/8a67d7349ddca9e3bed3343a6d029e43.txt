@@ -1,0 +1,2 @@
+0
+69724 18007846 1794621190626064521 9f372d25addd9a16899a4b28c54afdae 0 /Users/boldizsar.poor/PycharmProjects/auto-zx-opt/benchmarks/sol_v2_overnight_5k/steane_fixed_ps/work/e8917ac535562a1982e2aa3d95fcfc03498d3c0174ca0b15519fde7de4733d12/selene/artifacts/program.sol.bc

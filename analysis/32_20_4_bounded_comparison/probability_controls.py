@@ -12,7 +12,10 @@ from spiderwarp.se_protocol_io import load_protocol
 study = import_module('analysis.32_20_4_bounded_comparison.study')
 
 
-def emitted_bodies(source):
+def emitted_bodies(source, source_path=None):
+    if source_path is not None:
+        from spiderwarp._se_adaptive_guppy import inline_adaptive_source
+        source = inline_adaptive_source(source, source_path)
     tree, definitions = ast.parse(source), []
     for node in tree.body:
         if isinstance(node, ast.FunctionDef):
@@ -32,55 +35,103 @@ def emitted_bodies(source):
 
 
 def audit_export(protocol, exported):
-    pending, seen, edges = [(protocol.policy.root, exported['ROOT_NODE'])], set(), 0
+    """Check every original edge and prove that no missing edge is accepted."""
+    from functools import lru_cache
+
+    def successor(index):
+        frame = 0
+        while protocol.policy.nodes[index].kind == 'frame':
+            frame ^= protocol.policy.nodes[index].frame
+            index = protocol.policy.nodes[index].next
+        return index, frame
+
+    def decision(node):
+        row = exported['DECISION_NODES'][node - 1]
+        if not exported['DECISION_ROWS_PACKED']:
+            return row
+        return (row & exported['DECISION_BIT_MASK'],
+                (row >> exported['DECISION_BIT_BITS']) & exported['DECISION_REFERENCE_MASK'],
+                (row >> exported['DECISION_HIGH_SHIFT']) & exported['DECISION_REFERENCE_MASK'],
+                row >> exported['DECISION_DELTA_SHIFT'])
+
+    @lru_cache(None)
+    def ones(node, width):
+        if node == 0:
+            return 0
+        bit, low, high, delta = decision(node)
+        assert 0 <= bit < width
+        delta = exported['DECISION_DELTAS'][delta]
+        assert delta in (0, 1)
+        a, b = ones(low, bit), ones(high, bit)
+        return (a + ((1 << bit) - b if delta else b)) << (width - bit - 1)
+
+    @lru_cache(None)
+    def accepted_count(root, width):
+        if root < 0:
+            value = -(root + 1)
+            assert value in (0, 1)
+            return value << width
+        offset = exported['DECISION_DELTAS'][root >> exported['DECISION_REFERENCE_BITS']]
+        assert offset in (0, 1)
+        count = ones(root & exported['DECISION_REFERENCE_MASK'], width)
+        return (1 << width) - count if offset else count
+
+    root, frame = successor(protocol.policy.root)
+    root_node = protocol.policy.nodes[root]
+    expected_root_frame = frame ^ (root_node.frame if root_node.kind == 'accept' else 0)
+    assert exported['ROOT_FRAME_X'] | (exported['ROOT_FRAME_Z'] << protocol.code.n) == expected_root_frame
+    pending, seen, edges = [(root, exported['ROOT_NODE'])], {}, 0
     while pending:
         original, index = pending.pop()
         if original in seen:
+            assert seen[original] == index
             continue
-        seen.add(original)
+        seen[original] = index
         node = protocol.policy.nodes[original]
-        row = exported['POLICY_NODES'][index]
-        if exported.get('POLICY_ROWS_PACKED'):
-            word, x, z = row
-            kind, action, transition, xb, zb = [(word >> exported['POLICY_' + field + '_SHIFT'])
-                & exported['POLICY_' + field + '_MASK']
-                for field in ('KIND', 'ACTION', 'TRANSITION', 'BASIS_X', 'BASIS_Z')]
-        else:
-            kind, action, transition, x, z, xb, zb = row
-        if node.kind == 'accept':
-            assert kind == 1 and (x | (z << protocol.code.n)) == node.frame
-            continue
-        if node.kind == 'reject':
-            assert kind == 0
+        kind, action, transition, x, z, xb, zb = exported['policy_node'](index)
+        baseline, kind = kind >= 4, kind & 3
+        if node.kind in ('accept', 'reject'):
+            assert kind == int(node.kind == 'accept') and x == z == 0
             continue
         assert node.kind == 'extract' and kind in (2, 3)
         assert exported['ACTION_NAMES'][action] == node.action
         gadget = protocol.gadgets[node.action]
+        accepted_root = (exported['CONTROL_SPECS'][transition][0] if kind == 2
+                         else exported['TERMINAL_DECODERS'][transition][0])
+        count = 0
         for (flags, syndrome), child in node.children.items():
             key = flags | (syndrome << gadget.num_flags)
-            target = protocol.policy.nodes[child]
-            xs, zs = (exported['CONTROL_FRAMES'][transition] if kind == 2
-                      else exported['TERMINAL_DECODERS'][transition][1:])
-            frame = ((exported['expand_frame'](exported['lookup'](xs, key), xb) ^ x)
-                | ((exported['expand_frame'](exported['lookup'](zs, key), zb) ^ z) << protocol.code.n))
-            if kind == 2:
-                assert frame == 0
-                pending.append((child, exported['lookup_control'](transition, key)))
-            else:
-                accepted = exported['TERMINAL_DECODERS'][transition][0]
-                assert bool(exported['lookup'](accepted, key)) == (target.kind == 'accept')
-                assert target.kind in ('accept', 'reject')
-                if target.kind == 'accept':
-                    assert frame == target.frame
+            target_id, offset = successor(child)
+            target = protocol.policy.nodes[target_id]
+            accepted = bool(exported['lookup'](accepted_root, key))
+            assert accepted == (target.kind != 'reject')
+            if accepted:
+                count += 1
+                xs, zs = (exported['CONTROL_FRAMES'][transition] if kind == 2
+                          else exported['TERMINAL_DECODERS'][transition][1:])
+                fx = exported['expand_frame'](exported['lookup'](xs, key), xb) ^ x
+                fz = exported['expand_frame'](exported['lookup'](zs, key), zb) ^ z
+                if baseline:
+                    if gadget.basis == 'Z':
+                        fx ^= exported['lookup'](exported['BASELINE_X_ROOT'], syndrome)
+                    else:
+                        fz ^= exported['lookup'](exported['BASELINE_Z_ROOT'], syndrome)
+                assert fx | (fz << protocol.code.n) == offset ^ (target.frame if target.kind == 'accept' else 0)
+                if kind == 2:
+                    following = exported['lookup_control'](transition, key)
+                    pending.append((target_id, following))
+                else:
+                    assert target.kind == 'accept'
+            elif kind == 2:
+                assert exported['lookup_control'](transition, key) == 0
             edges += 1
-        missing = next((key for key in range(1 << gadget.num_detectors)
-            if (key & ((1 << gadget.num_flags) - 1), key >> gadget.num_flags) not in node.children), None)
-        if missing is not None:
-            if kind == 2:
-                assert exported['lookup_control'](transition, missing) == 0
-            else:
-                assert exported['lookup'](exported['TERMINAL_DECODERS'][transition][0], missing) == 0
-    return dict(nodes_checked=len(seen), transitions_checked=edges, missing_edges_reject=True)
+        # Every listed accepted key was checked above. Equal cardinality over
+        # the entire input domain proves every other key rejects, without
+        # enumerating billions of absent table entries.
+        assert accepted_count(accepted_root, gadget.num_detectors) == count
+    return dict(nodes_checked=len(seen), transitions_checked=edges,
+                missing_edges_reject=True, all_absent_outcomes_checked=True,
+                shared_targets_checked=True)
 
 
 def nested(small, large):
@@ -149,7 +200,7 @@ def main():
         path = study.ROOT / 'build' / study.BUNDLES[f'adaptive_probability_{epsilon}']
         protocol = load_protocol(path)
         source = (path / 'steane_se_protocol.py').read_text()
-        export = audit_export(protocol, emitted_bodies(source))
+        export = audit_export(protocol, emitted_bodies(source, path / 'steane_se_protocol.py'))
         confidence = confidence_controls(protocol, model, epsilon / 100)
         provenance = json.loads((path / 'probability.json').read_text())
         assert confidence['additional_records'] == provenance['additional_accepted_records']

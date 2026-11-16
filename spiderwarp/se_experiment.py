@@ -105,6 +105,25 @@ def parser():
                         help="Native gate noise also affects preparation/readout; no memory noise")
     native.add_argument("--seed", type=int, default=0)
     native.add_argument("--jobs", type=int, default=1)
+    sol = sub.add_parser("sol", help="Run Sol/Narsil with Helios-alpha noise and ideal experiment boundaries")
+    sol.add_argument("protocol", type=Path)
+    sol.add_argument("--results", type=Path, default=Path("benchmarks/sol_v2"))
+    sol.add_argument("--sol-python", type=Path, help="Python in the separately locked local-sol-example environment")
+    sol.add_argument("--shots", type=int, default=1000, help="Fixed attempted shots per configuration")
+    sol.add_argument("--batch-size", type=int, default=250)
+    sol.add_argument("--jobs", type=int, default=1, help="Concurrent configurations; one Selene process each")
+    sol.add_argument("--seed", type=int, default=0)
+    sol.add_argument("--basis", choices=["0", "+", "both"], default="both")
+    sol.add_argument("--noise-scales", type=float, nargs="+", default=[1.0], help="PECOS overall scale; 1=alpha defaults, 0=noiseless")
+    sol.add_argument("--cycles", type=int, nargs="+", default=[1])
+    sol.add_argument("--config", type=Path, help="JSON list of {noise_scale, cycles, prepared_state}")
+    sol.add_argument("--model-overrides", type=Path, help="JSON PECOS parameter overrides; boundary approximations are fixed")
+    sol.add_argument("--repump", action="store_true", help="Enable leakage repumping in Narsil")
+    sol.add_argument("--input-sync", choices=["cover", "full"], default="cover",
+                     help="Compact input synchronization, or original full-generator preparation/layout")
+    sol.add_argument("--retain-shots", action="store_true", help="Keep per-shot frames, records and runtime metrics")
+    sol.add_argument("--incoming-x", type=lambda v: int(v, 0), default=0)
+    sol.add_argument("--incoming-z", type=lambda v: int(v, 0), default=0)
     return p
 
 
@@ -112,7 +131,16 @@ def emit_protocol(protocol, directory, emit):
     """Write source first so an interrupted compile leaves a usable bundle."""
     if emit == "none":
         return
-    path = protocol.export_guppy(directory)
+    # Keep the protocol object's existing single-file Python API and simulator
+    # source fingerprint stable. CLI bundles use the readable split export.
+    from spiderwarp.adaptive_steane_se import AdaptiveSEProtocol
+    if isinstance(protocol, AdaptiveSEProtocol):
+        from spiderwarp._se_adaptive_guppy import write_adaptive_source
+        path = Path(directory).expanduser().resolve() / 'steane_se_protocol.py'
+        protocol.source = write_adaptive_source(protocol, path)
+        protocol.source_path = path
+    else:
+        path = protocol.export_guppy(directory)
     print(f"Standalone Guppy: {path}", flush=True)
     import hashlib
     record_path = Path(directory) / "export.json"
@@ -136,7 +164,8 @@ def emit_protocol(protocol, directory, emit):
         print(f"Existing HUGR validated and reloaded: {target}")
         return
     begin = time.monotonic()
-    source, source_path, module, function, package = compile_adaptive_source(protocol.source)
+    source, source_path, module, function, package = compile_adaptive_source(
+        protocol.source, source_path=protocol.source_path)
     data = package.to_bytes()
     # Validate the serialized package before publishing it.
     Package.from_bytes(data)
@@ -150,6 +179,25 @@ def emit_protocol(protocol, directory, emit):
 def main(argv=None):
     p = parser()
     args = p.parse_args(argv)
+    if args.command == "sol":
+        from spiderwarp.se_sol import run_sol_sweep
+        bases = ("0", "+") if args.basis == "both" else (args.basis,)
+        configurations = (json.loads(args.config.read_text()) if args.config else
+            [dict(noise_scale=scale, cycles=cycles, prepared_state=basis)
+             for scale in args.noise_scales for cycles in args.cycles for basis in bases])
+        configurations = [c for c in configurations if c["prepared_state"] in bases]
+        rows = run_sol_sweep(args.protocol, configurations, args.results, shots=args.shots,
+            batch_size=args.batch_size, jobs=args.jobs, seed=args.seed, python=args.sol_python,
+            repump=args.repump, retain_shots=args.retain_shots,
+            input_sync=args.input_sync,
+            incoming_x=args.incoming_x, incoming_z=args.incoming_z,
+            model_overrides=json.loads(args.model_overrides.read_text()) if args.model_overrides else None)
+        print(f"Results: {(args.results / 'summary.csv').resolve()}")
+        for row in rows:
+            print(f"Sol scale={row['noise_scale']:g} N={row['cycles']} state={row['prepared_state']}: "
+                  f"LER={row['ler']:.5g} [{row['ler_low']:.5g}, {row['ler_high']:.5g}], "
+                  f"accepted={row['accepted']}/{row['shots']}")
+        return
     if args.command == "build-order-two":
         from spiderwarp.se_order_two import compile_order_two
         parent = load_protocol(args.parent)

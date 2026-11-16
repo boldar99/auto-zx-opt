@@ -220,7 +220,7 @@ def test_adaptive_guppy_export_compiles_reloads_and_agrees_on_control_flow(tmp_p
     assert certificate["hugr_sha256"] == hashlib.sha256(protocol.package_path.read_bytes()).hexdigest()
     for action in certificate["circuits"]:
         assert action["sha256"] == hashlib.sha256((tmp_path / action["path"]).read_bytes()).hexdigest()
-    exported = generated_python(protocol.source)
+    exported = generated_python(protocol.source, protocol.source_path)
     assert exported["VERIFIED_AT_BUILD"]
     assert exported["WORST_CASE_CNOTS"] == 4
     assert "apply_correction" not in protocol.source
@@ -364,45 +364,11 @@ def test_real_export_preserves_every_stored_transition(verified_32_adaptive_prot
     protocol = verified_32_adaptive_protocol
     exported = generated_python(generate_adaptive_source(protocol))
     policy = protocol.policy
-    exported_ids = {old: new for new, old in enumerate(
-        i for i, node in enumerate(policy.nodes) if node.kind != "frame")}
-
-    def successor(child):
-        frame = 0
-        while policy.nodes[child].kind == "frame":
-            frame ^= policy.nodes[child].frame
-            child = policy.nodes[child].next
-        return exported_ids[child], frame, policy.nodes[child]
-
-    for index, node in enumerate(policy.nodes):
-        if node.kind == "frame":
-            continue
-        kind, action, root, x, z, xb, zb = exported["POLICY_NODES"][exported_ids[index]]
-        if node.kind == "extract":
-            assert kind in (2, 3)
-            assert exported["ACTION_NAMES"][action] == node.action
-            width = policy.actions[node.action].gadget.num_flags
-            for (flags, syndrome), child in node.children.items():
-                key = flags | (syndrome << width)
-                target_id, offset, target = successor(child)
-                xs, zs = (exported["CONTROL_FRAMES"][root] if kind == 2
-                          else exported["TERMINAL_DECODERS"][root][1:])
-                frame = ((exported["expand_frame"](exported["lookup"](xs, key), xb) ^ x)
-                         | ((exported["expand_frame"](exported["lookup"](zs, key), zb) ^ z)
-                            << protocol.code.n))
-                if kind == 2:
-                    assert exported["lookup_control"](root, key) == target_id
-                    assert frame == offset
-                else:
-                    accepted = exported["TERMINAL_DECODERS"][root][0]
-                    assert bool(exported["lookup"](accepted, key)) == (target.kind == "accept")
-                    if target.kind == "accept":
-                        assert frame == offset ^ target.frame
-        elif node.kind == "accept":
-            assert kind == 1
-            assert x | (z << protocol.code.n) == node.frame
-        else:
-            assert kind == 0
+    from importlib import import_module
+    audit = import_module('analysis.32_20_4_bounded_comparison.probability_controls').audit_export
+    checked = audit(protocol, exported)
+    assert checked['transitions_checked'] == sum(len(n.children) for n in policy.nodes if n.kind == 'extract')
+    assert checked['all_absent_outcomes_checked']
 
 
 def test_frame_coordinate_change_is_invertible_and_normalization_is_idempotent():

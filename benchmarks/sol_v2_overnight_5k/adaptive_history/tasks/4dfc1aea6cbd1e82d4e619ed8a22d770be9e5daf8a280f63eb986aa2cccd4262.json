@@ -1,0 +1,229 @@
+{
+  "task_hash": "4dfc1aea6cbd1e82d4e619ed8a22d770be9e5daf8a280f63eb986aa2cccd4262",
+  "task": {
+    "protocol_hash": "84bc3315c7b9365c882ecb2d77197fe63e42c43f65f6c94322745026d0f765f6",
+    "backend": "sol-helios-alpha-stim-ideal-boundaries-v2",
+    "engine": {
+      "model": "sol-helios-alpha-stim-ideal-boundaries-v2",
+      "sources": {
+        "se_sol.py": "82d297ccd2329d0f8f714607a1637a662c5a1948cfb473aaf6b49e5efb8fcfc3",
+        "_sol_worker.py": "8aa873621f83f65873821eaa1ef7dcf7087ae1b801d2d80666601a608663debb",
+        "_sol_boundary.c": "4fc8c22766cae0c20fbe8dd68bd37b841b8184e116436b2e76fc821f2c47f44b",
+        "se_native.py": "867a440555d126d56e2146064d85f35e0fcd1ffcc2ab09d404ec2745da17768e",
+        "_se_adaptive_guppy.py": "37edfead010ce864068c72ae96537192d74587e6cf8ce4cc4b48b4d58b24e0be",
+        "_se_adaptive_guppy_template.py.in": "1cf02f9176067e4a30b3368e496c924d991490b0417e1c0e987e1305cd9188e8",
+        "_se_guppy_template.py.in": "11565945100dc259f4dcc5eda5980fc74ba4799f66a3a07b4a2650b1db1c4b0a",
+        "_steane_qec_guppy.py": "93e58b8ab1e819ed98399df37dfd2ac14eea1fc28d8fdbfb399220947b945a0b",
+        "_se_decisions.py": "ef0c11f62d7534c1ddc4fcc817643de3f1bb736e44632909358f99213f76fd6e",
+        "lut_decoder.py": "21c7d6f7b0be0e6fa71b395d0c2782b6bb9b5cecf328110a80c77ba23d901121",
+        "se_protocol_io.py": "828ad48ba79d9f3c42dfd7c82c9c611f8fa4919ba7ae236f44c1aac197e52be9",
+        "se_protocol_simulation.py": "5991986f8d0bcce803701babb1ce7b70041d3179bf07a3ac7cdea86144691e8c",
+        "_se_circuit.py": "b0f043a851b99f851c3909a4e9513da26497f1a5494aab40cd781571374bdf71",
+        "_se_adaptive.py": "2882a4f796588ffe47619a500d3a538d70ab323f1d4836faa8a8db9dd3ecc071",
+        "steane_qec.py": "5e123663f3b92ea9bd186b7f1b24c11f29b7f2ac7cdcbdd853aa23ba8a7458d6",
+        "adaptive_steane_se.py": "d8b31dba9eea751d9c012d5e141744c34991ef75e34b08ac5c1c5e3371f60bfd",
+        "csscode.py": "7ed4be7578d4fe4c959e11a6b5a4f8ed1175596de45ec73d4349e5c7868c05a2"
+      },
+      "runtime": {
+        "versions": {
+          "guppylang": "1.1.4",
+          "guppylang-internals": "1.1.4",
+          "hugr": "0.18.8",
+          "selene-sim": "0.3.7",
+          "selene-core": "0.3.3",
+          "selene-narsil": "1.0.0",
+          "selene-eldarion": "0.11.1",
+          "eldarion": "0.11.1",
+          "pecos-selene": "0.6.2",
+          "qtm-platform": "0.8.1",
+          "selene-qtm-platform": "0.1.1",
+          "selene-formats": "0.1.2"
+        },
+        "python": [
+          3,
+          14,
+          8
+        ],
+        "architecture": "arm64",
+        "parameters": {
+          "p_prep": 0.0005,
+          "p_meas_0": 1e-06,
+          "p_meas_1": 1e-06,
+          "p1": 2.5e-05,
+          "p2": 0.0008,
+          "p1_emission_ratio": 0.514,
+          "p2_emission_ratio": 0.152,
+          "p1_pauli_model": {
+            "X": 0.3333333333333333,
+            "Y": 0.3333333333333333,
+            "Z": 0.3333333333333333
+          },
+          "p1_emission_model": {
+            "L": 0.7777777777777778,
+            "X": 0.1111111111111111,
+            "Y": 0.1111111111111111
+          },
+          "p2_pauli_model": {
+            "IX": 0.0519,
+            "IY": 0.0519,
+            "IZ": 0.2245,
+            "XI": 0.0673,
+            "XX": 0.0007,
+            "XY": 0.0007,
+            "XZ": 0.0673,
+            "YI": 0.0673,
+            "YX": 0.0007,
+            "YY": 0.0007,
+            "YZ": 0.0673,
+            "ZI": 0.2271,
+            "ZX": 0.0519,
+            "ZY": 0.0519,
+            "ZZ": 0.0688
+          },
+          "p2_emission_model": {
+            "IX": 0.009615398846181738,
+            "IY": 0.009615398846181738,
+            "IZ": 0.03846157538468776,
+            "IL": 0.10576920730764632,
+            "XI": 0.009615398846181738,
+            "XX": 0.0,
+            "XY": 0.0,
+            "XZ": 0.009615398846181738,
+            "XL": 0.10576920730764632,
+            "YI": 0.009615398846181738,
+            "YX": 0.0,
+            "YY": 0.0,
+            "YZ": 0.009615398846181738,
+            "YL": 0.10576920730764632,
+            "ZI": 0.03846157538468776,
+            "ZX": 0.009615398846181738,
+            "ZY": 0.009615398846181738,
+            "ZZ": 0.0,
+            "ZL": 0.10576920730764632,
+            "LI": 0.10576920730764632,
+            "LX": 0.10576920730764632,
+            "LY": 0.10576920730764632,
+            "LZ": 0.10576920730764632
+          },
+          "p_prep_leak_ratio": 0.75,
+          "p1_seepage_prob": 0.3333333333333333,
+          "p2_seepage_prob": 0.3333333333333333,
+          "scale": 1.0,
+          "memory_scale": 1.0,
+          "prep_scale": 1.0,
+          "meas_scale": 1.0,
+          "p1_scale": 1.0,
+          "p2_scale": 1.0,
+          "emission_scale": 1.0,
+          "przz_a": 1.518,
+          "przz_b": 0.241,
+          "przz_c": 1.518,
+          "przz_d": 0.241,
+          "przz_power": 1.0,
+          "p_meas_crosstalk": 1.5e-05,
+          "p_prep_crosstalk": 3.5e-06,
+          "noiseless_gates": [],
+          "coherent_dephasing": false,
+          "coherent_to_incoherent_factor": 1.5,
+          "leak2depolar": true,
+          "p_meas_crosstalk_scale": 1.0,
+          "p_prep_crosstalk_scale": 1.0,
+          "crosstalk_per_gate": null,
+          "p_idle_linear_rate": 0.0102,
+          "p_idle_quadratic_rate": 0.0131,
+          "p_idle_linear_model": {
+            "Z": 0.18,
+            "L": 0.82
+          },
+          "leakage_repump_model": {
+            "L->0": 0.7703071725463451,
+            "L->1": 0.11071185256235501,
+            "L->L": 0.11897979703460934
+          },
+          "avg_to_process_factor_1q": 1.5,
+          "avg_to_process_factor_2q": 1.25,
+          "extra_features": {
+            "p_meas_crosstalk_model": {
+              "0->0": 0.16,
+              "0->1": 0.25,
+              "0->L": 0.59,
+              "1->1": 0.26,
+              "1->0": 0.22,
+              "1->L": 0.52
+            },
+            "p_meas_crosstalk_global": 1.5e-05,
+            "p_meas_crosstalk_local": 1.5e-05
+          }
+        },
+        "runtime_args": [
+          "--verbose-panics=false",
+          "--leakage-repump-enabled=true",
+          "--control-system=DCS"
+        ],
+        "libraries": {
+          "pecos": "aa635641b65ee1b59475c88129d09f23d3a00972375b7543ff77247304983551",
+          "narsil": "fc94523ac733856bc07602d565115dceb4ffa14ab0b840c5679d06af625bb8ad"
+        },
+        "platform": "sol",
+        "simulator": "stim",
+        "ion_pool": 192,
+        "optimization": "Minimal",
+        "boundaries": "ideal-prepare-cover-sync-and-readout-v2",
+        "input_preparation": "systematic CSS encoder and generator cover; legacy full mode available",
+        "seeding": {
+          "mode": "default",
+          "indexing": "fixed task stream plus global shot_offset"
+        },
+        "execution": "one Python worker and native run per unfinished task; atomic batch notifications",
+        "compiler": "Apple clang version 21.0.0 (clang-2100.3.34.2)\nTarget: arm64-apple-darwin25.6.0\nThread model: posix\nInstalledDir: /Library/Developer/CommandLineTools/usr/bin\n"
+      },
+      "reference_versions": {
+        "numpy": "2.2.6",
+        "stim": "1.17.dev1792124270"
+      },
+      "policy_calibration": "Frozen controller; probability policies retain their original training model",
+      "certificate_scope": "Original abstract circuit fault model; no Sol hardware certificate"
+    },
+    "noise": {
+      "noise_scale": 1.0,
+      "repump": true,
+      "model_overrides": {}
+    },
+    "prepared_state": "0",
+    "cycles": 7,
+    "seed": 20261113,
+    "peak_qubits": 60,
+    "incoming_x": 0,
+    "incoming_z": 0,
+    "source_sha256": "f9447edc59091357c4bbfa3f84c6b64d2f047d203ec0c505cbfbc1af950ea72d",
+    "input_sync": "cover",
+    "input_preparation": "css-systematic-v1"
+  },
+  "target_shots": 5000,
+  "stages": [
+    {
+      "name": "X_d2",
+      "basis": "X",
+      "distance": 2,
+      "cnots": 121
+    },
+    {
+      "name": "X_d4",
+      "basis": "X",
+      "distance": 4,
+      "cnots": 156
+    },
+    {
+      "name": "Z_d2",
+      "basis": "Z",
+      "distance": 2,
+      "cnots": 121
+    },
+    {
+      "name": "Z_d4",
+      "basis": "Z",
+      "distance": 4,
+      "cnots": 156
+    }
+  ]
+}

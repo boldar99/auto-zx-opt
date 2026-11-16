@@ -1,0 +1,40 @@
+artifacts:
+- kind:
+    class: SeleneExecutableKind
+    module: selene_core.build_utils.builtins.selene
+  metadata:
+    library_search_dirs: &id004
+    - /Users/boldizsar.poor/PycharmProjects/auto-zx-opt/local-sol-example/.venv/lib/python3.14/site-packages/selene_sim/_dist/lib
+    - &id001 /Users/boldizsar.poor/PycharmProjects/auto-zx-opt/local-sol-example/.venv/lib/python3.14/site-packages/selene_sol_qis_plugin/_dist/lib
+    - &id002 /Users/boldizsar.poor/PycharmProjects/auto-zx-opt/local-sol-example/.venv/lib/python3.14/site-packages/selene_sol_qis_plugin/_dist/lib
+    - &id003 /Users/boldizsar.poor/PycharmProjects/auto-zx-opt/local-sol-example/.venv/lib/python3.14/site-packages/selene_base_qis_plugin/_dist/lib
+  resource: /Users/boldizsar.poor/PycharmProjects/auto-zx-opt/benchmarks/sol_v2_overnight_5k/adaptive_history/work/116eb4c2d179c1951ecf745151a4e3fd8047431b311eda52e2eee6d47088b01c/selene/artifacts/program.selene.x
+created_by: selene-build 0.1
+deps:
+- library_search_dirs:
+  - *id001
+  link_flags: []
+  path: /Users/boldizsar.poor/PycharmProjects/auto-zx-opt/local-sol-example/.venv/lib/python3.14/site-packages/selene_sol_qis_plugin/_dist/lib/libsol_qis_selene_runner.a
+- library_search_dirs:
+  - *id002
+  link_flags: []
+  path: /Users/boldizsar.poor/PycharmProjects/auto-zx-opt/local-sol-example/.venv/lib/python3.14/site-packages/selene_sol_qis_plugin/_dist/lib/libsol_qis_selene_interface_logging_off.dylib
+- library_search_dirs:
+  - *id003
+  link_flags: []
+  path: /Users/boldizsar.poor/PycharmProjects/auto-zx-opt/local-sol-example/.venv/lib/python3.14/site-packages/selene_base_qis_plugin/_dist/lib/libbase_qis_selene_interface_logging_off.dylib
+- library_search_dirs: []
+  link_flags: []
+  path: /Users/boldizsar.poor/PycharmProjects/auto-zx-opt/local-sol-example/.venv/lib/python3.14/site-packages/selene_qtm_platform/_dist/lib/libqtm_platform_selene.a
+library_search_dirs: *id004
+steps:
+- class: HUGRPackageToHUGREnvelopeBytesStep
+  module: selene_core.build_utils.builtins.hugr
+- class: EldarionSolBitcodeStep
+  module: selene_eldarion.build
+- class: SolLLVMBitcodeStringToSolLLVMBitcodeFileStep
+  module: selene_core.build_utils.builtins.sol
+- class: SolLLVMBitcodeFileToSolObjectFileStep
+  module: selene_core.build_utils.builtins.sol
+- class: SolObjectFileToSeleneExecutableStep
+  module: selene_core.build_utils.builtins.sol

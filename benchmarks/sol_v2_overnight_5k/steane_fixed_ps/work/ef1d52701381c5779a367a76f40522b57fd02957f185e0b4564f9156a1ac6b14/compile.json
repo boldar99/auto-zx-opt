@@ -1,0 +1,22 @@
+{
+  "identity": {
+    "source": "8f81d8f20c271f195531ec008c15b0098ec504cdbe1b1a6159d7aa120546e9bd",
+    "versions": {
+      "guppylang": "1.1.4",
+      "guppylang-internals": "1.1.4",
+      "hugr": "0.18.8",
+      "selene-sim": "0.3.7",
+      "selene-core": "0.3.3",
+      "selene-narsil": "1.0.0",
+      "selene-eldarion": "0.11.1",
+      "eldarion": "0.11.1",
+      "pecos-selene": "0.6.2",
+      "qtm-platform": "0.8.1",
+      "selene-qtm-platform": "0.1.1",
+      "selene-formats": "0.1.2"
+    },
+    "optimization": "Minimal",
+    "repump": true
+  },
+  "hugr_sha256": "1701675da53635b5c4490cad209cd3263913bf21ab6d424f6b12a9e8309d9670"
+}

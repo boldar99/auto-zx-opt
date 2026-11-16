@@ -17,7 +17,8 @@ from spiderwarp.se_protocol_io import atomic_write, digest, load_protocol, read_
 from spiderwarp.se_protocol_simulation import _StateExperiment, _wilson_interval, scaled_noise_model
 
 
-def experiment_source(protocol, *, prepared_state="0", cycles=1, incoming_x=0, incoming_z=0):
+def experiment_source(protocol, *, prepared_state="0", cycles=1, incoming_x=0, incoming_z=0,
+                      protocol_source=None):
     from spiderwarp._se_adaptive_guppy import generate_adaptive_source
     if prepared_state not in {"0", "+"} or type(cycles) is not int or cycles < 0:
         raise ValueError("Invalid experiment basis/cycle count")
@@ -74,11 +75,12 @@ def main() -> None:
     bits = array(measure_bit(q) for q in data)
     result("measurements", bits)
 '''.replace("PREPARATION", "\n".join(statements))
-    if hasattr(protocol, "mode"):
-        from spiderwarp._steane_qec_guppy import generate_source
-        protocol_source = generate_source(protocol)
-    else:
-        protocol_source = generate_adaptive_source(protocol)
+    if protocol_source is None:
+        if hasattr(protocol, "mode"):
+            from spiderwarp._steane_qec_guppy import generate_source
+            protocol_source = generate_source(protocol)
+        else:
+            protocol_source = generate_adaptive_source(protocol)
     return (protocol_source
             + f"\nEXPERIMENT_CYCLES = {cycles}\nEXPERIMENT_PLUS = {prepared_state == '+'}\n"
             + tail)

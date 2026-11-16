@@ -74,7 +74,21 @@ def pack_parities(measurements, groups):
 
 @guppy
 def lookup(node: int, key: int) -> int:
-# GENERATED_LOOKUP
+    """Evaluate a shared decoder, accumulating its small XOR differences."""
+    if node < 0:
+        return -(node + 1)
+    decisions = comptime(DECISION_NODES)
+    deltas = comptime(DECISION_DELTAS)
+    value = deltas[node >> comptime(DECISION_REFERENCE_BITS)]
+    node &= comptime(DECISION_REFERENCE_MASK)
+    while node != 0:
+# GENERATED_DECISION_ROW
+        if (key & (1 << bit)) != 0:
+            value ^= deltas[delta]
+            node = high
+        else:
+            node = low
+    return value
 
 
 @guppy
@@ -133,8 +147,13 @@ def frame_z_syndrome(mask: int) -> int:
 
 
 @guppy
+def policy_node(node: int) -> tuple[int, int, int, int, int, int, int]:
+    """Read (kind, action, decoder, X offset, Z offset, X basis, Z basis)."""
+# GENERATED_POLICY_ROW
+
+
+@guppy
 def se_cycle_with_frame(data: array[qubit, comptime(N_DATA)], initial_x: int, initial_z: int) -> CycleResult:
-    nodes = comptime(POLICY_NODES)
     flag_widths = comptime(ACTION_FLAG_WIDTHS)
     is_z = comptime(ACTION_IS_Z)
     decoders = comptime(TERMINAL_DECODERS)
@@ -145,7 +164,9 @@ def se_cycle_with_frame(data: array[qubit, comptime(N_DATA)], initial_x: int, in
     syndrome_x = frame_x_syndrome(pending_x)
     syndrome_z = frame_z_syndrome(pending_z)
     while True:
-        kind, action, transition, frame_x, frame_z, basis_x, basis_z = nodes[node]
+        kind, action, transition, frame_x, frame_z, basis_x, basis_z = policy_node(node)
+        use_baseline = kind >= 4
+        kind &= 3
         if kind == 0:
             return CycleResult(False, 0, 0)
         if kind == 1:
@@ -157,12 +178,20 @@ def se_cycle_with_frame(data: array[qubit, comptime(N_DATA)], initial_x: int, in
         else:
             syndrome ^= syndrome_z
         key = result.flags | (syndrome << flag_widths[action])
+        if use_baseline:
+            if is_z[action] != 0:
+                frame_x ^= lookup(comptime(BASELINE_X_ROOT), syndrome)
+            else:
+                frame_z ^= lookup(comptime(BASELINE_Z_ROOT), syndrome)
         if kind == 3:
             accepted, xs, zs = decoders[transition]
             if lookup(accepted, key) == 0:
                 return CycleResult(False, 0, 0)
             return CycleResult(True, expand_frame(lookup(xs, key), basis_x) ^ frame_x ^ pending_x,
                                expand_frame(lookup(zs, key), basis_z) ^ frame_z ^ pending_z)
+        node = lookup_control(transition, key)
+        if node == 0:
+            return CycleResult(False, 0, 0)
         xs, zs = control_frames[transition]
         update_x = expand_frame(lookup(xs, key), basis_x) ^ frame_x
         update_z = expand_frame(lookup(zs, key), basis_z) ^ frame_z
@@ -170,7 +199,6 @@ def se_cycle_with_frame(data: array[qubit, comptime(N_DATA)], initial_x: int, in
         pending_z ^= update_z
         syndrome_x ^= frame_x_syndrome(update_x)
         syndrome_z ^= frame_z_syndrome(update_z)
-        node = lookup_control(transition, key)
 
 
 @guppy

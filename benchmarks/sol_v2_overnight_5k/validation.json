@@ -1,0 +1,18 @@
+{
+  "backend": "sol-helios-alpha-stim-ideal-boundaries-v2",
+  "complete": true,
+  "methods": [
+    "adaptive_history",
+    "steane_fixed_ps"
+  ],
+  "configurations_per_method": 10,
+  "equal_noise_engine_seeds_and_attempted_budgets": true,
+  "data_preparation": "Ideal once; nondestructive stabilizer synchronization before noise starts",
+  "input_sync": "cover",
+  "seed_mode": "default",
+  "final_readout": "Ideal once; noiseless classical LutDecoder after the last accepted cycle",
+  "statistics": "Conditional block LER and gate/duration costs on fully accepted trajectories only",
+  "approximations": "Incoherent memory and leakage-to-depolarization; Helios alpha used for Sol",
+  "probability_policies": "Frozen under their original training model, not Sol-calibrated",
+  "certificate_scope": "Existing abstract-circuit certificates; no Sol hardware certificate"
+}
