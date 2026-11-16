@@ -1,5 +1,7 @@
 """Composable Guppy preparations of the [[32, 20, 4]] encoded zero state.
 
+Requires guppylang >=1,<2.
+
 The ``*_ops_*`` functions are ordinary Python circuit descriptions. The
 ``@guppy.comptime`` functions below translate them into gates during compilation;
 there is no operation-list interpreter running on the quantum computer.
@@ -31,11 +33,14 @@ Compile the executable ``main`` example with
 noise model, pass main to ``local_sol_example.sol.sim.run_guppy_function`` with
 ``stabilizer=True`` (32 data qubits are too large for a practical statevector).
 Run this module from the repository root using the local_sol_example Python.
+
+``logical_z_meas`` consumes the prepared block and returns corrected logical
+readout with its own acceptance bit. The example reports the conjunction of
+preparation and readout acceptance; either failure rejects the overall shot.
 """
 
 from guppylang import guppy
-from guppylang.std import quantum as _quantum
-from guppylang.std.builtins import array, exit, owned
+from guppylang.std.builtins import array, exit
 from guppylang.std.quantum import cx, cz, discard_array, h, measure, qubit
 
 
@@ -150,22 +155,6 @@ def state_prep_ops_32_20_4_zero_d1() -> list[tuple[str, list[int]]]:
     ]
 
 
-# Guppy 1.x returns lazy Measurement values; the project's 0.21 environment
-# returns bools. Keep the emitted circuit interface the same in both versions.
-if hasattr(_quantum, "Measurement"):
-    from guppylang.std.builtins import output
-
-    @guppy
-    def _measure_bit(q: qubit @ owned) -> bool:
-        return measure(q).read()
-else:
-    from guppylang.std.platform import result as output
-
-    @guppy
-    def _measure_bit(q: qubit @ owned) -> bool:
-        return measure(q)
-
-
 @guppy
 def _append_bit(mask: int, bit: bool, index: int) -> int:
     # Runtime branching belongs in @guppy, since bit may be a measurement.
@@ -197,7 +186,7 @@ def _emit_state_prep(data, operations):
                     h(register[q])
                 # Measurement consumes the ancilla; the next R/RX allocates
                 # a fresh lifetime at the same circuit index.
-                bit = _measure_bit(register.pop(q))
+                bit = measure(register.pop(q)).read()
                 mask = _append_bit(mask, bit, measurement_index)
                 measurement_index += 1
         else:
@@ -253,30 +242,3 @@ def prepare_zero_rus(distance: int) -> array[qubit, 32]:
         if flags == 0:
             return data
         discard_array(data)
-
-
-@guppy
-def main() -> None:
-    """Executable single-attempt example; a controller may instead call RUS."""
-    data = array(qubit() for _ in range(32))
-    flags = state_prep_32_20_4_zero_d4(data)
-    output("flags", flags)
-    output("accepted", flags == 0)
-    # Terminal readout consumes the data block. A QEC caller would retain it
-    # for the transversal interaction instead.
-    readout = array(_measure_bit(q) for q in data)
-    output("data", readout)
-
-
-if __name__ == "__main__":
-    from guppylang import OptimizationLevel
-
-    # This is an ideal smoke test; use sol.sim for the Sol noise model.
-    result = (
-        main.with_opt_level(OptimizationLevel.Minimal)
-        .emulator(n_qubits=34)
-        .stabilizer_sim()
-        .with_shots(10)
-        .run()
-    )
-    print(result)

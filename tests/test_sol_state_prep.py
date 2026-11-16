@@ -12,7 +12,7 @@ from spiderwarp.utils import load_state_prep_circuit
 
 @pytest.mark.parametrize("distance", range(1, 5))
 def test_operation_descriptions_match_reference(distance):
-    pytest.importorskip("guppylang")
+    pytest.importorskip("guppylang", minversion="1")
     from sol_experiment import state_prep
 
     circuit = stim.Circuit()
@@ -28,7 +28,7 @@ def test_operation_descriptions_match_reference(distance):
     "state_prep_32_20_4_zero", "prepare_zero_rus", "main",
 ])
 def test_preparation_compiles(name):
-    pytest.importorskip("guppylang")
+    pytest.importorskip("guppylang", minversion="1")
     from sol_experiment import state_prep
 
     getattr(state_prep, name).compile_function()
@@ -55,11 +55,11 @@ def test_compiled_states_flags_and_retry_in_sol_environment(tmp_path):
     runner.write_text(f"INVERSE = {inverse!r}\n" + '''
 from guppylang import guppy, OptimizationLevel
 from guppylang.std.builtins import array, output
-from guppylang.std.quantum import qubit, h, cx
+from guppylang.std.quantum import qubit, h, cx, measure
 from selene_sim.backends import ClassicalReplay
 from datetime import timedelta
 from sol_experiment.state_prep import (
-    state_prep_32_20_4_zero, prepare_zero_rus, _measure_bit,
+    state_prep_32_20_4_zero, prepare_zero_rus,
 )
 
 
@@ -83,7 +83,7 @@ def roundtrip(distance: int, rus: bool) -> None:
         data = array(qubit() for _ in range(32))
         flags = state_prep_32_20_4_zero(data, distance)
     decode(data)
-    bits = array(_measure_bit(q) for q in data)
+    bits = array(measure(q).read() for q in data)
     output("flags", flags)
     output("decoded", bits)
 
