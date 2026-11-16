@@ -27,6 +27,7 @@ from sol_experiment.state_preparation import (
     state_prep_32_20_4_zero_d2,
     state_prep_32_20_4_zero_d3,
     state_prep_32_20_4_zero_d4,
+    repeat_until_success,
 )
 
 
@@ -35,6 +36,9 @@ PREPARATION_METHODS = {
     "d2": state_prep_32_20_4_zero_d2,
     "d3": state_prep_32_20_4_zero_d3,
     "d4": state_prep_32_20_4_zero_d4,
+    "d2_RUS": repeat_until_success(state_prep_32_20_4_zero_d2),
+    "d3_RUS": repeat_until_success(state_prep_32_20_4_zero_d2),
+    "d4_RUS": repeat_until_success(state_prep_32_20_4_zero_d2),
 }
 
 
@@ -110,10 +114,10 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument(
         "--method", "--methods", dest="methods", nargs="+",
-        choices=PREPARATION_METHODS, default=["d3"],
+        choices=PREPARATION_METHODS, default=["d1", "d2_RUS", "d3_RUS", "d4_RUS"],
         help="Preparation method(s) to run, in order (default: d3)",
     )
-    parser.add_argument("--shots", type=int, default=10000, help="Number of preparation attempts")
+    parser.add_argument("--shots", type=int, default=1000, help="Number of preparation attempts")
     parser.add_argument("--seed", type=int, help="Simulation seed")
     parser.add_argument("--processes", type=int, default=8, help="Parallel simulation processes")
     parser.add_argument("--view-shot", action="store_true", help="Open the shot viewer after sampling")
