@@ -141,7 +141,7 @@ the new `se_experiment sol` command runs one bundle or a grid with resumable
 fixed attempted-shot budgets. Sol results have a separate schema/directories.
 
 ```sh
-uv sync --frozen --project local-sol-example
+uv sync --frozen --project local_sol_example
 python -m spiderwarp.se_experiment sol build/se_postselected_32_20_4 \
     --noise-scales 1 --cycles 1 3 --shots 100 --batch-size 50 \
     --results benchmarks/sol_standard

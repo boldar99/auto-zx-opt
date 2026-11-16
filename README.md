@@ -79,14 +79,14 @@ print(syndrome_extraction.num_qubits)
 ## Adaptive and Steane QEC comparison
 
 The comparison entry point now defaults to **Sol/Narsil with the Helios alpha
-noise model**. It uses the local stack in `local-sol-example`, including actual
+noise model**. It uses the local stack in `local_sol_example`, including actual
 ion transport, rather than the inferred unit-layer noise in `noise_model.py`.
 The existing Stim datasets below retain their original model and results.
 
 Keep the Sol environment separate from SpiderWarp's existing `qec` environment:
 
 ```sh
-uv sync --frozen --project local-sol-example
+uv sync --frozen --project local_sol_example
 # Run this with the Python environment where SpiderWarp is installed:
 python -m spiderwarp.se_experiment sol build/se_postselected_32_20_4 \
     --noise-scales 1 --cycles 1 3 --shots 100 --batch-size 50 \
@@ -126,7 +126,7 @@ than attempted shots at longer cycle counts; LER precision depends on the
 accepted and logical-error counts.
 
 The example's authenticated package index setup is described in
-[`local-sol-example/README.md`](local-sol-example/README.md). Its existing
+[`local_sol_example`](local_sol_example/README.md). Its existing
 `uv.lock` defines the runtime versions. By default the worker uses that
 directory's `.venv/bin/python`; override it with `--sol-python /absolute/path`
 or `SPIDERWARP_SOL_PYTHON`. macOS/Linux and a C compiler (`CC`, default `cc`)
