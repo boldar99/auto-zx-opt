@@ -106,7 +106,8 @@ from guppylang.std.builtins import array, output
 from guppylang.std.quantum import qubit, x
 from selene_sim.backends import ClassicalReplay
 from sol_experiment.logical_measurement import decode_z_readout, logical_z_meas
-from sol_experiment.state_prep import state_prep_32_20_4_zero_d3, main
+from sol_experiment.state_preparation import state_prep_32_20_4_zero_d3
+from sol_experiment.SPAM_experiment import estimate_SPAM_LER, summarize_result
 
 
 @guppy
@@ -156,11 +157,13 @@ for mode, entry in (("classical", decode_entry), ("quantum", measure_entry)):
     print(mode, len(records), "cases passed", flush=True)
 
 # The example's acceptance must combine preparation and readout acceptance.
-example = main.with_opt_level(OptimizationLevel.Minimal).emulator(n_qubits=34)
+example = estimate_SPAM_LER.with_opt_level(OptimizationLevel.Minimal).emulator(n_qubits=34)
 result = example.stabilizer_sim().with_shots(4).run()
 for shot in result.collated_shots():
-    assert shot["prep_accepted"] == shot["readout_accepted"] == shot["accepted"] == [1]
-    assert shot["data"] == [[0] * 20]
+    assert shot == {"accepted": [1], "logical_error": [0]}
+stats = summarize_result(result)
+assert (stats.shots, stats.accepted, stats.logical_errors) == (4, 4, 0)
+assert stats.ar == 1 and stats.ler == 0
 
 # Independently force preparation failure, readout failure, then both failures.
 raised_flags = [True] + [False] * 8
@@ -170,7 +173,63 @@ records = [raised_flags + [False] * 32, [False] * 9 + bad_readout,
 result = (example.with_simulator(ClassicalReplay(measurements=records))
           .with_shots(3).with_timeout(timedelta(seconds=10)).run())
 shots = result.collated_shots()
-assert [s["prep_accepted"] for s in shots] == [[0], [1], [0]]
-assert [s["readout_accepted"] for s in shots] == [[1], [0], [0]]
-assert all(s["accepted"] == [0] for s in shots)
-''', dict(classical=[case(*pair) for pair in classical], quantum=[case(*pair) for pair in quantum]))
+assert all(s == {"accepted": [0], "logical_error": [0]} for s in shots)
+assert summarize_result(result).ar == 0
+assert summarize_result(result).ler is None
+
+# An accepted nonzero logical word is one block failure, regardless of how
+# many of its logical bits are one. The same word with a prep flag is rejected.
+logical_bits = [bool(cases["logical_error_word"] & (1 << q)) for q in range(32)]
+records = [[False] * 41, [False] * 9 + logical_bits,
+           raised_flags + logical_bits, [False] * 9 + bad_readout]
+result = (example.with_simulator(ClassicalReplay(measurements=records))
+          .with_shots(4).with_timeout(timedelta(seconds=10)).run())
+assert result.collated_shots() == [
+    {"accepted": [1], "logical_error": [0]},
+    {"accepted": [1], "logical_error": [1]},
+    {"accepted": [0], "logical_error": [0]},
+    {"accepted": [0], "logical_error": [0]},
+]
+stats = summarize_result(result)
+assert (stats.shots, stats.accepted, stats.logical_errors) == (4, 2, 1)
+assert stats.ar == stats.ler == 0.5
+''', dict(classical=[case(*pair) for pair in classical],
+          quantum=[case(*pair) for pair in quantum], logical_error_word=LOGICALS[0]))
+
+
+def test_spam_statistics_and_empty_acceptance(run_guppy_check):
+    run_guppy_check('''
+from contextlib import redirect_stdout
+from io import StringIO
+from hugr.qsystem.result import QsysResult
+from sol_experiment.SPAM_experiment import summarize_result, print_summary
+
+# Rejected shots never enter the LER numerator, even if an external result
+# supplies an error bit for them.
+result = QsysResult([
+    [("accepted", 1), ("logical_error", 0)],
+    [("accepted", 1), ("logical_error", 1)],
+    [("accepted", 0), ("logical_error", 1)],
+    [("accepted", 0), ("logical_error", 0)],
+])
+stats = summarize_result(result)
+assert (stats.shots, stats.accepted, stats.logical_errors) == (4, 2, 1)
+assert stats.ar == stats.ler == 0.5
+text = StringIO()
+with redirect_stdout(text):
+    print_summary(stats)
+assert text.getvalue().splitlines() == [
+    "AR:  50.000000% (2/4 shots accepted)",
+    "LER: 50.000000% (1/2 accepted blocks have a logical error)",
+]
+
+for result in (QsysResult(), QsysResult([[("accepted", 0), ("logical_error", 0)]])):
+    stats = summarize_result(result)
+    assert stats.accepted == stats.logical_errors == 0
+    assert stats.ler is None
+    assert stats.ar == (0 if stats.shots else None)
+    text = StringIO()
+    with redirect_stdout(text):
+        print_summary(stats)
+    assert "LER: undefined (no accepted shots)" in text.getvalue()
+''')

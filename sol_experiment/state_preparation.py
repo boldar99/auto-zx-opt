@@ -28,15 +28,10 @@ For repeat-until-success, ``prepare_zero_rus(4)`` allocates and returns an accep
 block. Rejected blocks are discarded before allocating the next attempt. The
 loop is unbounded, so a persistent verification failure will not terminate.
 
-Compile the executable ``main`` example with
-``main.with_opt_level(OptimizationLevel.Minimal).compile()``. For the local Sol
-noise model, pass main to ``local_sol_example.sol.sim.run_guppy_function`` with
-``stabilizer=True`` (32 data qubits are too large for a practical statevector).
-Run this module from the repository root using the local_sol_example Python.
-
-``logical_z_meas`` consumes the prepared block and returns corrected logical
-readout with its own acceptance bit. The example reports the conjunction of
-preparation and readout acceptance; either failure rejects the overall shot.
+The executable SPAM experiment lives in ``sol_experiment.SPAM_experiment``.
+It combines preparation verification with corrected logical Z readout and
+reports acceptance and logical error rates. Use the local_sol_example Python
+environment, with the stabilizer simulator, to run the 34-qubit experiment.
 """
 
 from guppylang import guppy
