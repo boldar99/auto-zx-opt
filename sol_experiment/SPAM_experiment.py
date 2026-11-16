@@ -1,7 +1,9 @@
 """Estimate accepted-block SPAM error and acceptance rates by preparation method.
 
-Each shot makes one preparation attempt, without RUS retries. Acceptance
-requires both zero preparation flags and accepted decoded Z readout. A logical
+Each shot runs the selected preparation method. RUS methods allow four retries
+after the initial attempt. Acceptance requires both zero final preparation
+flags and accepted decoded Z readout. AR is per method invocation, including
+any internal retries. A logical
 failure means any of the 20 corrected logical bits differs from the expected
 all-zero state. LER is conditional on acceptance; AR uses all attempted shots.
 
@@ -37,8 +39,8 @@ PREPARATION_METHODS = {
     "d3": state_prep_32_20_4_zero_d3,
     "d4": state_prep_32_20_4_zero_d4,
     "d2_RUS": repeat_until_success(state_prep_32_20_4_zero_d2),
-    "d3_RUS": repeat_until_success(state_prep_32_20_4_zero_d2),
-    "d4_RUS": repeat_until_success(state_prep_32_20_4_zero_d2),
+    "d3_RUS": repeat_until_success(state_prep_32_20_4_zero_d3),
+    "d4_RUS": repeat_until_success(state_prep_32_20_4_zero_d4),
 }
 
 
@@ -115,7 +117,7 @@ def main() -> None:
     parser.add_argument(
         "--method", "--methods", dest="methods", nargs="+",
         choices=PREPARATION_METHODS, default=["d1", "d2_RUS", "d3_RUS", "d4_RUS"],
-        help="Preparation method(s) to run, in order (default: d3)",
+        help="Preparation method(s), in order (default: d1 d2_RUS d3_RUS d4_RUS)",
     )
     parser.add_argument("--shots", type=int, default=1000, help="Number of preparation attempts")
     parser.add_argument("--seed", type=int, help="Simulation seed")
