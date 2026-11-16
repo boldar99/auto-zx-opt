@@ -3,8 +3,8 @@
 Each shot runs the selected preparation method. RUS methods allow four retries
 after the initial attempt. Acceptance requires both zero final preparation
 flags and accepted decoded Z readout. AR is per method invocation, including
-any internal retries. A logical
-failure means any of the 20 corrected logical bits differs from the expected
+any internal retries. A logical failure means any of the 20 corrected logical
+bits differs from the expected
 all-zero state. LER is conditional on acceptance; AR uses all attempted shots.
 
 Run from the repository root, for example::

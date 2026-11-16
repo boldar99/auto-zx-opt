@@ -79,6 +79,15 @@ CORRECTIONS, POST_SELECT = make_lut()
 
 
 @guppy.struct
+class SyndromeResult:
+    """A decoded CSS syndrome, without measuring any logical observables."""
+
+    accepted: bool
+    syndrome: int
+    correction: int
+
+
+@guppy.struct
 class LogicalZResult:
     """Twenty logical outcomes, valid only when accepted is True.
 
@@ -105,13 +114,16 @@ def _masked_parity(word: int, mask: int) -> bool:
 
 
 @guppy
-def decode_z_readout(readout: array[bool, 32]) -> LogicalZResult:
-    """Decode classical Z readout, preserving the caller's raw bit array."""
+def _pack_readout(readout: array[bool, 32]) -> int:
     word = 0
     for q in range(32):
         if readout[q]:
             word |= 1 << q
+    return word
 
+
+@guppy
+def _decode_word_syndrome(word: int) -> SyndromeResult:
     checks = comptime(list(Z_CHECK_MASKS))
     syndrome = 0
     for i in range(6):
@@ -120,14 +132,37 @@ def decode_z_readout(readout: array[bool, 32]) -> LogicalZResult:
 
     post_select = comptime(POST_SELECT)
     if post_select[syndrome]:
-        return LogicalZResult(False, syndrome, 0, array(False for _ in range(20)))
+        return SyndromeResult(False, syndrome, 0)
 
     corrections = comptime(CORRECTIONS)
-    correction = corrections[syndrome]
+    return SyndromeResult(True, syndrome, corrections[syndrome])
+
+
+@guppy
+def decode_readout_syndrome(readout: array[bool, 32]) -> SyndromeResult:
+    """Decode just the six checks, for terminal readout or Steane extraction.
+
+    The code's X and Z checks have identical supports, so this decoder also
+    handles X-basis ancilla readout after a transversal H. The input is borrowed
+    and preserved. A rejected syndrome has correction zero and must be rejected
+    by the caller; it does not mean that no error was present.
+    """
+    return _decode_word_syndrome(_pack_readout(readout))
+
+
+@guppy
+def decode_z_readout(readout: array[bool, 32]) -> LogicalZResult:
+    """Decode classical Z readout, preserving the caller's raw bit array."""
+    word = _pack_readout(readout)
+    decoded = _decode_word_syndrome(word)
+    if not decoded.accepted:
+        return LogicalZResult(False, decoded.syndrome, 0, array(False for _ in range(20)))
+
+    correction = decoded.correction
     corrected = word ^ correction
     logical_masks = comptime(list(LOGICAL_Z_MASKS))
     logicals = array(_masked_parity(corrected, logical_masks[i]) for i in range(20))
-    return LogicalZResult(True, syndrome, correction, logicals)
+    return LogicalZResult(True, decoded.syndrome, correction, logicals)
 
 
 @guppy

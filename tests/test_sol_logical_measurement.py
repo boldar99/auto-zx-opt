@@ -251,7 +251,7 @@ from sol_experiment.state_preparation import state_prep_32_20_4_zero_d1
 programs = {name: make_spam_experiment(method)
             for name, method in PREPARATION_METHODS.items()}
 flag_counts = {"d1": 0, "d2": 6, "d3": 9, "d4": 11}
-for name in ("d4", "d1", "d3", "d2", "d4"):
+for name in (*reversed(tuple(PREPARATION_METHODS)), "d4"):
     program = programs[name].with_opt_level(OptimizationLevel.Minimal)
     program.compile()  # Requires an executable entrypoint with no arguments.
     emulator = program.emulator(n_qubits=34).with_timeout(timedelta(seconds=10))
@@ -260,12 +260,18 @@ for name in ("d4", "d1", "d3", "d2", "d4"):
 
     # Replay requires exactly this many measurements. This catches accidentally
     # compiling a different preparation, which ideal acceptance alone cannot.
-    count = flag_counts[name]
+    base = name.split("_")[0]
+    count = flag_counts[base]
     records = [[False] * (count + 32)]
     expected = [{"accepted": [1], "logical_error": [0]}]
     if count:
-        records.append([False] * (count - 1) + [True] + [False] * 32)
+        failed_attempt = [False] * (count - 1) + [True]
+        attempts = 5 if name.endswith("_RUS") else 1
+        records.append(failed_attempt * attempts + [False] * 32)
         expected.append({"accepted": [0], "logical_error": [0]})
+        if attempts > 1:
+            records.append(failed_attempt * (attempts - 1) + [False] * (count + 32))
+            expected.append({"accepted": [1], "logical_error": [0]})
     result = (emulator.with_simulator(ClassicalReplay(measurements=records))
               .with_shots(len(records)).run())
     assert result.collated_shots() == expected, name

@@ -25,7 +25,7 @@ def test_operation_descriptions_match_reference(distance):
 
 @pytest.mark.parametrize("name", [
     *(f"state_prep_32_20_4_zero_d{d}" for d in range(1, 5)),
-    "state_prep_32_20_4_zero", "prepare_zero_rus",
+    "state_prep_32_20_4_zero",
 ])
 def test_preparation_compiles(name):
     pytest.importorskip("guppylang", minversion="1")
@@ -59,8 +59,15 @@ from guppylang.std.quantum import qubit, h, cx, measure
 from selene_sim.backends import ClassicalReplay
 from datetime import timedelta
 from sol_experiment.state_preparation import (
-    state_prep_32_20_4_zero, prepare_zero_rus,
+    state_prep_32_20_4_zero, repeat_until_success,
+    state_prep_32_20_4_zero_d1, state_prep_32_20_4_zero_d2,
+    state_prep_32_20_4_zero_d3, state_prep_32_20_4_zero_d4,
 )
+
+rus_d1 = repeat_until_success(state_prep_32_20_4_zero_d1)
+rus_d2 = repeat_until_success(state_prep_32_20_4_zero_d2)
+rus_d3 = repeat_until_success(state_prep_32_20_4_zero_d3)
+rus_d4 = repeat_until_success(state_prep_32_20_4_zero_d4)
 
 
 @guppy.comptime
@@ -76,11 +83,17 @@ def decode(data: array[qubit, 32]) -> None:
 
 @guppy
 def roundtrip(distance: int, rus: bool) -> None:
+    data = array(qubit() for _ in range(32))
     if rus:
-        data = prepare_zero_rus(distance)
-        flags = 0
+        if distance == 1:
+            flags = rus_d1(data)
+        elif distance == 2:
+            flags = rus_d2(data)
+        elif distance == 3:
+            flags = rus_d3(data)
+        else:
+            flags = rus_d4(data)
     else:
-        data = array(qubit() for _ in range(32))
         flags = state_prep_32_20_4_zero(data, distance)
     decode(data)
     bits = array(measure(q).read() for q in data)
