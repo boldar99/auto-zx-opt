@@ -33,6 +33,7 @@ from guppylang.std.builtins import array, comptime, output
 from guppylang.std.quantum import discard_array, qubit, h
 
 from local_sol_example.sol.sim import run_hugr
+from sol_experiment.QEC_optimized_Steane import make_optimized_steane_qec_cycle
 
 from sol_experiment.logical_measurement import logical_z_meas
 from sol_experiment.QEC_Steane import make_steane_qec_cycle
@@ -44,6 +45,8 @@ from sol_experiment.experiment_SPAM import (
 QEC_METHODS = {
     f"steane_{name}": make_steane_qec_cycle(prepare_state)
     for name, prepare_state in PREPARATION_METHODS.items()
+} | {
+    "optimized_steane": make_optimized_steane_qec_cycle()
 }
 
 
@@ -133,16 +136,16 @@ def main(argv: list[str] | None = None) -> Path:
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     parser.add_argument(
-        "--initial-prep", choices=PREPARATION_METHODS, default="d4_RUS",
+        "--initial-prep", choices=PREPARATION_METHODS, default="d3_RUS",
         help="Initial data-block preparation",
     )
     parser.add_argument(
         "--qec-method", choices=QEC_METHODS, default="steane_d3_RUS",
         help="Complete QEC cycle; suffix names its ancilla preparation",
     )
-    parser.add_argument("--num-cycles", type=int, default=1, help="QEC cycles per trajectory")
+    parser.add_argument("--num-cycles", type=int, default=10, help="QEC cycles per trajectory")
     parser.add_argument("--basis", type=str, default="Z", choices=["Z", "X"], help="QEC cycles per trajectory")
-    parser.add_argument("--shots", type=int, default=1000, help="Number of trajectories")
+    parser.add_argument("--shots", type=int, default=100, help="Number of trajectories")
     parser.add_argument("--processes", type=int, default=8, help="Parallel simulation processes")
     parser.add_argument("--seed", type=int, help="Simulation seed; generated and saved if omitted")
     parser.add_argument("--output", type=Path, help="JSON report path; otherwise out/memory/<timestamp>.json")
@@ -179,7 +182,7 @@ def main(argv: list[str] | None = None) -> Path:
         "simulator": "stim",
         "noise_model": "qsystem_model_alpha",
     }
-    timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%f" + args.basis)
     path = save_results(
         args.output or Path("out/memory") / f"{timestamp}.json", stats, configuration,
     )

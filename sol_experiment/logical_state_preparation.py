@@ -45,6 +45,7 @@ from guppylang.std.builtins import array, comptime, exit
 from guppylang.std.quantum import qubit, reset
 
 from sol_experiment.circuit_utils import emit_circuit
+from sol_experiment.measurement_utils import pack_bits
 
 
 def state_prep_ops_32_20_4_zero_d4() -> list[tuple[str, list[int]]]:
@@ -158,22 +159,9 @@ def state_prep_ops_32_20_4_zero_d1() -> list[tuple[str, list[int]]]:
     ]
 
 
-@guppy
-def _append_bit(mask: int, bit: bool, index: int) -> int:
-    # Runtime branching belongs in @guppy, since bit may be a measurement.
-    if bit:
-        return mask | (1 << index)
-    return mask
-
-
 def _pack_flags(measurements):
     """Read and pack preparation verification results during Guppy tracing."""
-    if len(measurements) > 63:
-        raise ValueError("Preparation flag masks support at most 63 measurements")
-    mask = 0
-    for i, measurement in enumerate(measurements):
-        mask = _append_bit(mask, measurement.read(), i)
-    return mask
+    return pack_bits([measurement.read() for measurement in measurements])
 
 
 @guppy.comptime

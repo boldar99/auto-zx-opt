@@ -1,4 +1,4 @@
-"""Destructive, corrected logical Z readout for the [[32, 20, 4]] code.
+"""CSS syndrome decoding and corrected logical Z readout for [[32, 20, 4]].
 
 Requires guppylang >=1,<2. The checks and logical operators are the ones in
 spiderwarp/assets/qeccs/misc/32_20_4.json, in the same row order as the sketch.
@@ -123,19 +123,31 @@ def _pack_readout(readout: array[bool, 32]) -> int:
 
 
 @guppy
-def _decode_word_syndrome(word: int) -> SyndromeResult:
-    checks = comptime(list(Z_CHECK_MASKS))
-    syndrome = 0
-    for i in range(6):
-        if _masked_parity(word, checks[i]):
-            syndrome |= 1 << i
+def decode_syndrome(syndrome: int) -> SyndromeResult:
+    """Decode six packed check outcomes, with bit i denoting check row i.
 
+    Accept zero or a single-qubit syndrome; reject ambiguous syndromes and
+    values outside the six-bit range. The correction is a physical Pauli mask,
+    which the caller applies as X for Z checks or Z for X checks.
+    """
+    if syndrome < 0 or syndrome >= 64:
+        return SyndromeResult(False, syndrome, 0)
     post_select = comptime(POST_SELECT)
     if post_select[syndrome]:
         return SyndromeResult(False, syndrome, 0)
 
     corrections = comptime(CORRECTIONS)
     return SyndromeResult(True, syndrome, corrections[syndrome])
+
+
+@guppy
+def _decode_word_syndrome(word: int) -> SyndromeResult:
+    checks = comptime(list(Z_CHECK_MASKS))
+    syndrome = 0
+    for i in range(6):
+        if _masked_parity(word, checks[i]):
+            syndrome |= 1 << i
+    return decode_syndrome(syndrome)
 
 
 @guppy

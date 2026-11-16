@@ -1,7 +1,46 @@
+"""Optimized Steane extraction and correction for the [[32, 20, 4]] code.
+
+The Python circuit description contains operations and two named detector
+groups: flags and syndrome. Detectors use end-of-circuit Stim rec offsets.
+Compile-time tracing emits the circuit and its parity calculations; runtime
+Guppy code handles acceptance, syndrome decoding, and physical correction.
+"""
+from typing import Literal, NamedTuple
+
+from guppylang import guppy
+from guppylang.defs import GuppyFunctionDefinition
+from guppylang.std.builtins import array, comptime
+from guppylang.std.quantum import h, qubit, x, z
+
+from sol_experiment.circuit_utils import emit_circuit
+from sol_experiment.logical_measurement import decode_syndrome
+from sol_experiment.measurement_utils import pack_detector_parities
 
 
+class DetectorGroups(NamedTuple):
+    """Classical detector metadata; list order determines each output bit."""
 
-def optimized_steane_32_20_4_X_d4() -> tuple[list[tuple[str, list[int]]], list[tuple[int, ...]]]:
+    flags: list[tuple[int, ...]]
+    syndrome: list[tuple[int, ...]]
+
+
+@guppy.struct
+class OptimizedSteaneQECResult:
+    """One extraction's outcome, with any accepted correction already applied.
+
+    flags packs the flag detectors; syndrome packs the syndrome detectors in
+    check row order. A flag or ambiguous syndrome rejects with correction zero.
+    The borrowed data remains available on every path, including rejection.
+    """
+
+    accepted: bool
+    flags: int
+    syndrome: int
+    correction: int
+
+
+def optimized_steane_32_20_4_X_d4() -> tuple[list[tuple[str, list[int]]], DetectorGroups]:
+    """Describe X-check extraction with 11 flags and six syndrome detectors."""
     ops = [
         ("RX", [32, 33, 34]),
         ("R", [35, 36]),
@@ -101,24 +140,97 @@ def optimized_steane_32_20_4_X_d4() -> tuple[list[tuple[str, list[int]]], list[t
         ("MX", [32]),
         ("M", [47]),
     ]
-    detectors = [
-        ([-39], ),
-        ([-33], ),
-        ([-34], ),
-        ([-29], ),
-        ([-30], ),
-        ([-4], ),
-        ([-5], ),
-        ([-1], ),
-        ([-2], ),
-        ([-6], ),
-        ([-7], ),
-        ([-37, -38, -22, -23, -9, -24, -19, -41, -25, -21, -35, -20, -36, -40, -16, -14, -15, -11, -17, -8, -31, -26, -28, -3, -18, -10, -13, -32, -12, -27]),
-        ([-37, -38, -22, -23, -9, -24, -19, -41, -25, -21, -35, -20, -36, -40, -16]),
-        ([-37, -38, -22, -23, -9, -24, -19, -41, -14, -15, -11, -17, -8, -31, -26]),
-        ([-37, -38, -22, -23, -25, -21, -35, -14, -15, -11, -28, -3, -18, -10]),
-        ([-37, -38, -9, -24, -25, -20, -36, -14, -15, -17, -8, -28, -3, -13, -32]),
-        ([-37, -22, -9, -19, -25, -21, -20, -40, -14, -17, -31, -28, -18, -13, -12]),
+    flag_detectors = [
+        (-39,),
+        (-33,),
+        (-34,),
+        (-29,),
+        (-30,),
+        (-4,),
+        (-5,),
+        (-1,),
+        (-2,),
+        (-6,),
+        (-7,),
+    ]
+    syndrome_detectors = [
+        (-37, -38, -22, -23, -9, -24, -19, -41, -25, -21, -35, -20, -36, -40, -16, -14, -15,
+         -11, -17, -8, -31, -26, -28, -3, -18, -10, -13, -32, -12, -27),
+        (-37, -38, -22, -23, -9, -24, -19, -41, -25, -21, -35, -20, -36, -40, -16),
+        (-37, -38, -22, -23, -9, -24, -19, -41, -14, -15, -11, -17, -8, -31, -26),
+        (-37, -38, -22, -23, -25, -21, -35, -14, -15, -11, -28, -3, -18, -10),
+        (-37, -38, -9, -24, -25, -20, -36, -14, -15, -17, -8, -28, -3, -13, -32),
+        (-37, -22, -9, -19, -25, -21, -20, -40, -14, -17, -31, -28, -18, -13, -12),
     ]
 
-    return ops, detectors
+    return ops, DetectorGroups(flags=flag_detectors, syndrome=syndrome_detectors)
+
+
+def make_optimized_steane_d4(
+    basis: Literal["X", "Z"],
+) -> GuppyFunctionDefinition:
+    """Return qec(data: array[qubit, 32]) -> OptimizedSteaneQECResult.
+
+    The basis names the measured checks: X checks correct Z errors, and Z
+    checks correct X errors. The Z variant conjugates the entire X extraction
+    with transversal H on data, restoring its basis before any rejection.
+    Each extraction uses at most 60 live qubits, including the data block.
+
+    Nonzero flags are postselected; otherwise use the shared syndrome decoder.
+    Rejection happens after data interaction, so the caller must reject the
+    shot. This function does not retry or reset the data.
+    """
+    if basis not in ("X", "Z"):
+        raise ValueError("basis must be 'X' or 'Z'")
+
+    operations, detectors = optimized_steane_32_20_4_X_d4()
+
+    @guppy.comptime
+    def extract(data: array[qubit, 32]) -> tuple[int, int]:
+        if basis == "Z":
+            for q in data:
+                h(q)
+        measurements = emit_circuit(data, operations)
+        if basis == "Z":
+            for q in data:
+                h(q)
+        readout = [measurement.read() for measurement in measurements]
+        flags = pack_detector_parities(readout, detectors.flags)
+        syndrome = pack_detector_parities(readout, detectors.syndrome)
+        return flags, syndrome
+
+    @guppy
+    def qec(data: array[qubit, 32]) -> OptimizedSteaneQECResult:
+        flags, syndrome = extract(data)
+        if flags != 0:
+            return OptimizedSteaneQECResult(False, flags, syndrome, 0)
+
+        decoded = decode_syndrome(syndrome)
+        if not decoded.accepted:
+            return OptimizedSteaneQECResult(False, flags, syndrome, 0)
+
+        for i in range(32):
+            if (decoded.correction & (1 << i)) != 0:
+                if comptime(basis == "Z"):
+                    x(data[i])
+                else:
+                    z(data[i])
+        return OptimizedSteaneQECResult(True, flags, syndrome, decoded.correction)
+
+    return qec
+
+
+def make_optimized_steane_qec_cycle() -> GuppyFunctionDefinition:
+    """Return cycle(data) -> bool, running Z then X checks; stop on rejection."""
+    qec_z = make_optimized_steane_d4("Z")
+    qec_x = make_optimized_steane_d4("X")
+
+    @guppy
+    def cycle(data: array[qubit, 32]) -> bool:
+        first = qec_z(data)
+        if not first.accepted:
+            return False
+        second = qec_x(data)
+        return second.accepted
+
+    return cycle

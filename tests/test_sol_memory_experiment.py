@@ -10,10 +10,12 @@ from guppylang import OptimizationLevel
 from sol_experiment.experiment_memory import make_memory_experiment, QEC_METHODS
 from sol_experiment.experiment_SPAM import PREPARATION_METHODS, summarize_result
 
-settings = [("d1", "steane_d1", 0), ("d2_RUS", "steane_d3_RUS", 1),
-            ("d4_RUS", "steane_d4_RUS", 3)]
-programs = [make_memory_experiment(PREPARATION_METHODS[initial], QEC_METHODS[qec], cycles, "Z")
-            for initial, qec, cycles in settings]
+settings = [("d1", "steane_d1", 0, "Z"), ("d2_RUS", "steane_d3_RUS", 1, "Z"),
+            ("d4_RUS", "steane_d4_RUS", 3, "Z"),
+            ("d4_RUS", "optimized_steane", 2, "Z"),
+            ("d4_RUS", "optimized_steane", 2, "X")]
+programs = [make_memory_experiment(PREPARATION_METHODS[initial], QEC_METHODS[qec], cycles, basis)
+            for initial, qec, cycles, basis in settings]
 for config, program in zip(settings, programs):
     program = program.with_opt_level(OptimizationLevel.Minimal)
     program.compile()
