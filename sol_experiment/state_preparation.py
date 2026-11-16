@@ -24,9 +24,17 @@ For a single attempt inside a QEC controller::
     flags = state_prep_32_20_4_zero_d4(ancilla)
     # Branch on flags in a regular @guppy function, then use/dispose of ancilla.
 
-For repeat-until-success, ``prepare_zero_rus(4)`` allocates and returns an accepted
-block. Rejected blocks are discarded before allocating the next attempt. The
-loop is unbounded, so a persistent verification failure will not terminate.
+For a bounded repeat-until-success method, wrap any preparation::
+
+    rus_d3 = repeat_until_success(state_prep_32_20_4_zero_d3, max_retries=4)
+
+The returned Guppy function has the same borrowed-block/flag-mask interface,
+so it can also be passed to ``make_spam_experiment``. It makes one initial
+attempt and up to four retries by default, resetting the block between failed
+attempts. A nonzero return value means every allowed attempt failed.
+
+The distance-based ``prepare_zero_rus(4)`` instead allocates and returns an
+accepted block, discarding failed blocks and retrying without a bound.
 
 The executable SPAM experiment lives in ``sol_experiment.SPAM_experiment``.
 It combines preparation verification with corrected logical Z readout and
@@ -35,8 +43,9 @@ environment, with the stabilizer simulator, to run the 34-qubit experiment.
 """
 
 from guppylang import guppy
-from guppylang.std.builtins import array, exit
-from guppylang.std.quantum import cx, cz, discard_array, h, measure, qubit
+from guppylang.defs import GuppyFunctionDefinition
+from guppylang.std.builtins import array, comptime, exit
+from guppylang.std.quantum import cx, cz, discard_array, h, measure, qubit, reset
 
 
 def state_prep_ops_32_20_4_zero_d4() -> list[tuple[str, list[int]]]:
@@ -228,12 +237,38 @@ def state_prep_32_20_4_zero(data: array[qubit, 32], distance: int) -> int:
     return -1
 
 
-@guppy
-def prepare_zero_rus(distance: int) -> array[qubit, 32]:
-    """Return an owned, verified block, retrying locally on nonzero flags."""
-    while True:
-        data = array(qubit() for _ in range(32))
-        flags = state_prep_32_20_4_zero(data, distance)
-        if flags == 0:
-            return data
-        discard_array(data)
+def repeat_until_success(
+    prepare_state: GuppyFunctionDefinition, max_retries: int = 4,
+) -> GuppyFunctionDefinition:
+    """Wrap a preparation with bounded, measurement-controlled Guppy retries.
+
+    prepare_state must borrow a fresh array[qubit, 32] and return an int flag
+    mask, with zero meaning success. The returned function has that same
+    interface. The caller retains the final block on success or exhaustion.
+
+    max_retries counts attempts AFTER the first: zero means one attempt, and
+    the default four means at most five attempts. Stop at the first zero flag;
+    otherwise return the last nonzero mask without aborting the shot. Reset
+    all data qubits to |0> before each retry, since these preparations assume
+    a fresh block. The wrapped preparation manages its own flag ancillas.
+
+    The method and retry limit are bound in Python; the retry loop executes
+    in Guppy at runtime, so it can branch on actual verification outcomes.
+    """
+    if isinstance(max_retries, bool) or not isinstance(max_retries, int):
+        raise TypeError("max_retries must be an integer")
+    if max_retries < 0:
+        raise ValueError("max_retries must be nonnegative")
+
+    @guppy
+    def preparation(data: array[qubit, 32]) -> int:
+        flags = prepare_state(data)
+        retries = 0
+        while flags != 0 and retries < comptime(max_retries):
+            for q in range(32):
+                reset(data[q])
+            flags = prepare_state(data)
+            retries += 1
+        return flags
+
+    return preparation
