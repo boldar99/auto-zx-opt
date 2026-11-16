@@ -238,3 +238,14 @@ def repeat_until_success(
         return flags
 
     return preparation
+
+
+PREPARATION_METHODS = {
+    "d1": state_prep_32_20_4_zero_d1,
+    "d2": state_prep_32_20_4_zero_d2,
+    "d3": state_prep_32_20_4_zero_d3,
+    "d4": state_prep_32_20_4_zero_d4,
+    "d2_RUS": repeat_until_success(state_prep_32_20_4_zero_d2),
+    "d3_RUS": repeat_until_success(state_prep_32_20_4_zero_d3),
+    "d4_RUS": repeat_until_success(state_prep_32_20_4_zero_d4),
+}

@@ -24,24 +24,7 @@ from guppylang.std.builtins import array, output
 from guppylang.std.quantum import qubit
 
 from sol_experiment.logical_measurement import logical_z_meas
-from sol_experiment.logical_state_preparation import (
-    state_prep_32_20_4_zero_d1,
-    state_prep_32_20_4_zero_d2,
-    state_prep_32_20_4_zero_d3,
-    state_prep_32_20_4_zero_d4,
-    repeat_until_success,
-)
-
-
-PREPARATION_METHODS = {
-    "d1": state_prep_32_20_4_zero_d1,
-    "d2": state_prep_32_20_4_zero_d2,
-    "d3": state_prep_32_20_4_zero_d3,
-    "d4": state_prep_32_20_4_zero_d4,
-    "d2_RUS": repeat_until_success(state_prep_32_20_4_zero_d2),
-    "d3_RUS": repeat_until_success(state_prep_32_20_4_zero_d3),
-    "d4_RUS": repeat_until_success(state_prep_32_20_4_zero_d4),
-}
+from sol_experiment.logical_state_preparation import PREPARATION_METHODS
 
 
 def make_spam_experiment(prepare_state: GuppyFunctionDefinition) -> GuppyFunctionDefinition:
