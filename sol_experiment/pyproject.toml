@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sol-experiment"
+version = "0.1.0"
+description = "Guppy memory and fault-catalogue experiments for the [[32, 20, 4]] code."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "guppylang>=1.1.4,<2",
+    "local-sol @ git+ssh://git@github.com/Quantinuum/local-sol-example.git@c2232b1a030b4220e2ae81241a9bef17a1a884d3",
+    "stim==1.16.0",
+]
+
+[dependency-groups]
+dev = ["pytest>=8"]
+
+[tool.setuptools]
+packages = ["sol_experiment"]
+package-dir = { sol_experiment = "." }
+
+[tool.setuptools.package-data]
+sol_experiment = ["assets/**/*.stim", "assets/**/*.json"]
+
+[tool.uv]
+prerelease = "allow"
+index-strategy = "unsafe-best-match"
+
+[[tool.uv.index]]
+name = "quantinuum"
+url = "https://quantinuumsw.jfrog.io/artifactory/api/pypi/pypi_local/simple"

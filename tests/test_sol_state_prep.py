@@ -37,7 +37,7 @@ def test_preparation_compiles(name):
 def test_compiled_states_flags_and_retry_in_sol_environment(tmp_path):
     root = Path(__file__).resolve().parents[1]
     python = Path(os.environ.get(
-        "SPIDERWARP_SOL_PYTHON", root / "local_sol_example/.venv/bin/python"
+        "SPIDERWARP_SOL_PYTHON", root / "sol_experiment/.venv/bin/python"
     ))
     if not python.is_file():
         pytest.skip("Separately installed Guppy 1.x Sol environment unavailable")

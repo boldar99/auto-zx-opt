@@ -13,7 +13,7 @@ denominator. Zero cycles runs an initialization/readout baseline.
 
 From the repository root::
 
-    uv run --project local_sol_example --no-sync python -m sol_experiment.experiment_memory --initial-prep d4_RUS --qec-method steane_d3_RUS --num-cycles 10 --shots 10000
+    uv run --project sol_experiment --frozen python -m sol_experiment.experiment_memory --initial-prep d4_RUS --qec-method steane_d3_RUS --num-cycles 10 --shots 10000
 
 The JSON report is saved under out/memory/ unless --output specifies a file.
 The factory can also accept custom Guppy methods. Z readout is used throughout;
@@ -32,7 +32,7 @@ from guppylang.defs import GuppyFunctionDefinition
 from guppylang.std.builtins import array, comptime, output
 from guppylang.std.quantum import discard_array, qubit, h
 
-from local_sol_example.sol.sim import run_hugr
+from sol.sim import run_hugr
 
 from sol_experiment.logical_measurement import logical_z_meas
 from sol_experiment.logical_state_preparation import PREPARATION_METHODS

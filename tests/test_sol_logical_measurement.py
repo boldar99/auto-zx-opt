@@ -28,7 +28,7 @@ def syndrome(word):
 @pytest.fixture
 def run_guppy_check(tmp_path):
     python = Path(os.environ.get(
-        "SPIDERWARP_SOL_PYTHON", ROOT / "local_sol_example/.venv/bin/python"
+        "SPIDERWARP_SOL_PYTHON", ROOT / "sol_experiment/.venv/bin/python"
     ))
     if not python.is_file():
         pytest.skip("Separately installed Guppy 1.x environment unavailable")

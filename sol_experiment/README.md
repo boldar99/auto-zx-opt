@@ -8,27 +8,46 @@ Helios alpha noise model.
 
 ## Running experiments
 
-Run commands from the **repository root**, using the separate
-[`local_sol_example`](../local_sol_example/README.md) environment. It supplies
-Python 3.12+, Guppy 1.x, and the Sol runtime packages. Its README describes the
-authenticated package-index setup.
+This folder is an independent uv project. [`pyproject.toml`](pyproject.toml)
+declares its dependencies and [`uv.lock`](uv.lock) records the resolved versions.
+Use Python 3.12 or newer and run the commands below from the **repository root**.
+
+The runtime dependency is Quantinuum's
+[local-sol-example](https://github.com/Quantinuum/local-sol-example), distributed
+as `local-sol` and imported as `sol.sim`. uv installs it directly from GitHub at
+the revision declared in `pyproject.toml`, together with its Sol runtime packages.
+Guppy and Stim are also declared directly; pytest is in the default `dev` group.
+
+Before syncing, configure GitHub SSH access to that repository and the Quantinuum
+JFrog credentials described in its
+[setup instructions](https://github.com/Quantinuum/local-sol-example#setting-up-the-environment).
+The authenticated package index is configured in this project's `pyproject.toml`;
+credentials belong in your local authentication configuration.
 
 ```sh
-uv sync --frozen --project local_sol_example
+uv sync --project sol_experiment --locked
 ```
+
+This creates `sol_experiment/.venv` and installs the experiment package in editable
+mode, including its circuit/code assets. From inside the `sol_experiment` folder,
+the equivalent setup command is `uv sync --locked`.
+
+After changing dependencies in `pyproject.toml`, run `uv lock --project
+sol_experiment` and commit both project files. The commands below use the existing
+lockfile with `--frozen`.
 
 Compare preparation methods with a SPAM (state preparation and measurement)
 experiment. Each method gets the requested number of shots:
 
 ```sh
-uv run --project local_sol_example --no-sync python -m sol_experiment.experiment_SPAM \
+uv run --project sol_experiment --frozen python -m sol_experiment.experiment_SPAM \
     --methods d1 d2_RUS d3_RUS d4_RUS --shots 100 --processes 4 --seed 7
 ```
 
 Run one memory cycle with d3 RUS initialization and d3 RUS Steane ancillas:
 
 ```sh
-uv run --project local_sol_example --no-sync python -m sol_experiment.experiment_memory \
+uv run --project sol_experiment --frozen python -m sol_experiment.experiment_memory \
     --initial-prep d3_RUS --qec-method steane_d3_RUS \
     --num-cycles 1 --basis Z --shots 100 --processes 4 --seed 7 \
     --output out/memory/steane_d3_rus_Z_1cycle.json
@@ -46,10 +65,12 @@ to methods `d1 d2_RUS d3_RUS d4_RUS`, 1,000 shots per method, and eight processe
 
 | File | Responsibility |
 | --- | --- |
-| [logical_state_preparation.py](logical_state_preparation.py) | Encoded-zero preparation descriptions, their Guppy implementations, bounded RUS wrappers, and `PREPARATION_METHODS`. |
+| [circuit_descriptions.py](circuit_descriptions.py) | Shared plain Python preparation/extraction descriptions and detector groups, with no Guppy or Stim imports. |
+| [logical_state_preparation.py](logical_state_preparation.py) | Encoded-zero Guppy preparations, bounded RUS wrappers, and `PREPARATION_METHODS`. |
 | [QEC_steane.py](QEC_steane.py) | Conventional Steane extraction using a supplied encoded-zero ancilla preparation; factories for a single basis or a complete cycle. |
 | [QEC_optimized_steane.py](QEC_optimized_steane.py) | Raw optimized d4/d2 extraction circuits, detector metadata, and the dispatcher-driven cycle runner. |
-| [dispatchers.py](dispatchers.py) | Action names, dispatcher decisions, history capacity, and the default zero-flag policy. |
+| [optimized_steane_dispatchers.py](optimized_steane_dispatchers.py) | Action names, dispatcher decisions, history capacity, and the default zero-flag policy. |
+| [optimized_steane_fault_catalogue.py](optimized_steane_fault_catalogue.py) | Offline single-fault enumeration using the shared descriptions and Stim FlipSimulator, with compact Python/JSON records. |
 | [decoding.py](decoding.py) | Check/logical masks, lookup tables, decoder result types, and classical syndrome/logical-readout decoding. |
 | [logical_measurement.py](logical_measurement.py) | Destructive transversal Z measurement of a data block, followed by classical decoding. |
 | [circuit_utils.py](circuit_utils.py) | Compile-time emission of operation lists, including ancilla allocation, reset, and measurement lifetimes. |
@@ -150,6 +171,69 @@ those checks from 32 raw bits without decoding logical observables.
 syndrome decoder serves both extraction bases. Bit `i` of an integer mask denotes
 qubit `i`, check `i`, or flag `i`, according to the mask's role.
 
+## Offline single-fault catalogue
+
+[`optimized_steane_fault_catalogue.py`](optimized_steane_fault_catalogue.py) is
+specialized for the four [[32, 20, 4]] extractions. It uses the same Python circuit
+descriptions as the Guppy emitters and tracks errors with `stim.FlipSimulator`.
+The local Stim assets serve as independent test references. Guppy and SpiderWarp
+are not imported by the catalogue generator.
+
+Run from the repository root after syncing the project:
+
+```sh
+uv run --project sol_experiment --frozen python -m sol_experiment.optimized_steane_fault_catalogue \
+    --output out/optimized_steane_fault_catalogue.json
+```
+
+The default command generates all four catalogues. Use `--bases Z --distances 4`
+for just `Z_d4`. The Python API exposes the records and reconstructs operations
+when needed for inspecting a fault:
+
+```python
+from sol_experiment.optimized_steane_fault_catalogue import (
+    build_fault_catalogue, extraction_operations, load_catalogues,
+)
+
+catalogue = build_fault_catalogue("Z", 4)
+fault = catalogue.faults[0]
+operations, detectors = extraction_operations("Z", 4)
+operation = operations[fault.operation_index]
+compatible = catalogue.group_by_observation()  # (flags, syndrome) -> list of faults
+saved = load_catalogues("out/optimized_steane_fault_catalogue.json")
+```
+
+Each `FaultResponse` has just six fields:
+
+- `operation_index` and `pauli`: the zero-based elementary gate location and
+  ordered Pauli factors, including any identity factor of a two-qubit fault.
+  Measurement faults occur before M; all other faults occur after the operation.
+- `flags` and `syndrome`: detector-outcome changes, in detector-row order.
+- `data_x` and `data_z`: the physical output Pauli on the data, with bit `q`
+  identifying qubit `q`. Phases are ignored and there is no stabilizer reduction.
+
+The model includes all 15 nonidentity two-qubit Pauli alternatives, X/Y/Z faults
+after one-qubit gates, reset flips, and readout flips. `RX` and `MX` are expanded
+into separate R/H and H/M operations, matching the Guppy emitter. The Z variants
+include their initial/final data Hadamards as fault locations. Idle, transport,
+and leakage faults and probability weights are outside this catalogue.
+
+| Catalogue | Single-fault alternatives |
+| --- | ---: |
+| `X_d2` | 2,010 |
+| `X_d4` | 2,584 |
+| `Z_d2` | 2,202 |
+| `Z_d4` | 2,776 |
+
+Duplicate and invisible fault responses are retained. The no-fault case is the
+all-zero response and is not included among the single-fault rows. No incoming
+errors, history-dependent corrections, or acceptance decisions are added here.
+
+The saved JSON simply maps action names such as `Z_d4` to their fault records.
+Operations are reconstructed from the shared descriptions. Regenerate the file
+after editing a description. A later history/decision-table builder can consume
+the Python records or JSON and embed integer tables at Guppy compile time.
+
 ## Acceptance and logical errors
 
 Each shot emits `accepted` and `logical_error`. A memory shot accepts only if
@@ -178,7 +262,8 @@ the configuration, seed, counts (`shots`, `accepted`, `logical_errors`), and
 fractional rates (`AR`, `LER`). Undefined rates are written as `null`. SPAM prints
 its results without saving a JSON report.
 
-The runner is [`local_sol_example/sol/sim.py`](../local_sol_example/sol/sim.py).
+The runner is `sol.sim` from the installed
+[local-sol-example](https://github.com/Quantinuum/local-sol-example) dependency.
 Initialization, QEC operations, and terminal measurement all use
 `qsystem_model_alpha`; both CLIs select Stim and set `coherent_dephasing=False`.
 The memory runner currently compiles with `OptimizationLevel.Default` and uses
@@ -208,14 +293,15 @@ its own accepted corrections. Pass it to `make_memory_experiment` or register it
 in `QEC_METHODS`. The memory factory also takes the initial preparation, cycle
 count, and basis.
 
-Run the focused tests from an environment containing SpiderWarp's test
-dependencies:
+Run the standalone catalogue tests using the project's development dependencies:
 
 ```sh
-python -m pytest -q tests/test_sol_*.py
+uv run --project sol_experiment --frozen python -m pytest -q tests/test_sol_optimized_steane_fault_catalogue.py
 ```
 
-Compiled Guppy checks use `local_sol_example/.venv/bin/python` by default;
+The broader repository tests can be run from an environment containing
+SpiderWarp's test dependencies with `python -m pytest -q tests/test_sol_*.py`.
+Compiled Guppy checks use `sol_experiment/.venv/bin/python` by default;
 `SPIDERWARP_SOL_PYTHON` can select another compatible interpreter. They cover
 encoded-state preservation, bounded retries, detector parities, decoder
 corrections/rejections, encoded Bell preservation, and whole-trajectory memory

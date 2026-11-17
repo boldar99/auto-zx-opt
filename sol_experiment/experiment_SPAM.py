@@ -9,7 +9,7 @@ all-zero state. LER is conditional on acceptance; AR uses all attempted shots.
 
 Run from the repository root, for example::
 
-    uv run --project local_sol_example --no-sync python -m sol_experiment.experiment_SPAM --method d3 --shots 10000
+    uv run --project sol_experiment --frozen python -m sol_experiment.experiment_SPAM --method d3 --shots 10000
 
 Use --methods d1 d2 d3 d4 to compare preparations. Each method is bound to a
 separate zero-argument Guppy program before compilation. A custom method can
@@ -94,7 +94,7 @@ def main() -> None:
     import argparse
 
     from guppylang import OptimizationLevel
-    from local_sol_example.sol.sim import run_hugr, shot_viewer
+    from sol.sim import run_hugr, shot_viewer
 
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument(
