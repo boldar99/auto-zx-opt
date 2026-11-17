@@ -20,12 +20,7 @@ Z_BASIS, X_BASIS = 0, 1
 
 
 class DispatcherAction(IntEnum):
-    """Named action codes embedded as integers for Guppy 1.1.4.
-
-    This compiler supports @guppy.enum constructors, but not matching or
-    comparing their variants. Keep that workaround at the compile-time edge.
-    """
-
+    """Named action codes embedded as integers for Guppy 1.1.4."""
     Z4 = 0
     X4 = 1
     Z2 = 2
