@@ -4,7 +4,7 @@ The Python circuit description contains operations and two named detector
 groups: flags and syndrome. Detectors use end-of-circuit Stim rec offsets.
 Compile-time tracing emits the circuit and its parity calculations; runtime
 Guppy code dispatches extractions and applies the terminal physical correction.
-Classical acceptance and decoding policies live in sol_experiment.dispatchers.
+Classical acceptance and decoding policies live in sol_experiment.optimized_steane_dispatchers.
 """
 from typing import Literal, NamedTuple
 
@@ -301,7 +301,7 @@ def make_optimized_steane_qec_cycle(
 
     Call dispatcher_function(history, length) first with an empty history,
     then after appending each (basis, distance, flags, syndrome) observation.
-    Basis values and decision actions are named in sol_experiment.dispatchers.
+    Basis values and decision actions are named in sol_experiment.optimized_steane_dispatchers.
     The dispatcher must preserve the history and return DispatchDecision.
 
     Z4/X4/Z2/X2 request another extraction; ACCEPT applies X/Z correction masks
