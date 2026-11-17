@@ -48,7 +48,8 @@ to methods `d1 d2_RUS d3_RUS d4_RUS`, 1,000 shots per method, and eight processe
 | --- | --- |
 | [logical_state_preparation.py](logical_state_preparation.py) | Encoded-zero preparation descriptions, their Guppy implementations, bounded RUS wrappers, and `PREPARATION_METHODS`. |
 | [QEC_steane.py](QEC_steane.py) | Conventional Steane extraction using a supplied encoded-zero ancilla preparation; factories for a single basis or a complete cycle. |
-| [QEC_optimized_steane.py](QEC_optimized_steane.py) | Optimized d4 extraction circuit, flag/syndrome detector metadata, and correction factories. |
+| [QEC_optimized_steane.py](QEC_optimized_steane.py) | Raw optimized d4/d2 extraction circuits, detector metadata, and the dispatcher-driven cycle runner. |
+| [dispatchers.py](dispatchers.py) | Action names, dispatcher decisions, history capacity, and the default zero-flag policy. |
 | [decoding.py](decoding.py) | Check/logical masks, lookup tables, decoder result types, and classical syndrome/logical-readout decoding. |
 | [logical_measurement.py](logical_measurement.py) | Destructive transversal Z measurement of a data block, followed by classical decoding. |
 | [circuit_utils.py](circuit_utils.py) | Compile-time emission of operation lists, including ancilla allocation, reset, and measurement lifetimes. |
@@ -85,9 +86,9 @@ These attempts belong to one experimental shot.
 
 ## QEC and decoding
 
-Both QEC implementations run **Z checks followed by X checks**. Z checks correct
-X errors, and X checks correct Z errors. Accepted corrections are applied as
-physical Pauli gates to the borrowed data block.
+The conventional cycle and default optimized dispatcher run **Z checks followed
+by X checks**. Z checks correct X errors, and X checks correct Z errors. Accepted
+corrections are applied as physical Pauli gates to the borrowed data block.
 
 The conventional implementation allocates a verified 32-qubit ancilla for each
 basis. For Z checks it converts the ancilla to encoded plus, couples data to
@@ -97,11 +98,43 @@ is prepared; the supplied verified preparations need at most 66 live qubits
 including the persistent data. Only ancilla preparation is retried. A rejected
 syndrome ends the trajectory.
 
-The optimized implementation uses a fixed extraction circuit with named flag
-and syndrome detector groups, requiring at most 60 live qubits including data.
-Its Z-check variant conjugates the X-check extraction with transversal H on data
-and restores the data basis before returning. Any raised flag rejects; otherwise
-the shared syndrome decoder decides acceptance. This extraction is not retried.
+The optimized implementation offers four raw actions: `Z4`, `X4`, `Z2`, and `X2`.
+The d4/d2 circuits require at most 60/51 live qubits including data. A Z-check
+variant conjugates the X-check extraction with transversal H on data and restores
+the data basis before returning. `make_optimized_steane_circuit(basis, distance)`
+returns only `(flags, syndrome)`, leaving acceptance and decoding to a dispatcher.
+
+`make_optimized_steane_qec_cycle(dispatcher_function=zero_flag_dispatcher)` binds
+the classical policy before compilation. The runner calls
+`dispatcher_function(history, history_length)` with length zero to choose the
+first action, then again after each extraction:
+
+- Each history entry is `(basis, distance, flags, syndrome)`, with `Z_BASIS=0`
+  and `X_BASIS=1`.
+- History is a three-entry Guppy array; only the first `history_length` entries
+  are valid. It starts empty for every cycle and must be preserved by the
+  dispatcher. Experimental runtime tuple lists do not compile in this stack.
+- The dispatcher returns `DispatchDecision(action, correction_x, correction_z)`.
+  Use the `DispatcherAction` members `Z4`, `X4`, `Z2`, or `X2` to request an
+  extraction, embedded with `comptime(DispatcherAction.X4.value)` and so on.
+  `DispatcherAction.REJECT` ends the cycle; `DispatcherAction.ACCEPT` applies both
+  correction masks once and ends successfully. Correction fields on other
+  actions are ignored. Both terminal actions also work on an empty history.
+- `HISTORY_CAPACITY = 3` in `dispatchers.py` fixes the history storage for all
+  dispatchers. After three extractions, a terminal decision is still honored;
+  requesting another extraction rejects without accessing beyond the array.
+
+The default zero-flag dispatcher chooses `Z4` on an empty history and rejects
+raised flags immediately. It accepts either `Z4` or `X4` as the first recorded
+extraction and requests the dual d4 extraction. After the pair, it decodes both
+stored syndromes and rejects if either is ambiguous. Z-check syndromes supply
+the X correction and X-check syndromes the Z correction, in either order. No
+syndrome correction is applied before final acceptance. Custom dispatchers can
+choose a different first action, path, or correction rule; the runner adds no
+flag/syndrome rejection policy of its own.
+
+`DispatcherAction` is a Python `IntEnum` embedded as integer constants: installed Guppy
+1.1.4 supports `@guppy.enum` constructors but not variant matching or equality.
 
 The shared decoder in `decoding.py` accepts the zero syndrome and the 32 distinct
 single-bit syndromes, returning a zero- or one-qubit correction. It rejects the

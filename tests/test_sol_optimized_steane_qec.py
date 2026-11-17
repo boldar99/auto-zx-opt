@@ -1,6 +1,6 @@
 """Compiled optimized extraction: detector ordering, rejection, and correction."""
 
-from itertools import combinations
+from itertools import combinations, product
 
 import stim
 
@@ -65,31 +65,29 @@ from guppylang.std.builtins import array, output
 from guppylang.std.quantum import qubit, measure
 from selene_sim.backends import ClassicalReplay
 from sol_experiment.QEC_optimized_steane import (
-    make_optimized_steane_d4, make_optimized_steane_qec_cycle,
+    make_optimized_steane_circuit, make_optimized_steane_qec_cycle,
 )
 from sol_experiment.decoding import decode_syndrome
 
 for invalid in ("Y", "", None):
     try:
-        make_optimized_steane_d4(invalid)
+        make_optimized_steane_circuit(invalid, 4)
     except ValueError:
         pass
     else:
         raise AssertionError(invalid)
 
-qec_x = make_optimized_steane_d4("X")
-qec_z = make_optimized_steane_d4("Z")
+qec_x = make_optimized_steane_circuit("X", 4)
+qec_z = make_optimized_steane_circuit("Z", 4)
 cycle = make_optimized_steane_qec_cycle()
 
 
 @guppy
 def entry(z_checks: bool) -> None:
     data = array(qubit() for _ in range(32))
-    result = qec_z(data) if z_checks else qec_x(data)
-    output("accepted", result.accepted)
-    output("flags", result.flags)
-    output("syndrome", result.syndrome)
-    output("correction", result.correction)
+    flags, syndrome = qec_z(data) if z_checks else qec_x(data)
+    output("flags", flags)
+    output("syndrome", syndrome)
     output("data", array(measure(q).read() for q in data))
 
 
@@ -116,16 +114,16 @@ result = (entry.with_opt_level(OptimizationLevel.Minimal).emulator(n_qubits=60)
           .with_timeout(timedelta(seconds=20))
           .run_per_shot([dict(z_checks=z) for z in (False, True) for _ in cases]))
 for shot, case in zip(result.collated_shots(), cases * 2):
-    for key in ("accepted", "flags", "syndrome", "correction"):
+    for key in ("flags", "syndrome"):
         assert shot[key] == [case[key]], (key, case, shot)
     assert shot["data"] == [tail], (case, shot)
 
-# A rejected first extraction skips the second; a rejected second extraction
-# still rejects the entire cycle. Only performed extractions consume records.
+# A raised first flag skips the second extraction. Ambiguous syndromes are
+# decoded only after both extractions, and either terminal ambiguity rejects.
 good = next(c["raw"] for c in cases if c["flags"] == 0 and c["syndrome"] == 0)
 flagged = next(c["raw"] for c in cases if c["flags"] != 0)
 ambiguous = next(c["raw"] for c in cases if c["flags"] == 0 and not c["accepted"])
-cycle_records = [flagged + tail, ambiguous + tail,
+cycle_records = [flagged + tail, ambiguous + good + tail,
                  good + flagged + tail, good + ambiguous + tail,
                  good + good + tail]
 shots = (cycle_entry.with_opt_level(OptimizationLevel.Minimal).emulator(n_qubits=60)
@@ -146,25 +144,20 @@ for shot, value in zip(shots, values):
 ''', cases)
 
 
-def test_optimized_correction_preserves_encoded_bells(run_guppy_check):
+def test_optimized_cycle_preserves_encoded_bells(run_guppy_check):
     singles = [1 << q for q in range(32)]
     doubles = [(1 << a) | (1 << b) for a, b in combinations(range(32), 2)]
+    errors = [(x, z) for x in [0] + singles for z in [0] + singles]
+    errors += [(e, 0) for e in doubles] + [(0, e) for e in doubles]
     cases = []
-    for z_checks in (False, True):
-        errors = [(e, 0) if z_checks else (0, e) for e in [0] + singles + doubles]
-        errors += [(e, e) for e in singles]
-        errors += [(0, e) if z_checks else (e, 0) for e in singles]
-        for x_error, z_error in errors:
-            relevant = x_error if z_checks else z_error
-            accepted = relevant.bit_count() <= 1
-            correction = relevant if accepted else 0
-            cases.append(dict(
-                args=dict(z_checks=z_checks, x_error=x_error, z_error=z_error,
-                          undo_x=x_error ^ (correction if z_checks else 0),
-                          undo_z=z_error ^ (correction if not z_checks else 0)),
-                accepted=int(accepted), flags=0, syndrome=syndrome(relevant),
-                correction=correction,
-            ))
+    for x_first, (x_error, z_error) in product((False, True), errors):
+        accepted = x_error.bit_count() <= 1 and z_error.bit_count() <= 1
+        cases.append(dict(
+            args=dict(x_first=x_first, x_error=x_error, z_error=z_error,
+                      undo_x=0 if accepted else x_error,
+                      undo_z=0 if accepted else z_error),
+            accepted=int(accepted),
+        ))
 
     run_guppy_check('''
 from datetime import timedelta
@@ -172,15 +165,29 @@ import json
 from pathlib import Path
 import sys
 from guppylang import guppy, OptimizationLevel
-from guppylang.std.builtins import array, output
+from guppylang.std.builtins import array, comptime, output
 from guppylang.std.quantum import qubit, h, cx, x, z, measure
-from sol_experiment.QEC_optimized_steane import make_optimized_steane_d4
+from sol_experiment.QEC_optimized_steane import make_optimized_steane_qec_cycle
+from sol_experiment.dispatchers import (
+    HISTORY_CAPACITY, DispatcherAction, DispatchDecision, zero_flag_dispatcher,
+)
 from sol_experiment.logical_state_preparation import state_prep_32_20_4_zero_d1
 
 request = json.loads(Path(sys.argv[1]).read_text())
 INVERSE = request["inverse"]
-qec_x = make_optimized_steane_d4("X")
-qec_z = make_optimized_steane_d4("Z")
+cycle = make_optimized_steane_qec_cycle()
+
+
+@guppy
+def x_first_dispatcher(
+    history: array[tuple[int, int, int, int], comptime(HISTORY_CAPACITY)], count: int,
+) -> DispatchDecision:
+    if count == 0:
+        return DispatchDecision(comptime(DispatcherAction.X4.value), 0, 0)
+    return zero_flag_dispatcher(history, count)
+
+
+cycle_x_first = make_optimized_steane_qec_cycle(x_first_dispatcher)
 
 
 @guppy.comptime
@@ -195,7 +202,7 @@ def decode(data: array[qubit, 32]) -> None:
 
 
 @guppy
-def entry(z_checks: bool, x_error: int, z_error: int, undo_x: int, undo_z: int) -> None:
+def entry(x_first: bool, x_error: int, z_error: int, undo_x: int, undo_z: int) -> None:
     data = array(qubit() for _ in range(32))
     reference = array(qubit() for _ in range(32))
     state_prep_32_20_4_zero_d1(data)
@@ -209,14 +216,10 @@ def entry(z_checks: bool, x_error: int, z_error: int, undo_x: int, undo_z: int) 
             x(data[i])
         if (z_error & (1 << i)) != 0:
             z(data[i])
-    result = qec_z(data) if z_checks else qec_x(data)
-    output("accepted", result.accepted)
-    output("flags", result.flags)
-    output("syndrome", result.syndrome)
-    output("correction", result.correction)
+    output("accepted", cycle_x_first(data) if x_first else cycle(data))
 
-    # Remove the expected residual Pauli, then undo the encoded Bell state.
-    # Zero outcomes on all 64 qubits verify every logical qubit and stabilizer.
+    # Rejected trajectories must have received no partial correction. Accepted
+    # trajectories must be corrected in both components, on all logical qubits.
     for i in range(32):
         if (undo_x & (1 << i)) != 0:
             x(data[i])
@@ -238,8 +241,7 @@ shots = (entry.with_opt_level(OptimizationLevel.Minimal).emulator(n_qubits=92)
          .run_per_shot([case["args"] for case in cases]).collated_shots())
 assert len(shots) == len(cases)
 for shot, case in zip(shots, cases):
-    for key in ("accepted", "flags", "syndrome", "correction"):
-        assert shot[key] == [case[key]], (key, case, shot)
+    assert shot["accepted"] == [case["accepted"]], (case, shot)
     assert shot["data"] == shot["reference"] == [[0] * 32], (case, shot)
 print(len(cases), "encoded Bell cases passed")
 ''', dict(inverse=inverse_encoder(), cases=cases))

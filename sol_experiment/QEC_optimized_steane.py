@@ -3,7 +3,8 @@
 The Python circuit description contains operations and two named detector
 groups: flags and syndrome. Detectors use end-of-circuit Stim rec offsets.
 Compile-time tracing emits the circuit and its parity calculations; runtime
-Guppy code handles acceptance, syndrome decoding, and physical correction.
+Guppy code dispatches extractions and applies the terminal physical correction.
+Classical acceptance and decoding policies live in sol_experiment.dispatchers.
 """
 from typing import Literal, NamedTuple
 
@@ -13,7 +14,9 @@ from guppylang.std.builtins import array, comptime
 from guppylang.std.quantum import h, qubit, x, z
 
 from sol_experiment.circuit_utils import emit_circuit
-from sol_experiment.decoding import decode_syndrome
+from sol_experiment.optimized_steane_dispatchers import (
+    HISTORY_CAPACITY, X_BASIS, Z_BASIS, DispatcherAction,
+)
 from sol_experiment.measurement_utils import pack_detector_parities
 
 
@@ -22,21 +25,6 @@ class DetectorGroups(NamedTuple):
 
     flags: list[tuple[int, ...]]
     syndrome: list[tuple[int, ...]]
-
-
-@guppy.struct
-class OptimizedSteaneQECResult:
-    """One extraction's outcome, with any accepted correction already applied.
-
-    flags packs the flag detectors; syndrome packs the syndrome detectors in
-    check row order. A flag or ambiguous syndrome rejects with correction zero.
-    The borrowed data remains available on every path, including rejection.
-    """
-
-    accepted: bool
-    flags: int
-    syndrome: int
-    correction: int
 
 
 def optimized_steane_32_20_4_X_d4() -> tuple[list[tuple[str, list[int]]], DetectorGroups]:
@@ -167,7 +155,7 @@ def optimized_steane_32_20_4_X_d4() -> tuple[list[tuple[str, list[int]]], Detect
 
 
 def optimized_steane_32_20_4_X_d2() -> tuple[list[tuple[str, list[int]]], DetectorGroups]:
-    """Describe X-check extraction with 11 flags and six syndrome detectors."""
+    """Describe X-check extraction with six flags and six syndrome detectors."""
     ops = [
         ("RX", [32, 33]),
         ("R", [34]),
@@ -268,24 +256,26 @@ def optimized_steane_32_20_4_X_d2() -> tuple[list[tuple[str, list[int]]], Detect
     return ops, DetectorGroups(flags=flag_detectors, syndrome=syndrome_detectors)
 
 
-def make_optimized_steane_d4(
+def make_optimized_steane_circuit(
     basis: Literal["X", "Z"],
+    distance: Literal[4, 2],
 ) -> GuppyFunctionDefinition:
-    """Return qec(data: array[qubit, 32]) -> OptimizedSteaneQECResult.
+    """Return raw extract(data) -> (flags, syndrome), without decoding.
 
-    The basis names the measured checks: X checks correct Z errors, and Z
-    checks correct X errors. The Z variant conjugates the entire X extraction
-    with transversal H on data, restoring its basis before any rejection.
-    Each extraction uses at most 60 live qubits, including the data block.
-
-    Nonzero flags are postselected; otherwise use the shared syndrome decoder.
-    Rejection happens after data interaction, so the caller must reject the
-    shot. This function does not retry or reset the data.
+    Z checks correct X errors; X checks correct Z errors. The Z variant wraps
+    the X extraction in transversal H on data and restores the data basis.
+    The d4/d2 circuits need at most 60/51 live qubits including the data.
     """
+    if distance not in (4, 2):
+        raise ValueError("Circuit distance must be 4 or 2")
     if basis not in ("X", "Z"):
         raise ValueError("basis must be 'X' or 'Z'")
 
-    operations, detectors = optimized_steane_32_20_4_X_d4()
+    qec_method = {
+        2: optimized_steane_32_20_4_X_d2,
+        4: optimized_steane_32_20_4_X_d4,
+    }[distance]
+    operations, detectors = qec_method()
 
     @guppy.comptime
     def extract(data: array[qubit, 32]) -> tuple[int, int]:
@@ -301,38 +291,62 @@ def make_optimized_steane_d4(
         syndrome = pack_detector_parities(readout, detectors.syndrome)
         return flags, syndrome
 
-    @guppy
-    def qec(data: array[qubit, 32]) -> OptimizedSteaneQECResult:
-        flags, syndrome = extract(data)
-        if flags != 0:
-            return OptimizedSteaneQECResult(False, flags, syndrome, 0)
-
-        decoded = decode_syndrome(syndrome)
-        if not decoded.accepted:
-            return OptimizedSteaneQECResult(False, flags, syndrome, 0)
-
-        for i in range(32):
-            if (decoded.correction & (1 << i)) != 0:
-                if comptime(basis == "Z"):
-                    x(data[i])
-                else:
-                    z(data[i])
-        return OptimizedSteaneQECResult(True, flags, syndrome, decoded.correction)
-
-    return qec
+    return extract
 
 
-def make_optimized_steane_qec_cycle() -> GuppyFunctionDefinition:
-    """Return cycle(data) -> bool, running Z then X checks; stop on rejection."""
-    qec_z = make_optimized_steane_d4("Z")
-    qec_x = make_optimized_steane_d4("X")
+def make_optimized_steane_qec_cycle(
+    dispatcher_function: GuppyFunctionDefinition,
+) -> GuppyFunctionDefinition:
+    """Bind a dispatcher and return cycle(data) -> bool.
+
+    Call dispatcher_function(history, length) first with an empty history,
+    then after appending each (basis, distance, flags, syndrome) observation.
+    Basis values and decision actions are named in sol_experiment.dispatchers.
+    The dispatcher must preserve the history and return DispatchDecision.
+
+    Z4/X4/Z2/X2 request another extraction; ACCEPT applies X/Z correction masks
+    once and returns True; REJECT returns False. Unknown actions and requests
+    beyond the three-entry history reject without applying a correction. Data are
+    borrowed and retained on every path. Each invocation starts a fresh history.
+    """
+    qec_z4 = make_optimized_steane_circuit("Z", 4)
+    qec_x4 = make_optimized_steane_circuit("X", 4)
+    qec_z2 = make_optimized_steane_circuit("Z", 2)
+    qec_x2 = make_optimized_steane_circuit("X", 2)
 
     @guppy
     def cycle(data: array[qubit, 32]) -> bool:
-        first = qec_z(data)
-        if not first.accepted:
-            return False
-        second = qec_x(data)
-        return second.accepted
+        history = array((0, 0, 0, 0) for _ in range(comptime(HISTORY_CAPACITY)))
+        for history_length in range(comptime(HISTORY_CAPACITY + 1)):
+            decision = dispatcher_function(history, history_length)
+            if decision.action == comptime(DispatcherAction.REJECT.value):
+                return False
+            if decision.action == comptime(DispatcherAction.ACCEPT.value):
+                for i in range(32):
+                    if (decision.correction_x & (1 << i)) != 0:
+                        x(data[i])
+                    if (decision.correction_z & (1 << i)) != 0:
+                        z(data[i])
+                return True
+            if history_length == comptime(HISTORY_CAPACITY):
+                return False
+
+            if decision.action == comptime(DispatcherAction.Z4.value):
+                flags, syndrome = qec_z4(data)
+                basis, distance = comptime(Z_BASIS), 4
+            elif decision.action == comptime(DispatcherAction.X4.value):
+                flags, syndrome = qec_x4(data)
+                basis, distance = comptime(X_BASIS), 4
+            elif decision.action == comptime(DispatcherAction.Z2.value):
+                flags, syndrome = qec_z2(data)
+                basis, distance = comptime(Z_BASIS), 2
+            elif decision.action == comptime(DispatcherAction.X2.value):
+                flags, syndrome = qec_x2(data)
+                basis, distance = comptime(X_BASIS), 2
+            else:
+                return False
+
+            history[history_length] = (basis, distance, flags, syndrome)
+        return False
 
     return cycle
