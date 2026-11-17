@@ -67,7 +67,7 @@ from selene_sim.backends import ClassicalReplay
 from sol_experiment.QEC_optimized_steane import (
     make_optimized_steane_d4, make_optimized_steane_qec_cycle,
 )
-from sol_experiment.logical_measurement import decode_syndrome
+from sol_experiment.decoding import decode_syndrome
 
 for invalid in ("Y", "", None):
     try:

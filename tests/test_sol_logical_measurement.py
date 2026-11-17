@@ -53,7 +53,7 @@ def run_guppy_check(tmp_path):
 def test_tables_match_reference_and_reject_ambiguous_cosets(run_guppy_check):
     tables = json.loads(run_guppy_check('''
 import json
-from sol_experiment.logical_measurement import (
+from sol_experiment.decoding import (
     Z_CHECK_MASKS, LOGICAL_Z_MASKS, CORRECTIONS, POST_SELECT,
 )
 print(json.dumps([Z_CHECK_MASKS, LOGICAL_Z_MASKS, CORRECTIONS, POST_SELECT]))
@@ -105,7 +105,8 @@ from guppylang import guppy, OptimizationLevel
 from guppylang.std.builtins import array, output
 from guppylang.std.quantum import qubit, x
 from selene_sim.backends import ClassicalReplay
-from sol_experiment.logical_measurement import decode_z_readout, logical_z_meas
+from sol_experiment.decoding import decode_z_readout
+from sol_experiment.logical_measurement import logical_z_meas
 from sol_experiment.logical_state_preparation import state_prep_32_20_4_zero_d3
 from sol_experiment.experiment_SPAM import make_spam_experiment, summarize_result
 

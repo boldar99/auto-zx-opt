@@ -23,7 +23,7 @@ from guppylang.defs import GuppyFunctionDefinition
 from guppylang.std.builtins import array, comptime
 from guppylang.std.quantum import cx, discard_array, h, measure_array, qubit, x, z
 
-from sol_experiment.logical_measurement import decode_readout_syndrome
+from sol_experiment.decoding import decode_readout_syndrome
 
 
 @guppy.struct

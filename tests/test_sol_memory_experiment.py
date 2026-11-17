@@ -34,7 +34,7 @@ from guppylang import guppy, OptimizationLevel
 from guppylang.std.builtins import array, output
 from guppylang.std.quantum import qubit, x
 from sol_experiment.experiment_memory import make_memory_experiment
-from sol_experiment.logical_measurement import LOGICAL_Z_MASKS
+from sol_experiment.decoding import LOGICAL_Z_MASKS
 from sol_experiment.logical_state_preparation import state_prep_32_20_4_zero_d1
 from sol_experiment.experiment_SPAM import summarize_result
 

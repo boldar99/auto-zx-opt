@@ -13,7 +13,7 @@ from guppylang.std.builtins import array, comptime
 from guppylang.std.quantum import h, qubit, x, z
 
 from sol_experiment.circuit_utils import emit_circuit
-from sol_experiment.logical_measurement import decode_syndrome
+from sol_experiment.decoding import decode_syndrome
 from sol_experiment.measurement_utils import pack_detector_parities
 
 

@@ -141,12 +141,12 @@ def main(argv: list[str] | None = None) -> Path:
         help="Initial data-block preparation",
     )
     parser.add_argument(
-        "--qec-method", choices=QEC_METHODS, default="optimized_steane",
+        "--qec-method", choices=QEC_METHODS, default="steane_d3_RUS",
         help="Complete QEC cycle; suffix names its ancilla preparation",
     )
-    parser.add_argument("--num-cycles", type=int, default=1, help="QEC cycles per trajectory")
+    parser.add_argument("--num-cycles", type=int, default=10, help="QEC cycles per trajectory")
     parser.add_argument("--basis", type=str, default="Z", choices=["Z", "X"], help="QEC cycles per trajectory")
-    parser.add_argument("--shots", type=int, default=1000, help="Number of trajectories")
+    parser.add_argument("--shots", type=int, default=2500, help="Number of trajectories")
     parser.add_argument("--processes", type=int, default=8, help="Parallel simulation processes")
     parser.add_argument("--seed", type=int, help="Simulation seed; generated and saved if omitted")
     parser.add_argument("--output", type=Path, help="JSON report path; otherwise out/memory/<timestamp>.json")
