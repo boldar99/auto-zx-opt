@@ -52,7 +52,7 @@ from pathlib import Path
 import sys
 from guppylang import guppy, OptimizationLevel
 from guppylang.std.builtins import array, comptime, output
-from sol_experiment.dispatchers import HISTORY_CAPACITY, zero_flag_dispatcher
+from sol_experiment.optimized_steane_dispatchers import HISTORY_CAPACITY, zero_flag_dispatcher
 
 
 @guppy
@@ -129,7 +129,7 @@ from selene_sim.backends import ClassicalReplay
 from sol_experiment.QEC_optimized_steane import (
     make_optimized_steane_circuit, make_optimized_steane_qec_cycle,
 )
-from sol_experiment.dispatchers import HISTORY_CAPACITY, DispatcherAction, DispatchDecision
+from sol_experiment.optimized_steane_dispatchers import HISTORY_CAPACITY, DispatcherAction, DispatchDecision
 from sol_experiment.logical_state_preparation import state_prep_32_20_4_zero_d1
 
 request = json.loads(Path(sys.argv[1]).read_text())

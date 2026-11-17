@@ -168,7 +168,7 @@ from guppylang import guppy, OptimizationLevel
 from guppylang.std.builtins import array, comptime, output
 from guppylang.std.quantum import qubit, h, cx, x, z, measure
 from sol_experiment.QEC_optimized_steane import make_optimized_steane_qec_cycle
-from sol_experiment.dispatchers import (
+from sol_experiment.optimized_steane_dispatchers import (
     HISTORY_CAPACITY, DispatcherAction, DispatchDecision, zero_flag_dispatcher,
 )
 from sol_experiment.logical_state_preparation import state_prep_32_20_4_zero_d1
